@@ -366,7 +366,7 @@ async function run() {
   writeFileSync(tmpFile, sql, 'utf8')
   try {
     const output = execSync(
-      `npx wrangler d1 execute queens --remote --file "${tmpFile}" --json`,
+      `npx wrangler d1 execute queens --remote --file "${tmpFile}" --json --yes`,
       { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'] }
     ).toString()
     const jsonStart = output.indexOf('[')
