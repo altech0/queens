@@ -123,11 +123,13 @@ function escape(s: string): string {
 // DB helpers
 // ---------------------------------------------------------------------------
 
+const WRANGLER_ENV = { ...process.env, WRANGLER_SEND_METRICS: 'false' }
+
 function fetchExistingState(): { existingSolutions: Set<string>, maxCode: number | null } {
   try {
     const result = execSync(
-      `npx wrangler d1 execute queens --remote --command "SELECT solution, code FROM puzzles" --json`,
-      { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'] }
+      `npx wrangler d1 execute queens --remote --command "SELECT solution, code FROM puzzles" --json --yes`,
+      { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], env: WRANGLER_ENV }
     ).toString()
     const parsed = JSON.parse(result)
     const rows: { solution: string, code: number | null }[] = parsed?.[0]?.results ?? []
@@ -367,7 +369,7 @@ async function run() {
   try {
     const output = execSync(
       `npx wrangler d1 execute queens --remote --file "${tmpFile}" --json --yes`,
-      { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'] }
+      { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], env: WRANGLER_ENV }
     ).toString()
     const jsonStart = output.indexOf('[')
     const jsonEnd = output.lastIndexOf(']')

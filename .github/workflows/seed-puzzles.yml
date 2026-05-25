@@ -76,3 +76,4 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_TO: ${{ secrets.RESEND_TO }}
+          WRANGLER_SEND_METRICS: false
