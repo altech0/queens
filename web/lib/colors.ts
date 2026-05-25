@@ -1,4 +1,4 @@
-export const REGION_COLORS = [
+const PASTEL = [
   '#c8b4e8', // lavender
   '#b4d4f0', // sky blue
   '#b4e8c8', // mint
@@ -11,6 +11,19 @@ export const REGION_COLORS = [
   '#b4f0e8', // aqua
 ]
 
-export function regionColor(regionId: number): string {
-  return REGION_COLORS[regionId % REGION_COLORS.length]
+const HIGH_CONTRAST = [
+  '#a07fd4', // vivid lavender
+  '#5b9fd6', // vivid blue
+  '#5bbf8a', // vivid green
+  '#d4a83c', // vivid gold
+  '#d45b80', // vivid rose
+  '#5b7dd4', // vivid indigo
+  '#d47845', // vivid orange
+  '#7bbf5b', // vivid lime
+  '#9b5bd4', // vivid purple
+  '#5bbfb5', // vivid teal
+]
+
+export function regionColor(regionId: number, enhanced = false): string {
+  return (enhanced ? HIGH_CONTRAST : PASTEL)[regionId % PASTEL.length]
 }
