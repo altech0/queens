@@ -863,54 +863,6 @@ struct GameView: View {
         }
     }
     
-    // MARK: - Completion Overlay
-    @ViewBuilder
-    private func completionOverlay() -> some View {
-        VStack(spacing: 20) {
-            Text("Congratulations!")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.4, green: 0.5, blue: 0.7),
-                            Color(red: 0.5, green: 0.6, blue: 0.8)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-                .scaleEffect(showCongratulations ? 1.0 : 0.5)
-                .opacity(showCongratulations ? 0 : 1)
-            
-            // Time display with share button
-            HStack(spacing: 12) {
-                Text(formatTime(completionTime))
-                    .font(.system(size: 32, weight: .semibold, design: .monospaced))
-                    .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
-                
-                // Share button - appears with time
-                if showCongratulations, let puzzle = puzzle {
-                    ShareLink(item: generateShareText(puzzle: puzzle, time: completionTime)) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
-                            .frame(width: 28, height: 28)
-                    }
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.9))
-                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-            )
-            .opacity(showCongratulations ? 1 : 0)
-        }
-        .padding()
-    }
-    
     private func loadPuzzle() async {
         logger.info("🎮 GameView: Starting puzzle load")
         isLoading = true
@@ -1304,7 +1256,6 @@ struct GameView: View {
         
         switch result {
         case .valid:
-            print("✅ Puzzle solved correctly!")
             // Puzzle completed successfully!
             completionTime = elapsedTime
             stopTimer()
@@ -1327,15 +1278,9 @@ struct GameView: View {
             }
             
         case .incomplete:
-            if errors.isEmpty {
-                print("⏳ Keep going... all correct so far!")
-            } else {
-                print("❌ Some errors found")
-            }
             flashErrors(errors)
-            
+
         case .invalid:
-            print("❌ Errors found")
             flashErrors(errors)
         }
     }
@@ -1350,7 +1295,6 @@ struct GameView: View {
         let result = PuzzleValidator.validate(stars: selectedCells, puzzle: puzzle)
         
         if case .valid = result {
-            print("✅ Puzzle solved correctly!")
             // Puzzle completed successfully!
             completionTime = elapsedTime
             stopTimer()

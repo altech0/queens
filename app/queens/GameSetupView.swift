@@ -22,26 +22,26 @@ struct GameSetupView: View {
         horizontalSizeClass == .regular && verticalSizeClass == .regular
     }
     
-    // Valid combinations: 6×6 (1 star), 8×8 (1 or 2 stars), 10×10 (2 stars)
+    // Valid combinations: 6×6 (1 star), 8×8 (1 star), 10×10 (2 stars)
     private func isValidCombination(size: Int, stars: Int) -> Bool {
         switch size {
         case 6:
             return stars == 1
         case 8:
-            return stars == 1 || stars == 2
+            return stars == 1
         case 10:
             return stars == 2
         default:
             return false
         }
     }
-    
+
     private var availableStarOptions: [Int] {
         switch selectedSize {
         case 6:
             return [1]
         case 8:
-            return [1, 2]
+            return [1]
         case 10:
             return [2]
         default:
@@ -205,7 +205,7 @@ struct GameSetupView: View {
                     Text("Start")
                         .font(.system(size: 22, weight: .medium, design: .rounded))
                         .foregroundColor(.white)
-                        .frame(maxWidth: isIPadLandscape ? 500 : 400)
+                        .frame(maxWidth: isIPadLandscape ? 500 : .infinity)
                         .padding(.vertical, 18)
                         .background(
                             LinearGradient(
@@ -220,7 +220,8 @@ struct GameSetupView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .shadow(color: Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.3), radius: 15, x: 0, y: 8)
                 }
-                
+                .padding(.horizontal, 24)
+
                 Spacer()
                     .frame(height: 40)
             }

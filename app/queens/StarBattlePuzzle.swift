@@ -39,18 +39,12 @@ class PuzzleGenerator {
     
     /// Generate a complete valid puzzle - NEW APPROACH: Solution first, then regions
     static func generate(size: Int, starsPerRegion: Int) -> StarBattlePuzzle? {
-        print("🎯 Starting puzzle generation: \(size)x\(size), \(starsPerRegion) stars per region")
-        
         // Limit total attempts to prevent infinite loops
         var totalAttempts = 0
         let maxTotalAttempts = 200 // Increased from 100
         
         while totalAttempts < maxTotalAttempts {
             totalAttempts += 1
-            
-            if totalAttempts % 10 == 1 {
-                print("\n📝 Attempt \(totalAttempts) to generate puzzle")
-            }
             
             // Step 1: Generate a valid star placement (ignoring regions)
             guard let solution = generateSolutionFirst(size: size, starsPerRegion: starsPerRegion) else {
@@ -73,31 +67,24 @@ class PuzzleGenerator {
             
             // Step 4: STRICT validation - must have EXACTLY one unique solution
             if hasValidSolution(puzzle: puzzle) {
-                print("✅ Puzzle generated successfully on attempt \(totalAttempts)!")
                 return puzzle
             }
         }
         
-        print("❌ Failed to generate unique puzzle after \(maxTotalAttempts) attempts")
-        print("❌ NOT returning fallback - trying one more time with different approach...")
-        
         // Try simple fallback but with STRICT validation
-        for attempt in 0..<50 {
+        for _ in 0..<50 {
             if let fallback = generateSimpleFallbackPuzzle(size: size, starsPerRegion: starsPerRegion) {
                 if hasValidSolution(puzzle: fallback) {
-                    print("✅ Fallback puzzle validated on attempt \(attempt + 1)")
                     return fallback
                 }
             }
         }
         
-        print("❌ Even validated fallback failed - returning nil")
         return nil
     }
     
     /// Check if puzzle has exactly one unique solution
     private static func hasValidSolution(puzzle: StarBattlePuzzle) -> Bool {
-        var solutionCount = 0
         var foundSolutions: [Set<GridPosition>] = []
         
         // Use optimized backtracking to find up to 2 solutions
@@ -113,16 +100,12 @@ class PuzzleGenerator {
         )
         
         if foundSolutions.isEmpty {
-            print("❌ No solution found")
             return false
         } else if foundSolutions.count > 1 {
-            print("⚠️ Multiple solutions found (\(foundSolutions.count))")
             return false
         } else if foundSolutions[0] != puzzle.solution {
-            print("⚠️ Found different solution than intended")
             return false
         } else {
-            print("✅ Unique solution verified")
             return true
         }
     }
@@ -227,8 +210,6 @@ class PuzzleGenerator {
 
     /// Generate a simple fallback puzzle with rectangular regions (always solvable)
     private static func generateSimpleFallbackPuzzle(size: Int, starsPerRegion: Int) -> StarBattlePuzzle? {
-        print("🔄 Generating simple rectangular region puzzle as fallback")
-        
         // Create simple rectangular regions
         var regions = Array(repeating: Array(repeating: 0, count: size), count: size)
         
@@ -245,7 +226,6 @@ class PuzzleGenerator {
         
         // Find a valid solution using backtracking
         guard let solution = findSolution(size: size, starsPerRegion: starsPerRegion, regions: regions) else {
-            print("❌ Even simple fallback failed")
             return nil
         }
         
@@ -264,7 +244,7 @@ class PuzzleGenerator {
         // This is essentially solving n-queens with the adjacency constraint
         
         // Try multiple times since random placement might fail
-        for attempt in 0..<100 {
+        for _ in 0..<100 {
             var solution = Set<GridPosition>()
             var columnsTaken = Set<Int>()
             var success = true
@@ -311,12 +291,10 @@ class PuzzleGenerator {
             }
             
             if success {
-                print("✅ Successfully generated solution on attempt \(attempt + 1)")
                 return solution
             }
         }
-        
-        print("❌ Failed to generate solution after 100 attempts")
+
         return nil
     }
     
@@ -343,7 +321,7 @@ class PuzzleGenerator {
         let cellsPerRegion = (size * size) / numRegions
         
         // Try multiple times to generate valid regions
-        for regionAttempt in 0..<50 {
+        for _ in 0..<50 {
             var regions = Array(repeating: Array(repeating: -1, count: size), count: size)
             var unassignedCells = Set<GridPosition>()
             var regionCells: [Int: Set<GridPosition>] = [:]
@@ -368,7 +346,7 @@ class PuzzleGenerator {
             var allRegionsValid = true
             for regionId in 0..<numRegions {
                 var frontier = Array(regionCells[regionId] ?? Set())
-                var targetSize = cellsPerRegion
+                let targetSize = cellsPerRegion
                 
                 // Grow region using BFS
                 while frontier.count < targetSize && !unassignedCells.isEmpty {
@@ -453,7 +431,6 @@ class PuzzleGenerator {
             }
         }
         
-        print("❌ Failed to generate valid regions after 50 attempts")
         return nil
     }
     
@@ -511,7 +488,6 @@ class PuzzleGenerator {
     
     /// Find a valid solution using backtracking
     private static func findSolution(size: Int, starsPerRegion: Int, regions: [[Int]]) -> Set<GridPosition>? {
-        print("🔄 Starting backtracking algorithm...")
         var solution = Set<GridPosition>()
         var rowCounts = Array(repeating: 0, count: size)
         var colCounts = Array(repeating: 0, count: size)
@@ -531,11 +507,9 @@ class PuzzleGenerator {
             regionCounts: &regionCounts,
             attempts: &attempts
         ) {
-            print("✅ Backtracking succeeded after \(attempts) attempts")
             return solution
         }
-        
-        print("❌ Backtracking failed after \(attempts) attempts")
+
         return nil
     }
     
@@ -553,10 +527,6 @@ class PuzzleGenerator {
     ) -> Bool {
         attempts += 1
         
-        // Log every 10000 attempts to show progress
-        if attempts % 10000 == 0 {
-            print("⏱️ Attempt \(attempts), row \(row), stars placed: \(solution.count)")
-        }
         
         // Safety check - if too many attempts, abort
         if attempts > 100000 {

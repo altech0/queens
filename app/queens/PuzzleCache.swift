@@ -26,7 +26,7 @@ struct CachedPuzzle: Codable, Identifiable {
 class PuzzleCache {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "PuzzleCache")
     private static let cacheKey = "cachedPuzzles"
-    private static let maxCacheSize = 50  // Maximum number of cached puzzles
+    private static let maxCacheSize = 30
     
     private(set) var puzzles: [CachedPuzzle] = []
     

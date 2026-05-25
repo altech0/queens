@@ -50,58 +50,76 @@ struct AboutView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
                 
-                Spacer()
-                
-                // Content
-                VStack(spacing: 24) {
-                    // Icon
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 80))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.4, green: 0.5, blue: 0.7),
-                                    Color(red: 0.5, green: 0.6, blue: 0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-                    
-                    // App name
-                    Text("Queens")
-                        .font(.system(size: 40, weight: .light, design: .rounded))
-                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
-                    
-                    // Version (you can update this)
-                    Text("Version 1.0")
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
-                        .opacity(0.7)
-                    
-                    // Made with love message
-                    VStack(spacing: 12) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(Color(red: 0.9, green: 0.4, blue: 0.5))
-                            
-                            Text("Made with love")
-                                .font(.system(size: 22, weight: .medium, design: .rounded))
+                ScrollView {
+                    VStack(spacing: 32) {
+                        // Icon + title
+                        VStack(spacing: 16) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 80))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.4, green: 0.5, blue: 0.7),
+                                            Color(red: 0.5, green: 0.6, blue: 0.8)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+
+                            Text("Queens")
+                                .font(.system(size: 40, weight: .light, design: .rounded))
                                 .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+
+                            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                .opacity(0.7)
                         }
-                        .padding(.top, 20)
-                        
-                        Text("A peaceful puzzle experience")
-                            .font(.system(size: 16, weight: .regular, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
-                            .opacity(0.8)
+                        .padding(.top, 8)
+
+                        // About text
+                        VStack(spacing: 16) {
+                            Text("Thanks for downloading! I built this app simply because I love these puzzles and couldn't find a clean, ad-free version.")
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundColor(Color(red: 0.35, green: 0.4, blue: 0.55))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+
+                            Text("There is zero data collection and no annoying ads here — just pure puzzles. This project is a true labor of love, so please enjoy it for free!")
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundColor(Color(red: 0.35, green: 0.4, blue: 0.55))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+
+                            Text("If you'd like to show your appreciation, you can buy me a decaf oat latte below. No reciprocation expected — it's purely a tip jar and won't unlock any extra features.")
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundColor(Color(red: 0.35, green: 0.4, blue: 0.55))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+                        }
+                        .padding(.horizontal, 8)
+
+                        // Latte link
+                        Link(destination: URL(string: "https://donate.stripe.com/5kQ14p1RcfQ20W8h2a0x200")!) {
+                            HStack(spacing: 8) {
+                                Text("☕")
+                                    .font(.system(size: 18))
+                                Text("Buy me a decaf oat latte")
+                                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 28)
+                            .padding(.vertical, 14)
+                            .background(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+
+                        Spacer(minLength: 32)
                     }
+                    .padding(.horizontal, 24)
                 }
-                
-                Spacer()
-                Spacer()
             }
         }
         .navigationBarBackButtonHidden(true)

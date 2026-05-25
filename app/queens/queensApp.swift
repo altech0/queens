@@ -16,7 +16,6 @@ struct queensApp: App {
     init() {
         let currentSettings = AppSettings()
         currentSettings.incrementLaunchCount()
-        print("📱 App launched \(currentSettings.appLaunchCount) time(s)")
     }
 
     var body: some Scene {

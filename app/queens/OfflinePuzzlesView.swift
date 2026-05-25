@@ -25,13 +25,13 @@ struct OfflinePuzzlesView: View {
     private let sizeOptions = [6, 8, 10]
     private let starOptions = [1, 2]
     
-    // Valid combinations: 6×6 (1 star), 8×8 (1 or 2 stars), 10×10 (2 stars)
+    // Valid combinations: 6×6 (1 star), 8×8 (1 star), 10×10 (2 stars)
     private var availableStarOptions: [Int] {
         switch selectedSize {
         case 6:
             return [1]
         case 8:
-            return [1, 2]
+            return [1]
         case 10:
             return [2]
         default:
@@ -196,7 +196,7 @@ struct OfflinePuzzlesView: View {
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
                         }
                         .foregroundColor(.white)
-                        .frame(maxWidth: 400) // Increased from 280 for iPad
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
                             LinearGradient(
@@ -216,6 +216,7 @@ struct OfflinePuzzlesView: View {
                     }
                     .disabled(isAddDisabled || isLoading)
                     .opacity(isAddDisabled ? 0.6 : 1.0)
+                    .padding(.horizontal, 16)
                     
                     if let error = loadError {
                         Text(error)
@@ -348,12 +349,6 @@ struct OfflinePuzzlesView: View {
     
     /// Check if "Add to Cache" button should be disabled
     private var isAddDisabled: Bool {
-        // Only 8×8 2 stars has a limit of 2 puzzles
-        if selectedSize == 8 && selectedStars == 2 {
-            let currentCount = cache.count(size: selectedSize, stars: selectedStars)
-            return currentCount >= 2
-        }
-        // All other configurations use the default max cache size (50)
         return false
     }
     
