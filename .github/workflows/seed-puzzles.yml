@@ -46,14 +46,13 @@ jobs:
         run: |
           INPUT="${{ inputs.config }}"
 
-          # Scheduled runs and "auto" manual runs rotate by day of year (3-day cycle)
+          # Scheduled runs and "auto" manual runs alternate daily between 8x8 and 10x10
           if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
             DAY=$(date +%j)       # day of year 001–366
-            IDX=$((10#$DAY % 3))  # 3-day cycle: 6x6 → 8x8 → 10x10
+            IDX=$((10#$DAY % 2))  # 2-day cycle: 8x8 → 10x10
             case $IDX in
-              0) ARGS="--size 6  --stars 1" ;;
-              1) ARGS="--size 8  --stars 1" ;;
-              2) ARGS="--size 10 --stars 2" ;;
+              0) ARGS="--size 8  --stars 1" ;;
+              1) ARGS="--size 10 --stars 2" ;;
             esac
             SECONDS=700
           else
