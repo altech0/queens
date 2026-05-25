@@ -21,11 +21,14 @@ struct queensApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ContentView()
                 .environment(settings)
                 .environment(puzzleCache)
                 .environment(authManager)
                 .onOpenURL { url in handleDeepLink(url) }
+                .onReceive(NotificationCenter.default.publisher(for: .authenticationExpired)) { _ in
+                    Task { await authManager.register() }
+                }
         }
     }
 
@@ -35,31 +38,6 @@ struct queensApp: App {
               let code = url.pathComponents.last,
               code != "/" else { return }
         NotificationCenter.default.post(name: .openPuzzle, object: nil, userInfo: ["code": code])
-    }
-}
-
-// MARK: - Root routing view
-
-struct RootView: View {
-    @Environment(AuthManager.self) private var authManager
-
-    var body: some View {
-        Group {
-            switch authManager.state {
-            case .unknown, .needsRegistration, .registering, .failed:
-                RegistrationView()
-            case .registered:
-                ContentView()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .authenticationExpired)) { _ in
-            handleAuthenticationExpired()
-        }
-    }
-    
-    private func handleAuthenticationExpired() {
-        // Reset auth state to trigger re-registration
-        authManager.state = .needsRegistration
     }
 }
 

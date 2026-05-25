@@ -10,14 +10,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppSettings.self) private var settings
-    @Environment(AuthManager.self) private var authManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
-    
-    @State private var showDeleteConfirmation = false
-    @State private var isDeletingAccount = false
-    @State private var deleteErrorMessage: String?
-    @State private var showDeleteError = false
     
     private var isIPadLandscape: Bool {
         horizontalSizeClass == .regular && verticalSizeClass == .regular
@@ -186,91 +180,12 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     
-                    // Offline section
-                    
-                    // Account section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Account")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
-                            .textCase(.uppercase)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 32)
-                        
-                        VStack(spacing: 0) {
-                            Button(action: {
-                                showDeleteConfirmation = true
-                            }) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Delete Account")
-                                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                                            .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
-                                        
-                                        Text("Permanently delete your nickname and account")
-                                            .font(.system(size: 14, weight: .regular, design: .rounded))
-                                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
-                                            .opacity(0.8)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    if isDeletingAccount {
-                                        ProgressView()
-                                            .scaleEffect(0.9)
-                                    }
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 16)
-                                .background(Color.white.opacity(0.5))
-                            }
-                            .disabled(isDeletingAccount)
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .frame(maxWidth: isIPadLandscape ? 600 : .infinity)
-                        .padding(.horizontal, 16)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    
                     Spacer()
                 }
             }
         }
-        .alert("Delete Account?", isPresented: $showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
-                Task {
-                    await deleteAccount()
-                }
-            }
-        } message: {
-            Text("Your nickname and account will be permanently deleted. This action cannot be undone.")
-        }
-        .alert("Error", isPresented: $showDeleteError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(deleteErrorMessage ?? "Failed to delete account. Please try again.")
-        }
         .navigationBarHidden(!isIPadLandscape)
         .navigationTitle(isIPadLandscape ? "Settings" : "")
-    }
-    
-    // MARK: - Delete Account
-    
-    private func deleteAccount() async {
-        isDeletingAccount = true
-        
-        do {
-            try await authManager.deleteAccount()
-            // AuthManager will handle setting state to .needsRegistration
-            // which will automatically navigate to registration screen
-        } catch {
-            deleteErrorMessage = "Failed to delete account. Please try again."
-            showDeleteError = true
-            isDeletingAccount = false
-        }
     }
 }
 

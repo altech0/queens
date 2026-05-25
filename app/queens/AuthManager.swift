@@ -2,11 +2,8 @@ import Foundation
 import os.log
 
 enum AuthState {
-    case unknown
-    case registered
-    case needsRegistration
-    case registering
-    case failed(String)
+    case loading
+    case ready
 }
 
 @Observable
@@ -16,65 +13,24 @@ class AuthManager {
         category: "AuthManager"
     )
 
-    var state: AuthState = .unknown
+    var state: AuthState = .loading
 
     private let keychain: KeychainStoring
 
     init(keychain: KeychainStoring = DefaultKeychainStore()) {
         self.keychain = keychain
-        // Check auth state immediately on initialization
-        checkAuthState()
-    }
-
-    // MARK: - Startup
-
-    func checkAuthState() {
         if keychain.exists(forKey: KeychainHelper.apiTokenKey) {
             Self.logger.info("✅ Existing token found in Keychain")
-            state = .registered
+            state = .ready
         } else {
-            Self.logger.info("ℹ️ No token found — registration required")
-            state = .needsRegistration
-        }
-    }
-
-    // MARK: - Token Access
-
-    func apiToken() throws -> String {
-        try keychain.load(forKey: KeychainHelper.apiTokenKey)
-    }
-
-    // MARK: - Account Deletion
-
-    func deleteAccount() async throws {
-        Self.logger.info("🗑️ Starting account deletion")
-        
-        let token = try apiToken()
-        let url = try apiURL("/user")
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        request.setValue(token, forHTTPHeaderField: "X-API-Token")
-        request.timeoutInterval = 15
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validateHTTPResponse(response, data: data)
-        
-        // Clear keychain after successful deletion
-        KeychainHelper.delete(forKey: KeychainHelper.apiTokenKey)
-        
-        Self.logger.info("✅ Account deleted successfully")
-        
-        await MainActor.run {
-            state = .needsRegistration
+            Self.logger.info("ℹ️ No token found — registering silently")
+            Task { await register() }
         }
     }
 
     // MARK: - Registration
 
     func register() async {
-        state = .registering
-        
         var attempts = 0
         let maxAttempts = 10
         
@@ -88,7 +44,7 @@ class AuthManager {
                 
                 try keychain.save(token, forKey: KeychainHelper.apiTokenKey)
                 
-                await MainActor.run { state = .registered }
+                await MainActor.run { state = .ready }
                 return
                 
             } catch let error as AuthError {
@@ -99,27 +55,24 @@ class AuthManager {
                     continue
                 }
                 
-                // Other errors should fail immediately
                 Self.logger.error("❌ Registration failed: \(error.localizedDescription)")
-                await MainActor.run { state = .failed(error.userMessage) }
                 return
-                
+
             } catch {
                 Self.logger.error("❌ Unexpected registration error: \(error)")
-                await MainActor.run { state = .failed("Registration failed. Please try again.") }
                 return
             }
         }
-        
-        // If we exhausted all attempts
+
         Self.logger.error("❌ Failed to find available nickname after \(maxAttempts) attempts")
-        await MainActor.run { state = .failed("Unable to complete registration. Please try again later.") }
     }
 
     // MARK: - Private
 
     private func registerWithAPI(nickname: String) async throws -> String {
-        let url = try apiURL("/auth/register")
+        let base = try Configuration.puzzleAPIURL
+        let rootBase = base.hasSuffix("/puzzle") ? String(base.dropLast("/puzzle".count)) : base
+        guard let url = URL(string: rootBase + "/auth/register") else { throw AuthError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -134,17 +87,6 @@ class AuthManager {
         struct RegisterResponse: Decodable { let api_token: String }
         let decoded = try JSONDecoder().decode(RegisterResponse.self, from: data)
         return decoded.api_token
-    }
-
-    private func apiURL(_ path: String) throws -> URL {
-        let base = try Configuration.puzzleAPIURL
-        let rootBase = base.hasSuffix("/puzzle")
-            ? String(base.dropLast("/puzzle".count))
-            : base
-        guard let url = URL(string: rootBase + path) else {
-            throw AuthError.invalidURL
-        }
-        return url
     }
 
     private func validateHTTPResponse(_ response: URLResponse, data: Data) throws {
