@@ -1,0 +1,11 @@
+# API
+api/node_modules/
+api/.wrangler/
+api/.dev.vars
+api/prompts/
+
+# Xcode
+app/**/*.xcuserstate
+app/**/xcuserdata/
+app/.DS_Store
+.DS_Store
