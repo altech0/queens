@@ -29,10 +29,8 @@ import type { PuzzleConfig } from '../src/types/puzzleConfig'
 // ---------------------------------------------------------------------------
 
 const ALL_CONFIGS: PuzzleConfig[] = [
-  { size: 5,  starsPerUnit: 1 },
   { size: 6,  starsPerUnit: 1 },
   { size: 8,  starsPerUnit: 1 },
-  { size: 8,  starsPerUnit: 2 },
   { size: 10, starsPerUnit: 2 },
 ]
 

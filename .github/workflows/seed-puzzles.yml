@@ -2,13 +2,32 @@ name: Seed Puzzles
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # 3am UTC daily
-  workflow_dispatch:        # allow manual trigger from GitHub UI
+    - cron: '0 3 * * *'   # 3am UTC daily — rotates through configs automatically
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'Config to run'
+        type: choice
+        default: 'auto (rotate daily)'
+        options:
+          - 'auto (rotate daily)'
+          - '6x6 1-star'
+          - '8x8 1-star'
+          - '10x10 2-star'
+      seconds:
+        description: 'Seconds per config'
+        type: choice
+        default: '700'
+        options:
+          - '60'
+          - '300'
+          - '600'
+          - '700'
 
 jobs:
   seed:
     runs-on: ubuntu-latest
-    timeout-minutes: 75     # hard kill if something hangs
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -22,8 +41,36 @@ jobs:
       - name: Install dependencies
         run: cd api && npm ci
 
+      - name: Resolve config
+        id: cfg
+        run: |
+          INPUT="${{ inputs.config }}"
+
+          # Scheduled runs and "auto" manual runs rotate by day of year (3-day cycle)
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
+            DAY=$(date +%j)       # day of year 001–366
+            IDX=$((10#$DAY % 3))  # 3-day cycle: 6x6 → 8x8 → 10x10
+            case $IDX in
+              0) ARGS="--size 6  --stars 1" ;;
+              1) ARGS="--size 8  --stars 1" ;;
+              2) ARGS="--size 10 --stars 2" ;;
+            esac
+            SECONDS=700
+          else
+            case "$INPUT" in
+              '6x6 1-star')   ARGS="--size 6  --stars 1" ;;
+              '8x8 1-star')   ARGS="--size 8  --stars 1" ;;
+              '10x10 2-star') ARGS="--size 10 --stars 2" ;;
+            esac
+            SECONDS="${{ inputs.seconds }}"
+          fi
+
+          echo "args=$ARGS"       >> $GITHUB_OUTPUT
+          echo "seconds=$SECONDS" >> $GITHUB_OUTPUT
+          echo "Running: $ARGS for ${SECONDS}s"
+
       - name: Generate and seed puzzles
-        run: cd api && npx tsx scripts/seedPuzzlesV2.ts --seconds 700 --yes
+        run: cd api && npx tsx scripts/seedPuzzlesV2.ts ${{ steps.cfg.outputs.args }} --seconds ${{ steps.cfg.outputs.seconds }} --yes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
