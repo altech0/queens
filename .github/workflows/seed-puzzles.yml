@@ -27,7 +27,7 @@ on:
 jobs:
   seed:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -54,7 +54,7 @@ jobs:
               0) ARGS="--size 8  --stars 1" ;;
               1) ARGS="--size 10 --stars 2" ;;
             esac
-            SECONDS=700
+            SECONDS=3600
           else
             case "$INPUT" in
               '6x6 1-star')   ARGS="--size 6  --stars 1" ;;
