@@ -52,6 +52,25 @@ struct GameView: View {
     // Completion hint support
     @State private var showCompletionHint = false
     @State private var hasShownHintThisSession = false
+
+    private var conflictCells: Set<GridPosition> {
+        guard puzzle != nil else { return [] }
+        let stars = Set(cellStates.filter { $0.value == .star }.keys)
+        var conflicts = Set<GridPosition>()
+        for star in stars {
+            if stars.contains(where: { $0 != star && $0.row == star.row }) { conflicts.insert(star) }
+            if stars.contains(where: { $0 != star && $0.column == star.column }) { conflicts.insert(star) }
+            for dr in -1...1 {
+                for dc in -1...1 {
+                    guard dr != 0 || dc != 0 else { continue }
+                    if stars.contains(GridPosition(row: star.row + dr, column: star.column + dc)) {
+                        conflicts.insert(star)
+                    }
+                }
+            }
+        }
+        return conflicts
+    }
     
     // iPad sidebar position
     @State private var sidebarOnLeft = false
@@ -270,6 +289,8 @@ struct GameView: View {
                 cellStates: $cellStates,
                 errorCells: errorCells,
                 showingErrors: showingErrors,
+                conflictCells: conflictCells,
+                showConflicts: settings.highlightConflicts,
                 enhancedContrast: settings.enhancedContrastMode,
                 regionColors: regionColors,
                 singleTapMode: settings.singleTapMode,
@@ -661,6 +682,8 @@ struct GameView: View {
                     cellStates: $cellStates,
                     errorCells: errorCells,
                     showingErrors: showingErrors,
+                    conflictCells: conflictCells,
+                    showConflicts: settings.highlightConflicts,
                     enhancedContrast: settings.enhancedContrastMode,
                     regionColors: regionColors,
                     singleTapMode: settings.singleTapMode,
@@ -1465,9 +1488,11 @@ struct GameGridView: View {
     @Binding var cellStates: [GridPosition: CellState]
     let errorCells: Set<GridPosition>
     let showingErrors: Bool
+    let conflictCells: Set<GridPosition>
+    let showConflicts: Bool
     let enhancedContrast: Bool
-    let regionColors: [Int: Color] // Pass colors in instead of computing them
-    let singleTapMode: Bool // New parameter for single tap mode
+    let regionColors: [Int: Color]
+    let singleTapMode: Bool
     let onCellToggle: () -> Void
     let onSaveUndo: () -> Void
     
@@ -1493,7 +1518,9 @@ struct GameGridView: View {
                                     cellState: cellStates[position] ?? .empty,
                                     cellSize: cellSize,
                                     isError: errorCells.contains(position),
-                                    showingErrors: showingErrors
+                                    showingErrors: showingErrors,
+                                    isConflict: conflictCells.contains(position),
+                                    showConflicts: showConflicts
                                 ) {
                                     toggleCell(position: position)
                                 }
@@ -1623,6 +1650,8 @@ struct GameCellView: View {
     let cellSize: CGFloat
     let isError: Bool
     let showingErrors: Bool
+    let isConflict: Bool
+    let showConflicts: Bool
     let action: () -> Void
     
     var body: some View {
@@ -1633,7 +1662,14 @@ struct GameCellView: View {
                     .fill(backgroundColor)
                     .frame(width: cellSize, height: cellSize)
                 
-                // Error glow overlay
+                // Conflict overlay (live, persistent while conflict exists)
+                if isConflict && showConflicts && !(isError && showingErrors) {
+                    Rectangle()
+                        .fill(Color(red: 0.92, green: 0.2, blue: 0.15).opacity(0.45))
+                        .frame(width: cellSize, height: cellSize)
+                }
+
+                // Error glow overlay (takes precedence over conflict)
                 if isError && showingErrors {
                     Rectangle()
                         .fill(Color.red.opacity(0.4))
@@ -1684,6 +1720,8 @@ struct GameCellView: View {
     private var iconColor: Color {
         if isError && showingErrors {
             return Color.red.opacity(0.9)
+        } else if isConflict && showConflicts && cellState == .star {
+            return Color(red: 0.82, green: 0.1, blue: 0.08)
         } else if cellState == .star {
             return Color(red: 0.4, green: 0.5, blue: 0.7)
         } else {

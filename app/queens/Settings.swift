@@ -58,6 +58,18 @@ class AppSettings {
             UserDefaults.standard.set(newValue, forKey: "showCompletionHints")
         }
     }
+
+    var highlightConflicts: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: "highlightConflicts") == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: "highlightConflicts")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "highlightConflicts")
+        }
+    }
     
     var appLaunchCount: Int {
         get {

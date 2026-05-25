@@ -162,8 +162,31 @@ struct SettingsView: View {
                                     Text("Show Completion Hints")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
                                         .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
-                                    
+
                                     Text("Show a reminder to check your progress when the grid appears complete")
+                                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                        .opacity(0.8)
+                                }
+                            }
+                            .tint(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .background(Color.white.opacity(0.5))
+
+                            Divider()
+                                .padding(.leading, 20)
+
+                            Toggle(isOn: Binding(
+                                get: { settings.highlightConflicts },
+                                set: { settings.highlightConflicts = $0 }
+                            )) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Highlight Conflicts")
+                                        .font(.system(size: 17, weight: .regular, design: .rounded))
+                                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+
+                                    Text("Highlight stars that share a row, column, or are touching each other")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
                                         .opacity(0.8)
