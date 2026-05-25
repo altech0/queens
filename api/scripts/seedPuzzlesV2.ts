@@ -1,11 +1,9 @@
 /**
  * Generates puzzles for each valid v2 size/star combination and uploads
- * them to the deployed D1 database via `wrangler d1 execute --remote`.
+ * them to the deployed D1 database via the Cloudflare REST API.
  *
  * Fetches existing solutions from the DB at startup and checks locally
  * before inserting, so only genuinely new puzzles hit the DB.
- *
- * Combos: stars=1 × sizes [5,6,8] | stars=2 × sizes [8,10]
  *
  * Usage:
  *   npx tsx scripts/seedPuzzlesV2.ts                        (interactive)
@@ -16,11 +14,7 @@
  *   Set RESEND_API_KEY and RESEND_TO env vars to receive a summary email.
  */
 
-import { execSync } from 'child_process'
-import { writeFileSync, unlinkSync } from 'fs'
 import { createInterface } from 'readline'
-import { tmpdir } from 'os'
-import { join } from 'path'
 import { generatePuzzleV2 } from '../src/generator/v2'
 import type { PuzzleConfig } from '../src/types/puzzleConfig'
 
@@ -35,6 +29,7 @@ const ALL_CONFIGS: PuzzleConfig[] = [
 ]
 
 const CODE_START_DEFAULT = 10001
+const D1_DATABASE_ID = '4b75d895-b2d5-4465-aa7a-f3eb65d30ff0'
 
 // ---------------------------------------------------------------------------
 // Arg parsing
@@ -42,8 +37,8 @@ const CODE_START_DEFAULT = 10001
 
 interface Args {
   configs: PuzzleConfig[]
-  seconds: number | null  // seconds per config type (null = prompt)
-  yes: boolean            // skip all interactive prompts
+  seconds: number | null
+  yes: boolean
 }
 
 function parseArgs(): Args {
@@ -54,8 +49,8 @@ function parseArgs(): Args {
     return i !== -1 ? argv[i + 1] : null
   }
 
-  const size    = get('--size')  !== null ? Number(get('--size'))    : null
-  const stars   = get('--stars') !== null ? Number(get('--stars'))   : null
+  const size    = get('--size')    !== null ? Number(get('--size'))    : null
+  const stars   = get('--stars')   !== null ? Number(get('--stars'))   : null
   const seconds = get('--seconds') !== null ? Number(get('--seconds')) : null
   const yes = argv.includes('--yes')
 
@@ -76,7 +71,7 @@ function parseArgs(): Args {
 }
 
 // ---------------------------------------------------------------------------
-// Readline helpers (only used in interactive mode)
+// Readline helpers (interactive mode only)
 // ---------------------------------------------------------------------------
 
 const rl = createInterface({ input: process.stdin, output: process.stdout })
@@ -119,26 +114,75 @@ function escape(s: string): string {
   return s.replace(/'/g, "''")
 }
 
+function d1Url(path: string): string {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? ''
+  return `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${D1_DATABASE_ID}${path}`
+}
+
+function d1Headers(): Record<string, string> {
+  return {
+    'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN ?? ''}`,
+    'Content-Type': 'application/json',
+  }
+}
+
 // ---------------------------------------------------------------------------
-// DB helpers
+// DB helpers — direct REST API, no wrangler CLI
 // ---------------------------------------------------------------------------
 
-const WRANGLER_ENV = { ...process.env, WRANGLER_SEND_METRICS: 'false' }
+async function fetchExistingState(): Promise<{ existingSolutions: Set<string>, maxCode: number | null }> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
+  const apiToken  = process.env.CLOUDFLARE_API_TOKEN
 
-function fetchExistingState(): { existingSolutions: Set<string>, maxCode: number | null } {
-  try {
-    const result = execSync(
-      `npx wrangler d1 execute queens --remote --command "SELECT solution, code FROM puzzles" --json --yes`,
-      { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], env: WRANGLER_ENV }
-    ).toString()
-    const parsed = JSON.parse(result)
-    const rows: { solution: string, code: number | null }[] = parsed?.[0]?.results ?? []
-    const existingSolutions = new Set(rows.map(r => r.solution))
-    const maxCode = rows.reduce((max, r) => r.code !== null && r.code > max ? r.code : max, 0) || null
-    return { existingSolutions, maxCode }
-  } catch {
+  if (!accountId || !apiToken) {
+    console.warn('⚠️  Missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN — starting with empty state')
     return { existingSolutions: new Set(), maxCode: null }
   }
+
+  const res = await fetch(d1Url('/query'), {
+    method: 'POST',
+    headers: d1Headers(),
+    body: JSON.stringify({ sql: 'SELECT solution, code FROM puzzles' }),
+  })
+
+  if (!res.ok) {
+    console.warn(`⚠️  Failed to fetch existing puzzles: ${res.status} ${res.statusText}`)
+    return { existingSolutions: new Set(), maxCode: null }
+  }
+
+  const data = await res.json() as any
+  const rows: { solution: string, code: number | null }[] = data.result?.[0]?.results ?? []
+  const existingSolutions = new Set<string>(rows.map(r => r.solution))
+  const maxCode = rows.reduce((max, r) => r.code != null && r.code > max ? r.code : max, 0) || null
+  return { existingSolutions, maxCode }
+}
+
+interface PuzzleRow {
+  id: string
+  gridSize: number
+  stars: number
+  regions: string
+  solution: string
+  code: number
+  createdAt: string
+}
+
+async function uploadRows(rows: PuzzleRow[]): Promise<number> {
+  const values = rows.map(r =>
+    `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}')`
+  ).join(',\n')
+
+  const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at) VALUES\n${values}`
+
+  const res = await fetch(d1Url('/query'), {
+    method: 'POST',
+    headers: d1Headers(),
+    body: JSON.stringify({ sql }),
+  })
+
+  const data = await res.json() as any
+  if (!res.ok) throw new Error(`D1 upload failed: ${JSON.stringify(data)}`)
+  return data.result?.[0]?.meta?.rows_written ?? rows.length
 }
 
 // ---------------------------------------------------------------------------
@@ -147,10 +191,10 @@ function fetchExistingState(): { existingSolutions: Set<string>, maxCode: number
 
 interface BatchStats {
   label: string
-  attempts: number    // calls to generatePuzzleV2
-  generated: number   // puzzle !== null (passed all generator checks)
-  duplicates: number  // already existed in DB
-  inserted: number    // new puzzles written to DB
+  attempts: number
+  generated: number
+  duplicates: number
+  inserted: number
   elapsedMs: number
 }
 
@@ -159,10 +203,10 @@ async function generateBatch(
   seconds: number,
   nextCode: { value: number },
   existingSolutions: Set<string>
-): Promise<{ inserts: string[], stats: BatchStats }> {
+): Promise<{ rows: PuzzleRow[], stats: BatchStats }> {
   const { size, starsPerUnit: stars } = config
   const label = `${size}×${size} ${stars}★`
-  const inserts: string[] = []
+  const rows: PuzzleRow[] = []
   const start = Date.now()
   const deadline = start + seconds * 1000
   const puzzleTimes: number[] = []
@@ -189,19 +233,18 @@ async function generateBatch(
     puzzleTimes.push(Date.now() - puzzleStart)
     existingSolutions.add(solutionKey)
 
-    const id = crypto.randomUUID()
-    const createdAt = new Date().toISOString()
-    const regions = escape(JSON.stringify(puzzle.regions))
-    const solution = escape(solutionKey)
-    const code = nextCode.value++
-
-    inserts.push(
-      `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at) ` +
-      `VALUES ('${id}', ${puzzle.gridSize}, ${puzzle.stars}, '${regions}', '${solution}', ${code}, '${createdAt}');`
-    )
+    rows.push({
+      id: crypto.randomUUID(),
+      gridSize: puzzle.gridSize,
+      stars: puzzle.stars,
+      regions: escape(JSON.stringify(puzzle.regions)),
+      solution: escape(solutionKey),
+      code: nextCode.value++,
+      createdAt: new Date().toISOString(),
+    })
 
     const remaining = Math.max(0, deadline - Date.now())
-    process.stdout.write(`\r  ${label}  ${inserts.length} found  ${formatElapsed(Date.now() - start)} elapsed  ${formatElapsed(remaining)} remaining`)
+    process.stdout.write(`\r  ${label}  ${rows.length} found  ${formatElapsed(Date.now() - start)} elapsed  ${formatElapsed(remaining)} remaining`)
   }
 
   console.log = originalLog
@@ -212,14 +255,14 @@ async function generateBatch(
     const avg = Math.round(puzzleTimes.reduce((a, b) => a + b, 0) / puzzleTimes.length)
     const min = Math.min(...puzzleTimes)
     const max = Math.max(...puzzleTimes)
-    process.stdout.write(`\r  ${label}  ${inserts.length} new  ${formatElapsed(elapsedMs)}  ✓  (avg ${formatElapsed(avg)}  min ${formatElapsed(min)}  max ${formatElapsed(max)})\n`)
+    process.stdout.write(`\r  ${label}  ${rows.length} new  ${formatElapsed(elapsedMs)}  ✓  (avg ${formatElapsed(avg)}  min ${formatElapsed(min)}  max ${formatElapsed(max)})\n`)
   } else {
     process.stdout.write(`\r  ${label}  0 found  ${formatElapsed(elapsedMs)}  ✓\n`)
   }
 
   return {
-    inserts,
-    stats: { label, attempts, generated, duplicates, inserted: inserts.length, elapsedMs },
+    rows,
+    stats: { label, attempts, generated, duplicates, inserted: rows.length, elapsedMs },
   }
 }
 
@@ -231,7 +274,7 @@ interface RunStats {
   date: string
   configStats: BatchStats[]
   totalInserted: number
-  uploadedToDb: number  // rows actually written (from D1 response)
+  uploadedToDb: number
 }
 
 async function sendEmail(runStats: RunStats): Promise<void> {
@@ -239,7 +282,7 @@ async function sendEmail(runStats: RunStats): Promise<void> {
   const to = process.env.RESEND_TO
   if (!apiKey || !to) return
 
-  const rows = runStats.configStats.map(s => `
+  const tableRows = runStats.configStats.map(s => `
     <tr>
       <td style="padding:6px 12px">${s.label}</td>
       <td style="padding:6px 12px;text-align:right">${s.attempts}</td>
@@ -262,7 +305,7 @@ async function sendEmail(runStats: RunStats): Promise<void> {
           <th style="padding:6px 12px">Time</th>
         </tr>
       </thead>
-      <tbody>${rows}</tbody>
+      <tbody>${tableRows}</tbody>
     </table>
     <p style="font-family:monospace;margin-top:16px">
       <strong>Total inserted into DB: ${runStats.uploadedToDb}</strong>
@@ -270,10 +313,7 @@ async function sendEmail(runStats: RunStats): Promise<void> {
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: 'Queens <noreply@knittedmice.com>',
       to: [to],
@@ -297,7 +337,7 @@ async function run() {
   const args = parseArgs()
 
   console.log('Fetching existing puzzles from remote DB...')
-  const { existingSolutions, maxCode } = fetchExistingState()
+  const { existingSolutions, maxCode } = await fetchExistingState()
   console.log(`Found ${existingSolutions.size} existing puzzles. Highest code: ${maxCode ?? 'none'}.`)
 
   const startCode = maxCode !== null ? maxCode + 1 : CODE_START_DEFAULT
@@ -344,56 +384,38 @@ async function run() {
   }
 
   const nextCode = { value: startCode }
-  const allInserts: string[] = []
+  const allRows: PuzzleRow[] = []
   const configStats: BatchStats[] = []
 
   for (const config of selectedConfigs) {
-    const { inserts, stats } = await generateBatch(config, seconds, nextCode, existingSolutions)
-    allInserts.push(...inserts)
+    const { rows, stats } = await generateBatch(config, seconds, nextCode, existingSolutions)
+    allRows.push(...rows)
     configStats.push(stats)
   }
 
-  if (allInserts.length === 0) {
+  if (allRows.length === 0) {
     console.log('\nNothing new to upload.')
     await sendEmail({ date: new Date().toISOString(), configStats, totalInserted: 0, uploadedToDb: 0 })
     return
   }
 
-  console.log(`\nUploading ${allInserts.length} puzzles to deployed D1...`)
-
-  const sql = allInserts.join('\n')
-  const tmpFile = join(tmpdir(), `queens_seed_${Date.now()}.sql`)
+  console.log(`\nUploading ${allRows.length} puzzles to D1...`)
   let uploadedToDb = 0
 
-  writeFileSync(tmpFile, sql, 'utf8')
   try {
-    const output = execSync(
-      `npx wrangler d1 execute queens --remote --file "${tmpFile}" --json --yes`,
-      { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], env: WRANGLER_ENV }
-    ).toString()
-    const jsonStart = output.indexOf('[')
-    const jsonEnd = output.lastIndexOf(']')
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-      const parsed = JSON.parse(output.slice(jsonStart, jsonEnd + 1))
-      uploadedToDb = parsed?.[0]?.meta?.rows_written ?? allInserts.length
-      const ignored = allInserts.length - uploadedToDb
-      console.log(`Inserted: ${uploadedToDb}  Ignored (duplicates): ${ignored}`)
-    } else {
-      uploadedToDb = allInserts.length
-      console.log(`Uploaded ${allInserts.length} puzzles (could not parse response).`)
-    }
+    uploadedToDb = await uploadRows(allRows)
+    const ignored = allRows.length - uploadedToDb
+    console.log(`Inserted: ${uploadedToDb}  Ignored (duplicates): ${ignored}`)
     console.log('Done.')
-    unlinkSync(tmpFile)
   } catch (err) {
-    console.error(`\nUpload failed. SQL file preserved at: ${tmpFile}`)
-    console.error(`Retry with: npx wrangler d1 execute queens --remote --file "${tmpFile}"`)
+    console.error(`\nUpload failed: ${err}`)
     throw err
   }
 
   await sendEmail({
     date: new Date().toISOString(),
     configStats,
-    totalInserted: allInserts.length,
+    totalInserted: allRows.length,
     uploadedToDb,
   })
 }
