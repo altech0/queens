@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Xcode user data (root level)
+xcuserdata/
+
+# API Keys and Secrets
+Config.plist
+*.plist.secret

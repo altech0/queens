@@ -1,0 +1,22 @@
+name = "queens-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[routes]]
+pattern = "api.queens.knittedmice.com"
+custom_domain = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "queens"
+database_id = "4b75d895-b2d5-4465-aa7a-f3eb65d30ff0"
+
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
+[observability]
+enabled = true

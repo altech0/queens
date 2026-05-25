@@ -1,0 +1,23 @@
+{
+  "name": "queens-api",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "cbor-x": "^1.5.4",
+    "hono": "^4.12.9"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260317.1",
+    "typescript": "^5.5.3",
+    "vitest": "^4.1.1",
+    "wrangler": "^4.76.0"
+  },
+  "private": true
+}
