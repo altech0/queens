@@ -167,22 +167,30 @@ interface PuzzleRow {
   createdAt: string
 }
 
-async function uploadRows(rows: PuzzleRow[]): Promise<number> {
-  const values = rows.map(r =>
-    `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}')`
-  ).join(',\n')
+async function uploadRows(rows: PuzzleRow[], batchSize = 100): Promise<number> {
+  let total = 0
 
-  const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at) VALUES\n${values}`
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize)
+    const values = batch.map(r =>
+      `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}')`
+    ).join(',\n')
 
-  const res = await fetch(d1Url('/query'), {
-    method: 'POST',
-    headers: d1Headers(),
-    body: JSON.stringify({ sql }),
-  })
+    const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at) VALUES\n${values}`
 
-  const data = await res.json() as any
-  if (!res.ok) throw new Error(`D1 upload failed: ${JSON.stringify(data)}`)
-  return data.result?.[0]?.meta?.rows_written ?? rows.length
+    const res = await fetch(d1Url('/query'), {
+      method: 'POST',
+      headers: d1Headers(),
+      body: JSON.stringify({ sql }),
+    })
+
+    const data = await res.json() as any
+    if (!res.ok) throw new Error(`D1 upload failed (batch ${i / batchSize + 1}): ${JSON.stringify(data)}`)
+    total += data.result?.[0]?.meta?.rows_written ?? batch.length
+    console.log(`  Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(rows.length / batchSize)} uploaded (${total} rows so far)`)
+  }
+
+  return total
 }
 
 // ---------------------------------------------------------------------------
