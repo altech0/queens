@@ -6,7 +6,7 @@ const CODE_RE = /^\d{1,9}$/
 // Valid size/stars combinations
 const ALLOWED_COMBOS: Record<number, number[]> = {
   1: [5, 6, 8],
-  2: [8, 10],
+  2: [10],
 }
 const ALLOWED_STARS = Object.keys(ALLOWED_COMBOS).map(Number)
 const ALLOWED_SIZES = [...new Set(Object.values(ALLOWED_COMBOS).flat())]

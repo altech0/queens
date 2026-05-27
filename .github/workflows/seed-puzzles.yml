@@ -11,6 +11,7 @@ on:
         default: 'auto (rotate daily)'
         options:
           - 'auto (rotate daily)'
+          - '5x5 1-star'
           - '6x6 1-star'
           - '8x8 1-star'
           - '10x10 2-star'
@@ -46,7 +47,8 @@ jobs:
         run: |
           INPUT="${{ inputs.config }}"
 
-          # Scheduled runs and "auto" manual runs alternate daily between 8x8 and 10x10
+          # Scheduled runs and "auto" manual runs rotate daily across 8x8 and 10x10
+          # (5x5 and 6x6 are small enough to seed manually when needed)
           if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
             DAY=$(date +%j)       # day of year 001–366
             IDX=$((10#$DAY % 2))  # 2-day cycle: 8x8 → 10x10
@@ -57,6 +59,7 @@ jobs:
             SECONDS=3300
           else
             case "$INPUT" in
+              '5x5 1-star')   ARGS="--size 5  --stars 1" ;;
               '6x6 1-star')   ARGS="--size 6  --stars 1" ;;
               '8x8 1-star')   ARGS="--size 8  --stars 1" ;;
               '10x10 2-star') ARGS="--size 10 --stars 2" ;;
