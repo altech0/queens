@@ -167,27 +167,41 @@ interface PuzzleRow {
   createdAt: string
 }
 
-async function uploadRows(rows: PuzzleRow[], batchSize = 100): Promise<number> {
+async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches: number, retries = 3): Promise<number> {
+  const values = batch.map(r =>
+    `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}')`
+  ).join(',\n')
+  const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at) VALUES\n${values}`
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(d1Url('/query'), {
+        method: 'POST',
+        headers: d1Headers(),
+        body: JSON.stringify({ sql }),
+      })
+      const data = await res.json() as any
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${JSON.stringify(data)}`)
+      const written = data.result?.[0]?.meta?.rows_written ?? batch.length
+      console.log(`  Batch ${batchIndex}/${totalBatches} uploaded (${written} rows)`)
+      return written
+    } catch (err) {
+      if (attempt === retries) throw new Error(`D1 upload failed (batch ${batchIndex}) after ${retries} attempts: ${err}`)
+      const delay = 2000 * attempt
+      console.warn(`  Batch ${batchIndex}/${totalBatches} attempt ${attempt} failed (${err}), retrying in ${delay / 1000}s...`)
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+  return 0
+}
+
+async function uploadRows(rows: PuzzleRow[], batchSize = 50): Promise<number> {
   let total = 0
+  const totalBatches = Math.ceil(rows.length / batchSize)
 
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize)
-    const values = batch.map(r =>
-      `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}')`
-    ).join(',\n')
-
-    const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at) VALUES\n${values}`
-
-    const res = await fetch(d1Url('/query'), {
-      method: 'POST',
-      headers: d1Headers(),
-      body: JSON.stringify({ sql }),
-    })
-
-    const data = await res.json() as any
-    if (!res.ok) throw new Error(`D1 upload failed (batch ${i / batchSize + 1}): ${JSON.stringify(data)}`)
-    total += data.result?.[0]?.meta?.rows_written ?? batch.length
-    console.log(`  Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(rows.length / batchSize)} uploaded (${total} rows so far)`)
+    total += await uploadBatch(batch, Math.floor(i / batchSize) + 1, totalBatches)
   }
 
   return total
