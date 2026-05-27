@@ -130,7 +130,7 @@ function d1Headers(): Record<string, string> {
 // DB helpers — direct REST API, no wrangler CLI
 // ---------------------------------------------------------------------------
 
-async function fetchExistingState(): Promise<{ existingSolutions: Set<string>, maxCode: number | null }> {
+async function fetchExistingState(config: PuzzleConfig): Promise<{ existingSolutions: Set<string>, maxCode: number | null }> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
   const apiToken  = process.env.CLOUDFLARE_API_TOKEN
 
@@ -142,7 +142,7 @@ async function fetchExistingState(): Promise<{ existingSolutions: Set<string>, m
   const res = await fetch(d1Url('/query'), {
     method: 'POST',
     headers: d1Headers(),
-    body: JSON.stringify({ sql: 'SELECT solution, code FROM puzzles' }),
+    body: JSON.stringify({ sql: `SELECT solution, code FROM puzzles WHERE grid_size = ${config.size} AND stars = ${config.starsPerUnit}` }),
   })
 
   if (!res.ok) {
@@ -154,6 +154,7 @@ async function fetchExistingState(): Promise<{ existingSolutions: Set<string>, m
   const rows: { solution: string, code: number | null }[] = data.result?.[0]?.results ?? []
   const existingSolutions = new Set<string>(rows.map(r => r.solution))
   const maxCode = rows.reduce((max, r) => r.code != null && r.code > max ? r.code : max, 0) || null
+  console.log(`  Found ${existingSolutions.size} existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles. Highest code: ${maxCode ?? 'none'}.`)
   return { existingSolutions, maxCode }
 }
 
@@ -354,20 +355,13 @@ async function sendEmail(runStats: RunStats): Promise<void> {
 async function run() {
   const args = parseArgs()
 
-  console.log('Fetching existing puzzles from remote DB...')
-  const { existingSolutions, maxCode } = await fetchExistingState()
-  console.log(`Found ${existingSolutions.size} existing puzzles. Highest code: ${maxCode ?? 'none'}.`)
-
-  const startCode = maxCode !== null ? maxCode + 1 : CODE_START_DEFAULT
-  console.log(`New codes will start from: ${startCode}`)
-
   let seconds: number
   let selectedConfigs: PuzzleConfig[]
 
   if (args.yes) {
     seconds = args.seconds ?? 60
     selectedConfigs = args.configs
-    console.log(`\nNon-interactive: ${seconds}s per type — ${selectedConfigs.map(c => `${c.size}×${c.size} ${c.starsPerUnit}★`).join(', ')}`)
+    console.log(`Non-interactive: ${seconds}s per type — ${selectedConfigs.map(c => `${c.size}×${c.size} ${c.starsPerUnit}★`).join(', ')}`)
     console.log(`Estimated total: ~${formatElapsed(seconds * selectedConfigs.length * 1000)}\n`)
   } else {
     const timeInput = await prompt('\nHow many seconds to generate per type? (default 60): ')
@@ -401,11 +395,15 @@ async function run() {
     console.log('------------\n')
   }
 
-  const nextCode = { value: startCode }
   const allRows: PuzzleRow[] = []
   const configStats: BatchStats[] = []
 
   for (const config of selectedConfigs) {
+    console.log(`Fetching existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles from DB...`)
+    const { existingSolutions, maxCode } = await fetchExistingState(config)
+    const startCode = maxCode !== null ? maxCode + 1 : CODE_START_DEFAULT
+    console.log(`  New codes will start from: ${startCode}`)
+    const nextCode = { value: startCode }
     const { rows, stats } = await generateBatch(config, seconds, nextCode, existingSolutions)
     allRows.push(...rows)
     configStats.push(stats)

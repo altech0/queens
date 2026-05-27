@@ -78,7 +78,6 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
     stars: row.stars,
     regions: JSON.parse(row.regions as string),
     solution: JSON.parse(row.solution as string),
-    difficulty: row.difficulty ?? null,
     createdAt: row.created_at,
   })
 }
