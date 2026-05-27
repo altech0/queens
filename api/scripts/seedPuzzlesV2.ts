@@ -167,7 +167,7 @@ interface PuzzleRow {
   createdAt: string
 }
 
-async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches: number, retries = 3): Promise<number> {
+async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches: number, retries = 3): Promise<void> {
   const values = batch.map(r =>
     `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}')`
   ).join(',\n')
@@ -182,29 +182,25 @@ async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches:
       })
       const data = await res.json() as any
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${JSON.stringify(data)}`)
-      const written = data.result?.[0]?.meta?.rows_written ?? batch.length
-      console.log(`  Batch ${batchIndex}/${totalBatches} uploaded (${written} rows)`)
-      return written
+      console.log(`  Batch ${batchIndex}/${totalBatches} uploaded (${batch.length} rows)`)
+      return
     } catch (err) {
-      if (attempt === retries) throw new Error(`D1 upload failed (batch ${batchIndex}) after ${retries} attempts: ${err}`)
+      const cause = (err as any)?.cause
+      const detail = cause ? ` (cause: ${cause})` : ''
+      if (attempt === retries) throw new Error(`D1 upload failed (batch ${batchIndex}) after ${retries} attempts: ${err}${detail}`)
       const delay = 2000 * attempt
-      console.warn(`  Batch ${batchIndex}/${totalBatches} attempt ${attempt} failed (${err}), retrying in ${delay / 1000}s...`)
+      console.warn(`  Batch ${batchIndex}/${totalBatches} attempt ${attempt} failed (${err}${detail}), retrying in ${delay / 1000}s...`)
       await new Promise(r => setTimeout(r, delay))
     }
   }
-  return 0
 }
 
-async function uploadRows(rows: PuzzleRow[], batchSize = 50): Promise<number> {
-  let total = 0
+async function uploadRows(rows: PuzzleRow[], batchSize = 50): Promise<void> {
   const totalBatches = Math.ceil(rows.length / batchSize)
-
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize)
-    total += await uploadBatch(batch, Math.floor(i / batchSize) + 1, totalBatches)
+    await uploadBatch(batch, Math.floor(i / batchSize) + 1, totalBatches)
   }
-
-  return total
 }
 
 // ---------------------------------------------------------------------------
@@ -421,14 +417,11 @@ async function run() {
     return
   }
 
-  console.log(`\nUploading ${allRows.length} puzzles to D1...`)
-  let uploadedToDb = 0
+  console.log(`\nUploading ${allRows.length} new puzzles to D1...`)
 
   try {
-    uploadedToDb = await uploadRows(allRows)
-    const ignored = allRows.length - uploadedToDb
-    console.log(`Inserted: ${uploadedToDb}  Ignored (duplicates): ${ignored}`)
-    console.log('Done.')
+    await uploadRows(allRows)
+    console.log(`Done. ${allRows.length} puzzles inserted.`)
   } catch (err) {
     console.error(`\nUpload failed: ${err}`)
     throw err
@@ -438,7 +431,7 @@ async function run() {
     date: new Date().toISOString(),
     configStats,
     totalInserted: allRows.length,
-    uploadedToDb,
+    uploadedToDb: allRows.length,
   })
 }
 
