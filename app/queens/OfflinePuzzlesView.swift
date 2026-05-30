@@ -18,6 +18,7 @@ struct OfflinePuzzlesView: View {
     @State private var loadError: String?
     @State private var selectedPuzzle: CachedPuzzle?
     @State private var showGame = false
+    @State private var showRemoveAllConfirmation = false
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "OfflinePuzzlesView")
     
@@ -216,12 +217,12 @@ struct OfflinePuzzlesView: View {
                     }
                     .disabled(isAddDisabled || isLoading)
                     .opacity(isAddDisabled ? 0.6 : 1.0)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 50)
                     
                     if let error = loadError {
                         Text(error)
                             .font(.system(size: 14, weight: .regular, design: .rounded))
-                            .foregroundColor(Color(red: 0.8, green: 0.4, blue: 0.4))
+                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 20)
                     }
@@ -252,23 +253,34 @@ struct OfflinePuzzlesView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.top, 40)
                     } else {
-                        ScrollView {
-                            VStack(spacing: 8) {
-                                ForEach(cache.puzzles) { puzzle in
-                                    CachedPuzzleRow(
-                                        puzzle: puzzle,
-                                        isSelected: selectedPuzzle?.id == puzzle.id
-                                    )
-                                    .onTapGesture {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            selectedPuzzle = selectedPuzzle?.id == puzzle.id ? nil : puzzle
+                        List {
+                            ForEach(cache.puzzles) { puzzle in
+                                CachedPuzzleRow(
+                                    puzzle: puzzle,
+                                    isSelected: selectedPuzzle?.id == puzzle.id
+                                )
+                                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedPuzzle = selectedPuzzle?.id == puzzle.id ? nil : puzzle
+                                    }
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        withAnimation {
+                                            if selectedPuzzle?.id == puzzle.id { selectedPuzzle = nil }
+                                            cache.remove(puzzle)
                                         }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
                                     }
                                 }
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 100) // Space for bottom buttons
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
                 }
                 .frame(maxHeight: .infinity)
@@ -307,33 +319,37 @@ struct OfflinePuzzlesView: View {
                     .opacity(selectedPuzzle == nil ? 0.6 : 1.0)
                     
                     Button(action: {
-                        if let puzzle = selectedPuzzle {
-                            withAnimation {
-                                cache.remove(puzzle)
-                                selectedPuzzle = nil
-                            }
-                        }
+                        showRemoveAllConfirmation = true
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "trash.fill")
                                 .font(.system(size: 16))
-                            Text("Remove")
+                            Text("Remove All")
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
                         }
-                        .foregroundColor(selectedPuzzle == nil ? Color(red: 0.6, green: 0.62, blue: 0.68) : Color(red: 0.8, green: 0.4, blue: 0.4))
+                        .foregroundColor(cache.puzzles.isEmpty ? Color(red: 0.6, green: 0.62, blue: 0.68) : Color(red: 0.8, green: 0.4, blue: 0.4))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(selectedPuzzle == nil ? Color(red: 0.6, green: 0.62, blue: 0.68) : Color(red: 0.8, green: 0.4, blue: 0.4), lineWidth: 2)
+                                .stroke(cache.puzzles.isEmpty ? Color(red: 0.6, green: 0.62, blue: 0.68) : Color(red: 0.8, green: 0.4, blue: 0.4), lineWidth: 2)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(Color.white.opacity(0.3))
                                 )
                         )
                     }
-                    .disabled(selectedPuzzle == nil)
-                    .opacity(selectedPuzzle == nil ? 0.6 : 1.0)
+                    .disabled(cache.puzzles.isEmpty)
+                    .opacity(cache.puzzles.isEmpty ? 0.6 : 1.0)
+                    .confirmationDialog("Remove all cached puzzles?", isPresented: $showRemoveAllConfirmation, titleVisibility: .visible) {
+                        Button("Remove All", role: .destructive) {
+                            withAnimation {
+                                selectedPuzzle = nil
+                                cache.clearAll()
+                            }
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
@@ -347,42 +363,45 @@ struct OfflinePuzzlesView: View {
         }
     }
     
-    /// Check if "Add to Cache" button should be disabled
     private var isAddDisabled: Bool {
-        return false
+        cache.isFull
     }
     
     /// Fetch and add a puzzle to the cache
     private func addPuzzleToCache() async {
         logger.info("📥 Adding puzzle to cache: \(selectedSize)×\(selectedSize), \(selectedStars) stars")
-        
+
         isLoading = true
         loadError = nil
-        
+
         do {
-            // Fetch puzzle from API
-            let puzzle = try await PuzzleFetcher.fetchPuzzle(size: selectedSize, starsPerUnit: selectedStars, excludeID: nil)
-            
-            // Add to cache
-            let success = cache.add(puzzle)
-            
-            if success {
-                logger.info("✅ Puzzle added to cache successfully")
-                loadError = nil
-            } else {
-                logger.warning("⚠️ Failed to add puzzle to cache (might be duplicate)")
-                loadError = "Puzzle already in cache or cache is full"
+            guard !cache.isFull else {
+                loadError = "Cache is full (max \(30) puzzles) — remove some to add more"
+                isLoading = false
+                return
             }
-            
+
+            var added = false
+            for attempt in 1...5 {
+                let puzzle = try await PuzzleFetcher.fetchPuzzle(size: selectedSize, starsPerUnit: selectedStars)
+                if cache.add(puzzle) {
+                    logger.info("✅ Puzzle added to cache successfully (attempt \(attempt))")
+                    added = true
+                    break
+                }
+                logger.info("ℹ️ Puzzle already in cache, retrying... (attempt \(attempt))")
+            }
+            if !added {
+                loadError = "Couldn't find a new puzzle to add — try again later"
+            }
         } catch let error as PuzzleFetchError {
             logger.error("❌ Failed to fetch puzzle: \(error.localizedDescription)")
             loadError = error.errorDescription ?? "Failed to fetch puzzle"
-            
         } catch {
             logger.error("❌ Unexpected error: \(error.localizedDescription)")
             loadError = "Failed to download puzzle"
         }
-        
+
         isLoading = false
     }
 }
@@ -394,39 +413,32 @@ struct CachedPuzzleRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Selection indicator
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 22))
-                .foregroundColor(isSelected ? Color(red: 0.4, green: 0.5, blue: 0.7) : Color(red: 0.6, green: 0.62, blue: 0.68))
-            
             VStack(alignment: .leading, spacing: 4) {
                 // Puzzle name
                 Text(puzzle.displayName)
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
-                
+
                 // Puzzle ID
                 Text("ID: \(puzzle.id)")
                     .font(.system(size: 13, weight: .regular, design: .monospaced))
                     .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
                     .opacity(0.8)
-                
-                // Completion info (if completed)
-                if let time = puzzle.completionTime {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(red: 0.4, green: 0.7, blue: 0.4))
-                        
-                        // Time
-                        Text(formatTime(time))
-                            .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
-                    }
+            }
+
+            Spacer()
+
+            // Completion info (if completed)
+            if let time = puzzle.completionTime {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(Color(red: 0.4, green: 0.7, blue: 0.4))
+                    Text(formatTime(time))
+                        .font(.system(size: 13, weight: .regular, design: .monospaced))
+                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
                 }
             }
-            
-            Spacer()
         }
         .padding(12)
         .background(

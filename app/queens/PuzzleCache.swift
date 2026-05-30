@@ -122,6 +122,10 @@ class PuzzleCache {
         }
     }
     
+    var isFull: Bool {
+        puzzles.count >= Self.maxCacheSize
+    }
+
     /// Get the number of cached puzzles for a specific size/stars configuration
     func count(size: Int, stars: Int) -> Int {
         self.puzzles.filter { $0.puzzle.size == size && $0.puzzle.starsPerRegion == stars }.count

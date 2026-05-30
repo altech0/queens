@@ -42,10 +42,15 @@ enum Configuration {
             }
         }
         
-        // Try to load from Config.plist
-        logger.debug("ℹ️ Key '\(key)' not found in Info.plist, trying Config.plist")
-        
-        guard let path = Bundle.main.path(forResource: "Config", ofType: "plist") else {
+        // Try to load from Config.plist (Config.debug.plist in Debug builds)
+        #if DEBUG
+        let configName = "Config.debug"
+        #else
+        let configName = "Config"
+        #endif
+        logger.debug("ℹ️ Key '\(key)' not found in Info.plist, trying \(configName).plist")
+
+        guard let path = Bundle.main.path(forResource: configName, ofType: "plist") else {
             logger.error("❌ Config.plist file not found in bundle")
             logger.error("💡 Make sure Config.plist is added to your Xcode project and included in 'Copy Bundle Resources'")
             throw Error.configFileNotFound

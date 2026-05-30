@@ -54,12 +54,27 @@ struct GameView: View {
     @State private var hasShownHintThisSession = false
 
     private var conflictCells: Set<GridPosition> {
-        guard puzzle != nil else { return [] }
+        guard let puzzle = puzzle else { return [] }
         let stars = Set(cellStates.filter { $0.value == .star }.keys)
         var conflicts = Set<GridPosition>()
+        let limit = puzzle.starsPerRegion
+
+        let byRow = Dictionary(grouping: stars, by: \.row)
+        for (_, rowStars) in byRow where rowStars.count > limit {
+            conflicts.formUnion(rowStars)
+        }
+
+        let byCol = Dictionary(grouping: stars, by: \.column)
+        for (_, colStars) in byCol where colStars.count > limit {
+            conflicts.formUnion(colStars)
+        }
+
+        let byRegion = Dictionary(grouping: stars, by: { puzzle.regions[$0.row][$0.column] })
+        for (_, regionStars) in byRegion where regionStars.count > limit {
+            conflicts.formUnion(regionStars)
+        }
+
         for star in stars {
-            if stars.contains(where: { $0 != star && $0.row == star.row }) { conflicts.insert(star) }
-            if stars.contains(where: { $0 != star && $0.column == star.column }) { conflicts.insert(star) }
             for dr in -1...1 {
                 for dc in -1...1 {
                     guard dr != 0 || dc != 0 else { continue }
@@ -69,6 +84,7 @@ struct GameView: View {
                 }
             }
         }
+
         return conflicts
     }
     
@@ -123,9 +139,9 @@ struct GameView: View {
             if let error = loadingError {
                 // Error state
                 VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle.fill")
+                    Image(systemName: "cup.and.saucer.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(Color(red: 0.8, green: 0.4, blue: 0.4))
+                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
                     
                     Text(error)
                         .font(.system(size: 18, weight: .medium, design: .rounded))
@@ -885,8 +901,7 @@ struct GameView: View {
         do {
             logger.debug("🎮 GameView: Calling PuzzleFetcher...")
             // Exclude current puzzle ID to get a different one
-            let excludeID = self.puzzle?.code
-            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, excludeID: excludeID)
+            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit)
             
             logger.info("🎮 GameView: Puzzle loaded successfully")
             self.puzzle = loadedPuzzle
@@ -895,6 +910,12 @@ struct GameView: View {
             isLoading = false
             startTimer()
             
+        } catch PuzzleFetchError.unauthenticated {
+            logger.info("🎮 GameView: Unauthenticated — waiting for re-registration then retrying")
+            try? await Task.sleep(for: .seconds(2))
+            await loadPuzzle()
+            return
+
         } catch let error as PuzzleFetchError {
             logger.error("🎮 GameView: PuzzleFetchError - \(error.localizedDescription)")
             loadingError = error.errorDescription ?? "Unknown error"

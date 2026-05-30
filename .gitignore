@@ -4,6 +4,10 @@ api/.wrangler/
 api/.dev.vars
 api/prompts/
 
+# App config (contain API URLs, not committed)
+app/**/Config.plist
+app/**/Config.debug.plist
+
 # Xcode
 app/**/*.xcuserstate
 app/**/xcuserdata/

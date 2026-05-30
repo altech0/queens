@@ -160,14 +160,9 @@ class PuzzleFetcher {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "PuzzleFetcher")
     
     /// Fetch a puzzle from the API using configuration
-    static func fetchPuzzle(size: Int = 6, starsPerUnit: Int = 1, excludeID: String? = nil) async throws -> StarBattlePuzzle {
+    static func fetchPuzzle(size: Int = 6, starsPerUnit: Int = 1) async throws -> StarBattlePuzzle {
         logger.info("🎯 Starting puzzle fetch process")
-        
-        if let excludeID = excludeID {
-            logger.debug("ℹ️ Note: Requesting different puzzle from ID: \(excludeID)")
-            logger.debug("ℹ️ (Limited puzzle pools may return the same puzzle)")
-        }
-        
+
         // Get API configuration from Config.plist
         logger.debug("📝 Loading configuration...")
         let apiURLString: String
@@ -535,7 +530,7 @@ enum PuzzleFetchError: LocalizedError {
         case .unauthenticated:
             return "Authentication error. Please restart the app."
         case .rateLimited:
-            return "You've played a lot today — come back tomorrow for more puzzles."
+            return "Taking a breather — you've been busy! Try again in a minute."
         }
     }
 }

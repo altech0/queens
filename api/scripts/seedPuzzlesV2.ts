@@ -30,7 +30,11 @@ const ALL_CONFIGS: PuzzleConfig[] = [
 ]
 
 const CODE_START_DEFAULT = 10001
-const D1_DATABASE_ID = '4b75d895-b2d5-4465-aa7a-f3eb65d30ff0'
+
+const D1_DATABASE_IDS: Record<string, string> = {
+  prod: '4b75d895-b2d5-4465-aa7a-f3eb65d30ff0',
+  dev:  '2365abad-f351-4cad-a73c-1339bca4f726',
+}
 
 // ---------------------------------------------------------------------------
 // Arg parsing
@@ -40,6 +44,7 @@ interface Args {
   configs: PuzzleConfig[]
   seconds: number | null
   yes: boolean
+  env: 'prod' | 'dev'
 }
 
 function parseArgs(): Args {
@@ -55,6 +60,15 @@ function parseArgs(): Args {
   const seconds = get('--seconds') !== null ? Number(get('--seconds')) : null
   const yes = argv.includes('--yes')
 
+  const envArg = get('--env')
+  if (!envArg || (envArg !== 'prod' && envArg !== 'dev')) {
+    console.error('Error: --env <prod|dev> is required')
+    console.error('  npx tsx scripts/seedPuzzlesV2.ts --env prod')
+    console.error('  npx tsx scripts/seedPuzzlesV2.ts --env dev')
+    process.exit(1)
+  }
+  const env = envArg as 'prod' | 'dev'
+
   let configs = ALL_CONFIGS
   if (size !== null || stars !== null) {
     configs = ALL_CONFIGS.filter(c =>
@@ -68,7 +82,7 @@ function parseArgs(): Args {
     }
   }
 
-  return { configs, seconds, yes }
+  return { configs, seconds, yes, env }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,9 +129,11 @@ function escape(s: string): string {
   return s.replace(/'/g, "''")
 }
 
+let ACTIVE_DB_ID: string
+
 function d1Url(path: string): string {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? ''
-  return `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${D1_DATABASE_ID}${path}`
+  return `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${ACTIVE_DB_ID}${path}`
 }
 
 function d1Headers(): Record<string, string> {
@@ -140,22 +156,34 @@ async function fetchExistingState(config: PuzzleConfig): Promise<{ existingSolut
     return { existingSolutions: new Set(), maxCode: null }
   }
 
-  const res = await fetch(d1Url('/query'), {
+  // Fetch existing solutions for this config (for duplicate detection)
+  const solRes = await fetch(d1Url('/query'), {
     method: 'POST',
     headers: d1Headers(),
-    body: JSON.stringify({ sql: `SELECT solution, code FROM puzzles WHERE grid_size = ${config.size} AND stars = ${config.starsPerUnit}` }),
+    body: JSON.stringify({ sql: `SELECT solution FROM puzzles WHERE grid_size = ${config.size} AND stars = ${config.starsPerUnit}` }),
   })
-
-  if (!res.ok) {
-    console.warn(`⚠️  Failed to fetch existing puzzles: ${res.status} ${res.statusText}`)
+  if (!solRes.ok) {
+    console.warn(`⚠️  Failed to fetch existing puzzles: ${solRes.status} ${solRes.statusText}`)
     return { existingSolutions: new Set(), maxCode: null }
   }
+  const solData = await solRes.json() as any
+  const solRows: { solution: string }[] = solData.result?.[0]?.results ?? []
+  const existingSolutions = new Set<string>(solRows.map(r => r.solution))
 
-  const data = await res.json() as any
-  const rows: { solution: string, code: number | null }[] = data.result?.[0]?.results ?? []
-  const existingSolutions = new Set<string>(rows.map(r => r.solution))
-  const maxCode = rows.reduce((max, r) => r.code != null && r.code > max ? r.code : max, 0) || null
-  console.log(`  Found ${existingSolutions.size} existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles. Highest code: ${maxCode ?? 'none'}.`)
+  // Fetch global max code (code is unique across all grid sizes)
+  const codeRes = await fetch(d1Url('/query'), {
+    method: 'POST',
+    headers: d1Headers(),
+    body: JSON.stringify({ sql: `SELECT MAX(code) as max_code FROM puzzles` }),
+  })
+  if (!codeRes.ok) {
+    console.warn(`⚠️  Failed to fetch max code: ${codeRes.status} ${codeRes.statusText}`)
+    return { existingSolutions, maxCode: null }
+  }
+  const codeData = await codeRes.json() as any
+  const maxCode: number | null = codeData.result?.[0]?.results?.[0]?.max_code ?? null
+
+  console.log(`  Found ${existingSolutions.size} existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles. Global highest code: ${maxCode ?? 'none'}.`)
   return { existingSolutions, maxCode }
 }
 
@@ -355,6 +383,8 @@ async function sendEmail(runStats: RunStats): Promise<void> {
 
 async function run() {
   const args = parseArgs()
+  ACTIVE_DB_ID = D1_DATABASE_IDS[args.env]
+  console.log(`Target: ${args.env.toUpperCase()} (${ACTIVE_DB_ID})\n`)
 
   let seconds: number
   let selectedConfigs: PuzzleConfig[]

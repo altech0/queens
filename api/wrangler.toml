@@ -3,6 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Production
 [[routes]]
 pattern = "api.queens.knittedmice.com"
 custom_domain = true
@@ -19,4 +20,26 @@ namespace_id = "1001"
 simple = { limit = 60, period = 60 }
 
 [observability]
+enabled = true
+
+# Dev
+[env.dev]
+name = "queens-api-dev"
+
+[[env.dev.routes]]
+pattern = "api.dev.queens.knittedmice.com"
+custom_domain = true
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "queens-dev"
+database_id = "2365abad-f351-4cad-a73c-1339bca4f726"
+
+[[env.dev.unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
+[env.dev.observability]
 enabled = true

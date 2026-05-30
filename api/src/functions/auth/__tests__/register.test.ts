@@ -1,63 +1,89 @@
 import { describe, it, expect, vi } from 'vitest'
 import { registerHandler } from '../index'
 
-const NICK_SQL = 'SELECT id FROM users WHERE nickname = ?'
-
-function makeCtx(body: object | null, dbResponses: Record<string, any> = {}) {
+function makeCtx(insertSucceeds = true) {
+  let callCount = 0
   return {
     req: {
-      json: body === null
-        ? vi.fn().mockRejectedValue(new Error('bad json'))
-        : vi.fn().mockResolvedValue(body),
+      json: vi.fn().mockResolvedValue({}),
     },
     env: {
       DB: {
-        prepare: vi.fn().mockImplementation((sql: string) => ({
+        prepare: vi.fn().mockImplementation(() => ({
           bind: vi.fn().mockReturnValue({
-            first: vi.fn().mockResolvedValue(dbResponses[sql] ?? null),
-            run:   vi.fn().mockResolvedValue({}),
+            run: vi.fn().mockImplementation(() => {
+              callCount++
+              if (!insertSucceeds) throw new Error('UNIQUE constraint failed: users.nickname')
+              return Promise.resolve({})
+            }),
           }),
         })),
       },
     },
     json: vi.fn(),
+    _callCount: () => callCount,
   }
 }
 
 describe('POST /auth/register', () => {
-  it('rejects invalid JSON', async () => {
-    const ctx = makeCtx(null)
-    await registerHandler(ctx as any)
-    expect(ctx.json).toHaveBeenCalledWith({ error: 'Invalid JSON' }, 400)
-  })
-
-  it('rejects invalid nickname', async () => {
-    const ctx = makeCtx({ nickname: '<bad>' })
-    await registerHandler(ctx as any)
-    expect(ctx.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.stringContaining('invalid') }), 400
-    )
-  })
-
-  it('rejects duplicate nickname', async () => {
-    const ctx = makeCtx(
-      { nickname: 'TakenNick' },
-      { [NICK_SQL]: { id: 'other-user' } }
-    )
-    await registerHandler(ctx as any)
-    expect(ctx.json).toHaveBeenCalledWith({ error: 'Nickname already taken' }, 409)
-  })
-
-  it('returns api_token and user_id on success', async () => {
-    const ctx = makeCtx({ nickname: 'NewUser' })
+  it('creates a user with a generated nickname and returns api_token', async () => {
+    const ctx = makeCtx()
     await registerHandler(ctx as any)
     expect(ctx.json).toHaveBeenCalledWith(
       expect.objectContaining({
         api_token: expect.any(String),
         user_id:   expect.any(String),
-        nickname:  'NewUser',
+        nickname:  expect.any(String),
       }),
       201
+    )
+  })
+
+  it('retries on nickname collision and eventually succeeds', async () => {
+    let attempts = 0
+    const ctx = {
+      req: { json: vi.fn().mockResolvedValue({}) },
+      env: {
+        DB: {
+          prepare: vi.fn().mockImplementation(() => ({
+            bind: vi.fn().mockReturnValue({
+              run: vi.fn().mockImplementation(() => {
+                attempts++
+                if (attempts < 3) throw new Error('UNIQUE constraint failed: users.nickname')
+                return Promise.resolve({})
+              }),
+            }),
+          })),
+        },
+      },
+      json: vi.fn(),
+    }
+    await registerHandler(ctx as any)
+    expect(attempts).toBe(3)
+    expect(ctx.json).toHaveBeenCalledWith(
+      expect.objectContaining({ api_token: expect.any(String) }),
+      201
+    )
+  })
+
+  it('returns 500 if all attempts fail', async () => {
+    const ctx = {
+      req: { json: vi.fn().mockResolvedValue({}) },
+      env: {
+        DB: {
+          prepare: vi.fn().mockImplementation(() => ({
+            bind: vi.fn().mockReturnValue({
+              run: vi.fn().mockRejectedValue(new Error('UNIQUE constraint failed: users.nickname')),
+            }),
+          })),
+        },
+      },
+      json: vi.fn(),
+    }
+    await registerHandler(ctx as any)
+    expect(ctx.json).toHaveBeenCalledWith(
+      { error: 'Failed to register — please try again' },
+      500
     )
   })
 })
