@@ -71,6 +71,14 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
   }
 
   console.log(`[puzzle] → 200 puzzle id: ${row.id}`)
+
+  const user = c.get('user')
+  c.executionCtx.waitUntil(
+    c.env.DB.prepare(
+      "INSERT INTO puzzle_serves (id, user_id, puzzle_id, served_at) VALUES (?, ?, ?, datetime('now'))"
+    ).bind(crypto.randomUUID(), user.id, row.id).run()
+  )
+
   return c.json({
     id: row.id,
     code: row.code,
