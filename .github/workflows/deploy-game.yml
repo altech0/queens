@@ -48,6 +48,14 @@ jobs:
       - name: Install dependencies
         run: cd api && npm ci
 
+      - name: Run migrations (prod)
+        uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: api
+          command: d1 migrations apply queens --remote
+
       - uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
