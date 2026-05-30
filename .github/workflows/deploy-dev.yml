@@ -45,7 +45,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: api
-          command: d1 migrations apply queens-dev --remote
+          command: d1 migrations apply queens-dev --remote --env dev
 
       - uses: cloudflare/wrangler-action@v3.14.1
         with:
