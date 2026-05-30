@@ -225,6 +225,21 @@ async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches:
   }
 }
 
+async function writeSeedRun(stats: BatchStats): Promise<void> {
+  const sql = `INSERT INTO seed_runs (id, grid_size, stars, attempts, generated, duplicates, inserted, started_at, finished_at) VALUES ('${crypto.randomUUID()}', ${stats.gridSize}, ${stats.stars}, ${stats.attempts}, ${stats.generated}, ${stats.duplicates}, ${stats.inserted}, '${stats.startedAt}', '${stats.finishedAt}')`
+  try {
+    const res = await fetch(d1Url('/query'), {
+      method: 'POST',
+      headers: d1Headers(),
+      body: JSON.stringify({ sql }),
+    })
+    if (!res.ok) console.warn(`  ⚠️  Failed to write seed run: ${res.status}`)
+    else console.log(`  Seed run recorded for ${stats.label}`)
+  } catch (err) {
+    console.warn(`  ⚠️  Failed to write seed run: ${err}`)
+  }
+}
+
 async function uploadRows(rows: PuzzleRow[], batchSize = 50): Promise<void> {
   const totalBatches = Math.ceil(rows.length / batchSize)
   for (let i = 0; i < rows.length; i += batchSize) {
@@ -239,11 +254,15 @@ async function uploadRows(rows: PuzzleRow[], batchSize = 50): Promise<void> {
 
 interface BatchStats {
   label: string
+  gridSize: number
+  stars: number
   attempts: number
   generated: number
   duplicates: number
   inserted: number
   elapsedMs: number
+  startedAt: string
+  finishedAt: string
 }
 
 async function generateBatch(
@@ -255,6 +274,7 @@ async function generateBatch(
   const { size, starsPerUnit: stars } = config
   const label = `${size}×${size} ${stars}★`
   const rows: PuzzleRow[] = []
+  const startedAt = new Date().toISOString()
   const start = Date.now()
   const deadline = start + seconds * 1000
   const puzzleTimes: number[] = []
@@ -310,7 +330,7 @@ async function generateBatch(
 
   return {
     rows,
-    stats: { label, attempts, generated, duplicates, inserted: rows.length, elapsedMs },
+    stats: { label, gridSize: size, stars, attempts, generated, duplicates, inserted: rows.length, elapsedMs, startedAt, finishedAt: new Date().toISOString() },
   }
 }
 
@@ -454,6 +474,11 @@ async function run() {
   } catch (err) {
     console.error(`\nUpload failed: ${err}`)
     throw err
+  }
+
+  console.log('\nRecording seed runs...')
+  for (const stats of configStats) {
+    await writeSeedRun(stats)
   }
 
   await sendEmail({
