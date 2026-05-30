@@ -67,8 +67,8 @@ export default function PuzzleGrid({
                 onClick={() => onCellClick(row, col)}
                 className="flex items-center justify-center cursor-pointer select-none transition-all duration-100 hover:brightness-95 active:scale-95"
                 style={{
-                  width: `calc(min(100vw - 22rem, 100vh - 18rem) / ${size})`,
-                  height: `calc(min(100vw - 22rem, 100vh - 18rem) / ${size})`,
+                  width: `calc(var(--grid-available) / ${size})`,
+                  height: `calc(var(--grid-available) / ${size})`,
                   background: bg,
                   borderStyle: 'solid',
                   ...borderStyle(row, col),
@@ -77,7 +77,7 @@ export default function PuzzleGrid({
                 {state === 'x' && (
                   <span
                     className="text-lg font-bold leading-none select-none"
-                    style={{ color: 'rgba(80,90,120,0.55)', fontSize: `calc(min(100vw - 22rem, 100vh - 18rem) / ${size} * 0.45)` }}
+                    style={{ color: 'rgba(80,90,120,0.55)', fontSize: `calc(var(--grid-available) / ${size} * 0.45)` }}
                   >
                     ✕
                   </span>
@@ -86,7 +86,7 @@ export default function PuzzleGrid({
                   <span
                     className="leading-none select-none"
                     style={{
-                      fontSize: `calc(min(100vw - 22rem, 100vh - 18rem) / ${size} * 0.5)`,
+                      fontSize: `calc(var(--grid-available) / ${size} * 0.5)`,
                       color: highlightConflicts && isConflict
                         ? 'rgba(210, 25, 20, 0.9)'
                         : completed

@@ -36,3 +36,13 @@ export async function fetchPuzzle(size?: number, stars?: number): Promise<Puzzle
   if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
   return res.json()
 }
+
+export async function fetchPuzzleByCode(code: string): Promise<Puzzle> {
+  const token = await getToken()
+  const res = await fetch(`${API}/puzzle?code=${encodeURIComponent(code)}`, {
+    headers: { 'X-API-Token': token },
+  })
+  if (res.status === 404) throw new Error('Puzzle not found')
+  if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
+  return res.json()
+}
