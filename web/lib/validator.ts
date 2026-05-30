@@ -15,37 +15,11 @@ export function validate(
     }
   }
 
-  const required = puzzle.gridSize
+  const limit = puzzle.stars
+  const required = puzzle.gridSize * limit
   const conflicts = new Set<string>()
 
-  for (let i = 0; i < stars.length; i++) {
-    for (let j = i + 1; j < stars.length; j++) {
-      const [r1, c1] = stars[i]
-      const [r2, c2] = stars[j]
-      const sameRow = r1 === r2
-      const sameCol = c1 === c2
-      const adjacent = Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1
-
-      if (sameRow || sameCol || adjacent) {
-        conflicts.add(`${r1},${c1}`)
-        conflicts.add(`${r2},${c2}`)
-      }
-    }
-  }
-
-  if (stars.length < required) return { result: 'incomplete', conflicts }
-  if (conflicts.size > 0) return { result: 'invalid', conflicts }
-
-  // Check one star per row, column, region
-  const rows    = new Set(stars.map(([r]) => r))
-  const cols    = new Set(stars.map(([, c]) => c))
-  const regions = new Set(stars.map(([r, c]) => puzzle.regions[r][c]))
-
-  if (rows.size === required && cols.size === required && regions.size === required) {
-    return { result: 'valid', conflicts }
-  }
-
-  // Find which stars violate row/col/region uniqueness
+  // Row/col/region counts
   const rowCounts    = new Map<number, number>()
   const colCounts    = new Map<number, number>()
   const regionCounts = new Map<number, number>()
@@ -53,15 +27,31 @@ export function validate(
   for (const [r, c] of stars) {
     rowCounts.set(r, (rowCounts.get(r) ?? 0) + 1)
     colCounts.set(c, (colCounts.get(c) ?? 0) + 1)
-    const reg = puzzle.regions[r][c]
-    regionCounts.set(reg, (regionCounts.get(reg) ?? 0) + 1)
+    regionCounts.set(puzzle.regions[r][c], (regionCounts.get(puzzle.regions[r][c]) ?? 0) + 1)
   }
 
+  const starSet = new Set(stars.map(([r, c]) => `${r},${c}`))
+
   for (const [r, c] of stars) {
-    if ((rowCounts.get(r) ?? 0) > 1 || (colCounts.get(c) ?? 0) > 1 || (regionCounts.get(puzzle.regions[r][c]) ?? 0) > 1) {
-      conflicts.add(`${r},${c}`)
+    const key = `${r},${c}`
+
+    if ((rowCounts.get(r) ?? 0) > limit || (colCounts.get(c) ?? 0) > limit || (regionCounts.get(puzzle.regions[r][c]) ?? 0) > limit) {
+      conflicts.add(key)
+    }
+
+    // Adjacency check
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue
+        if (starSet.has(`${r + dr},${c + dc}`)) {
+          conflicts.add(key)
+        }
+      }
     }
   }
 
-  return { result: 'invalid', conflicts }
+  if (stars.length < required) return { result: 'incomplete', conflicts }
+  if (conflicts.size > 0) return { result: 'invalid', conflicts }
+
+  return { result: 'valid', conflicts }
 }
