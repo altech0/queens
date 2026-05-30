@@ -48,14 +48,23 @@ function Section({ title, open, onToggle, children }: {
           style={{
             width: 14, height: 14, color: 'var(--text-mid)',
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.15s',
+            transition: 'transform 0.2s ease',
             flexShrink: 0,
           }}
         >
           <path d="M2 4l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      {open && <div className="px-5 pb-5">{children}</div>}
+      <div style={{
+        display: 'grid',
+        gridTemplateRows: open ? '1fr' : '0fr',
+        opacity: open ? 1 : 0,
+        transition: 'grid-template-rows 0.2s ease, opacity 0.2s ease',
+      }}>
+        <div style={{ overflow: 'hidden' }}>
+          <div className="px-5 pb-5">{children}</div>
+        </div>
+      </div>
     </div>
   )
 }
