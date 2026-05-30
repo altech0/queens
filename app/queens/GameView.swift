@@ -424,7 +424,7 @@ struct GameView: View {
                             .padding(.top, 4)
                     }
                     
-                    if !isCompleted && !settings.hideTimer {
+                    if !settings.hideTimer {
                         Text(formatTime(elapsedTime))
                             .font(.system(size: 20, weight: .semibold, design: .monospaced))
                             .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
@@ -681,7 +681,7 @@ struct GameView: View {
                 }
                 
                 // Timer display
-                if !isCompleted && !settings.hideTimer {
+                if !settings.hideTimer {
                     Text(formatTime(elapsedTime))
                         .font(.system(size: 16, weight: .medium, design: .monospaced))
                         .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
