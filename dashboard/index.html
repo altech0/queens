@@ -335,18 +335,19 @@ async function load() {
   document.getElementById('last-updated').style.display = 'none'
 
   try {
-    const [puzzles, seedRuns, users] = await Promise.all([
+    const [puzzles, seedRuns, users, puzzleServes] = await Promise.all([
       fetchJSON('/dashboard/puzzles'),
       fetchJSON('/dashboard/seed-runs?limit=200'),
       fetchJSON('/dashboard/users?days=90').catch(() => ({ registrations: [], active: null })),
+      fetchJSON('/dashboard/puzzle-serves').catch(() => null),
     ])
-    render(puzzles, seedRuns, users)
+    render(puzzles, seedRuns, users, puzzleServes)
   } catch (err) {
     main.innerHTML = `<div class="state"><span style="color:#f38ba8">Failed to load: ${err.message}</span></div>`
   }
 }
 
-function render(puzzles, seedRuns, users) {
+function render(puzzles, seedRuns, users, puzzleServes) {
   const main = document.getElementById('main')
 
   const total = puzzles.reduce((s, r) => s + r.count, 0)
@@ -464,6 +465,29 @@ function render(puzzles, seedRuns, users) {
       </div>
     </div>
 
+    <!-- Puzzles Served -->
+    <div class="stat-card active-card anim" style="--c:#cba6f7;min-height:120px;display:flex;flex-direction:column;justify-content:center;animation-delay:0.12s">
+      <div class="stat-tag">Puzzles Served</div>
+      <div style="display:flex;gap:0;margin-top:6px;justify-content:space-around">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">1h</div>
+          <div id="sc-serves-1h" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">24h</div>
+          <div id="sc-serves-24h" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">7d</div>
+          <div id="sc-serves-7d" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">30d</div>
+          <div id="sc-serves-30d" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Mid: wide chart + right column -->
     <div class="mid anim" style="animation-delay:0.15s">
       <div class="chart-card">
@@ -528,6 +552,12 @@ function render(puzzles, seedRuns, users) {
   animateCount(document.getElementById('sc-active-24h'), active.active_24h ?? 0)
   animateCount(document.getElementById('sc-active-7d'),  active.active_7d  ?? 0)
   animateCount(document.getElementById('sc-active-30d'), active.active_30d ?? 0)
+  if (puzzleServes) {
+    animateCount(document.getElementById('sc-serves-1h'),  puzzleServes.served_1h  ?? 0)
+    animateCount(document.getElementById('sc-serves-24h'), puzzleServes.served_24h ?? 0)
+    animateCount(document.getElementById('sc-serves-7d'),  puzzleServes.served_7d  ?? 0)
+    animateCount(document.getElementById('sc-serves-30d'), puzzleServes.served_30d ?? 0)
+  }
 
   // Animate last run stats
   if (lastRun) {
