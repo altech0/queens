@@ -12,7 +12,8 @@ import SwiftUI
 class AppSettings {
     var enhancedContrastMode: Bool {
         get {
-            UserDefaults.standard.bool(forKey: "enhancedContrastMode")
+            guard UserDefaults.standard.object(forKey: "enhancedContrastMode") != nil else { return true }
+            return UserDefaults.standard.bool(forKey: "enhancedContrastMode")
         }
         set {
             UserDefaults.standard.set(newValue, forKey: "enhancedContrastMode")
