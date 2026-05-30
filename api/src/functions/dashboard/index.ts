@@ -15,3 +15,15 @@ export const dashboardSeedRunsHandler = async (c: Context<{ Bindings: Bindings }
   ).bind(limit).all()
   return c.json(rows.results)
 }
+
+export const dashboardUsersHandler = async (c: Context<{ Bindings: Bindings }>) => {
+  const days = Math.min(Number(c.req.query('days') ?? 90), 365)
+  const rows = await c.env.DB.prepare(`
+    SELECT date(created_at) as date, COUNT(*) as count
+    FROM users
+    WHERE created_at >= date('now', ? || ' days')
+    GROUP BY date(created_at)
+    ORDER BY date ASC
+  `).bind(-days).all()
+  return c.json(rows.results)
+}

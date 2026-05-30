@@ -4,7 +4,7 @@ import type { Bindings } from './bindings'
 import { healthHandler }     from './functions/health'
 import { puzzleV2Handler }   from './functions/puzzle'
 import { registerHandler, deleteUserHandler } from './functions/auth'
-import { dashboardPuzzlesHandler, dashboardSeedRunsHandler } from './functions/dashboard'
+import { dashboardPuzzlesHandler, dashboardSeedRunsHandler, dashboardUsersHandler } from './functions/dashboard'
 import { tokenAuth }         from './middleware/auth'
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -41,5 +41,6 @@ app.get('/puzzle/:puzzleId?', tokenAuth, puzzleV2Handler)
 // Dashboard
 app.get('/dashboard/puzzles',   dashboardPuzzlesHandler)
 app.get('/dashboard/seed-runs', dashboardSeedRunsHandler)
+app.get('/dashboard/users',     dashboardUsersHandler)
 
 export default app

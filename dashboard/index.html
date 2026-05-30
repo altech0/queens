@@ -7,17 +7,17 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg:        #0d0f1a;
-      --surface:   #13162a;
-      --surface2:  #1a1e35;
-      --border:    #252a47;
-      --accent:    #6c8fff;
-      --accent2:   #a78bfa;
-      --accent3:   #34d399;
-      --accent4:   #f59e0b;
-      --text:      #e2e8f0;
-      --muted:     #64748b;
-      --danger:    #f87171;
+      --bg:       #0f1117;
+      --surface:  #161b27;
+      --surface2: #1e2536;
+      --border:   #2a3349;
+      --text:     #cdd6f4;
+      --muted:    #6c7a9c;
+      --a1:       #89b4fa;
+      --a2:       #cba6f7;
+      --a3:       #a6e3a1;
+      --a4:       #fab387;
+      --danger:   #f38ba8;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,318 +37,179 @@
       padding: 20px 32px;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 50;
     }
 
-    .header-left { display: flex; align-items: center; gap: 12px; }
-
+    .logo-wrap { display: flex; align-items: center; gap: 12px; }
     .logo {
       width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      background: linear-gradient(135deg, var(--a1), var(--a2));
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
       font-size: 18px;
     }
+    .logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); }
+    .logo-text p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
 
-    h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
-    .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
 
-    /* ── Env toggle ── */
+    .last-updated { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--a3);
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
     .env-toggle {
       display: flex;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 4px;
-      gap: 4px;
+      padding: 4px; gap: 4px;
     }
-
     .env-btn {
-      padding: 6px 16px;
-      border-radius: 7px;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
+      padding: 6px 16px; border-radius: 7px; border: none;
+      background: transparent; color: var(--muted);
+      font-size: 13px; font-weight: 600; cursor: pointer;
       transition: all 0.2s;
     }
+    .env-btn.active { background: var(--surface2); color: var(--a3); box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+    .env-btn.dev.active { color: var(--a4); }
 
-    .env-btn.active {
-      background: var(--surface2);
-      color: var(--text);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    /* ── Main layout (Layout 3 — Magazine) ── */
+    main {
+      padding: 32px;
+      max-width: 1300px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
 
-    .env-btn.prod.active { color: var(--accent3); }
-    .env-btn.dev.active  { color: var(--accent4); }
-
-    /* ── Layout ── */
-    main { padding: 32px; max-width: 1400px; margin: 0 auto; }
-
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 16px;
+    .section-label {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 14px;
     }
 
-    /* ── Stat cards ── */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 40px;
-    }
+    /* Hero row — stat cards */
+    .hero { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
 
-    .card {
+    /* Mid row — wide chart + right column */
+    .mid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
+    .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── Stat card (Option C) ── */
+    .stat-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px;
+      border-radius: 20px;
+      padding: 24px;
       position: relative;
       overflow: hidden;
       transition: transform 0.2s, box-shadow 0.2s;
     }
-
-    .card:hover {
+    .stat-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
     }
-
-    .card::before {
+    .stat-card::after {
       content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: var(--card-color, var(--accent));
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--c, var(--a1));
     }
+    .stat-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .stat-big { font-size: 44px; font-weight: 900; letter-spacing: -2px; color: var(--c, var(--a1)); line-height: 1; font-variant-numeric: tabular-nums; }
+    .stat-sub { font-size: 12px; color: var(--muted); margin-top: 5px; }
+    .stat-spark { width: 100% !important; height: 44px !important; margin-top: 14px; opacity: 0.7; }
 
-    .card-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 12px;
-    }
-
-    .card-value {
-      font-size: 36px;
-      font-weight: 800;
-      letter-spacing: -1px;
-      color: var(--card-color, var(--accent));
-      font-variant-numeric: tabular-nums;
-    }
-
-    .card-sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-
-    /* ── Gauge ── */
-    .gauges {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 16px;
-      margin-bottom: 40px;
-    }
-
-    .gauge-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .gauge-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    }
-
-    .gauge-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 12px;
-      text-align: center;
-    }
-
-    .gauge-wrap { position: relative; width: 120px; height: 70px; }
-
-    .gauge-wrap canvas { width: 120px !important; height: 70px !important; }
-
-    .gauge-num {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
-
-    .gauge-total {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 6px;
-    }
-
-    /* ── Charts ── */
-    .charts {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 40px;
-    }
-
-    @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
-
+    /* ── Chart card ── */
     .chart-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 20px;
       padding: 24px;
     }
+    .chart-card h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .chart-card p  { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+    .chart-wrap { position: relative; height: 200px; }
+    .chart-wrap-sm { position: relative; height: 150px; }
 
-    .chart-card.wide {
-      grid-column: 1 / -1;
+    /* ── Last run card ── */
+    .last-run-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      flex: 1;
     }
-
-    .chart-title {
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
-    .chart-desc {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 20px;
-    }
-
-    .chart-wrap { position: relative; height: 220px; }
+    .last-run-card h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .last-run-card .meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+    .lr-stats { display: flex; gap: 20px; }
+    .lr-stat .lr-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .lr-stat .lr-val  { font-size: 28px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
 
     /* ── Table ── */
     .table-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 20px;
       padding: 24px;
-      margin-bottom: 40px;
       overflow-x: auto;
     }
-
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-
     th {
-      text-align: left;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--muted);
-      padding: 0 12px 12px;
-      border-bottom: 1px solid var(--border);
+      text-align: left; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted);
+      padding: 0 12px 12px; border-bottom: 1px solid var(--border);
     }
-
-    td {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-      font-variant-numeric: tabular-nums;
-      color: var(--text);
-    }
-
+    td { padding: 12px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; color: var(--text); }
     tr:last-child td { border-bottom: none; }
-
-    tr { transition: background 0.15s; }
     tr:hover td { background: var(--surface2); }
 
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .badge-blue   { background: rgba(108,143,255,0.15); color: var(--accent);  }
-    .badge-purple { background: rgba(167,139,250,0.15); color: var(--accent2); }
-    .badge-green  { background: rgba(52,211,153,0.15);  color: var(--accent3); }
-    .badge-amber  { background: rgba(245,158,11,0.15);  color: var(--accent4); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
 
     /* ── Loading / error ── */
     .state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 80px 0;
-      color: var(--muted);
-      gap: 12px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 80px 0;
+      color: var(--muted); gap: 12px;
     }
-
     .spinner {
       width: 32px; height: 32px;
       border: 3px solid var(--border);
-      border-top-color: var(--accent);
+      border-top-color: var(--a1);
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Animations ── */
+    /* ── Fade-up animation ── */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
+      from { opacity: 0; transform: translateY(14px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
-    .animate { animation: fadeUp 0.4s ease forwards; opacity: 0; }
-
-    .last-updated {
-      font-size: 11px;
-      color: var(--muted);
-      text-align: right;
-      margin-bottom: 32px;
-    }
-
-    .dot {
-      display: inline-block;
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--accent3);
-      margin-right: 5px;
-      animation: pulse 2s ease infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
+    .anim { animation: fadeUp 0.45s ease forwards; opacity: 0; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="header-left">
+  <div class="logo-wrap">
     <div class="logo">♛</div>
-    <div>
-      <h1>Queens Dashboard</h1>
-      <div class="subtitle">knittedmice.com</div>
-    </div>
+    <div class="logo-text"><h1>Queens</h1><p>dashboard · knittedmice.com</p></div>
   </div>
-  <div class="env-toggle">
-    <button class="env-btn prod active" onclick="setEnv('prod')">Prod</button>
-    <button class="env-btn dev"  onclick="setEnv('dev')">Dev</button>
+  <div class="header-right">
+    <div class="last-updated" id="last-updated" style="display:none">
+      <span class="dot"></span><span id="last-updated-text"></span>
+    </div>
+    <div class="env-toggle">
+      <button class="env-btn prod active" onclick="setEnv('prod')">Prod</button>
+      <button class="env-btn dev" onclick="setEnv('dev')">Dev</button>
+    </div>
   </div>
 </header>
 
@@ -362,14 +223,13 @@ const APIS = {
   dev:  'https://api.dev.queens.knittedmice.com',
 }
 
-const CONFIG_COLORS = {
-  '5x1':  '#6c8fff',
-  '6x1':  '#a78bfa',
-  '8x1':  '#34d399',
-  '10x2': '#f59e0b',
+const COLORS = {
+  '5x1':  '#89b4fa',
+  '6x1':  '#cba6f7',
+  '8x1':  '#a6e3a1',
+  '10x2': '#fab387',
 }
-
-const CONFIG_LABELS = {
+const LABELS = {
   '5x1':  '5×5 1★',
   '6x1':  '6×6 1★',
   '8x1':  '8×8 1★',
@@ -377,9 +237,8 @@ const CONFIG_LABELS = {
 }
 
 let env = 'prod'
-let charts = []
 
-function configKey(gridSize, stars) { return `${gridSize}x${stars}` }
+function ck(gridSize, stars) { return `${gridSize}x${stars}` }
 
 function setEnv(e) {
   env = e
@@ -394,131 +253,48 @@ async function fetchJSON(path) {
   return res.json()
 }
 
-function animateCount(el, target, duration = 800) {
+function animateCount(el, target, duration = 900) {
   const start = performance.now()
-  const from = 0
-  const step = (now) => {
+  const step = now => {
     const t = Math.min((now - start) / duration, 1)
     const ease = 1 - Math.pow(1 - t, 3)
-    el.textContent = Math.round(from + (target - from) * ease).toLocaleString()
+    el.textContent = Math.round(target * ease).toLocaleString()
     if (t < 1) requestAnimationFrame(step)
   }
   requestAnimationFrame(step)
 }
 
-function buildGauge(canvas, value, max, color) {
-  const existing = Chart.getChart(canvas)
-  if (existing) existing.destroy()
-
-  new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      datasets: [{
-        data: [value, Math.max(0, max - value)],
-        backgroundColor: [color, 'rgba(255,255,255,0.05)'],
-        borderWidth: 0,
-        borderRadius: 4,
-      }]
-    },
-    options: {
-      circumference: 180,
-      rotation: -90,
-      cutout: '72%',
-      responsive: false,
-      animation: { duration: 1000, easing: 'easeOutQuart' },
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-    }
-  })
+const chartOpts = {
+  responsive: true, maintainAspectRatio: false,
+  interaction: { mode: 'index', intersect: false },
+  animation: { duration: 800, easing: 'easeOutQuart' },
+  scales: {
+    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#6c7a9c', font: { size: 11 }, maxTicksLimit: 8 } },
+    y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#6c7a9c', font: { size: 11 } }, beginAtZero: true }
+  },
+  plugins: {
+    legend: { labels: { color: '#8c9abf', font: { size: 11 }, boxWidth: 10, padding: 14 } },
+    tooltip: { backgroundColor: '#1e2536', borderColor: '#2a3349', borderWidth: 1, titleColor: '#cdd6f4', bodyColor: '#8c9abf', padding: 10 }
+  }
 }
 
-function buildLineChart(canvas, labels, datasets) {
-  const existing = Chart.getChart(canvas)
+function sparkChart(id, color, data) {
+  const existing = Chart.getChart(id)
   if (existing) existing.destroy()
-
-  new Chart(canvas, {
+  new Chart(document.getElementById(id), {
     type: 'line',
-    data: {
-      labels,
-      datasets: datasets.map(d => ({
-        ...d,
-        borderWidth: 2,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-        tension: 0.4,
-        fill: true,
-      }))
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      animation: { duration: 800, easing: 'easeOutQuart' },
-      scales: {
-        x: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#64748b', font: { size: 11 }, maxTicksLimit: 8 },
-        },
-        y: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#64748b', font: { size: 11 } },
-          beginAtZero: true,
-        }
-      },
-      plugins: {
-        legend: {
-          labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 12, padding: 16 }
-        },
-        tooltip: {
-          backgroundColor: '#1a1e35',
-          borderColor: '#252a47',
-          borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#94a3b8',
-          padding: 10,
-        }
-      }
-    }
+    data: { labels: data.map(() => ''), datasets: [{ data, borderColor: color, backgroundColor: color + '22', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true }] },
+    options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
   })
 }
 
-function buildBarChart(canvas, labels, datasets) {
-  const existing = Chart.getChart(canvas)
+function lineChart(id, labels, datasets, extraOpts = {}) {
+  const existing = Chart.getChart(id)
   if (existing) existing.destroy()
-
-  new Chart(canvas, {
-    type: 'bar',
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 800, easing: 'easeOutQuart' },
-      scales: {
-        x: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#64748b', font: { size: 11 } },
-          stacked: true,
-        },
-        y: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#64748b', font: { size: 11 } },
-          beginAtZero: true,
-          stacked: true,
-        }
-      },
-      plugins: {
-        legend: {
-          labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 12, padding: 16 }
-        },
-        tooltip: {
-          backgroundColor: '#1a1e35',
-          borderColor: '#252a47',
-          borderWidth: 1,
-          titleColor: '#e2e8f0',
-          bodyColor: '#94a3b8',
-          padding: 10,
-        }
-      }
-    }
+  new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { labels, datasets: datasets.map(d => ({ ...d, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.4, fill: true })) },
+    options: { ...chartOpts, ...extraOpts }
   })
 }
 
@@ -526,230 +302,297 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-function formatDuration(startedAt, finishedAt) {
-  const ms = new Date(finishedAt) - new Date(startedAt)
-  const s = Math.round(ms / 1000)
-  if (s < 60) return `${s}s`
-  const m = Math.floor(s / 60), rem = s % 60
-  return rem > 0 ? `${m}m ${rem}s` : `${m}m`
+function formatAgo(iso) {
+  const diff = Date.now() - new Date(iso)
+  const m = Math.round(diff / 60000)
+  if (m < 60) return `${m}m ago`
+  const h = Math.round(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.round(h / 24)}d ago`
 }
 
-function configBadge(gridSize, stars) {
-  const key = configKey(gridSize, stars)
-  const colors = { '5x1': 'badge-blue', '6x1': 'badge-purple', '8x1': 'badge-green', '10x2': 'badge-amber' }
-  return `<span class="badge ${colors[key] ?? 'badge-blue'}">${CONFIG_LABELS[key] ?? key}</span>`
+function formatDuration(a, b) {
+  const s = Math.round((new Date(b) - new Date(a)) / 1000)
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60), r = s % 60
+  return r ? `${m}m ${r}s` : `${m}m`
+}
+
+function badge(gridSize, stars) {
+  const key = ck(gridSize, stars)
+  const color = COLORS[key] ?? '#89b4fa'
+  return `<span class="badge" style="background:${color}22;color:${color}">${LABELS[key] ?? key}</span>`
+}
+
+function effColor(pct) {
+  return pct > 60 ? '#a6e3a1' : pct > 30 ? '#fab387' : '#f38ba8'
 }
 
 async function load() {
   const main = document.getElementById('main')
   main.innerHTML = '<div class="state"><div class="spinner"></div><span>Loading…</span></div>'
+  document.getElementById('last-updated').style.display = 'none'
 
   try {
-    const [puzzles, seedRuns] = await Promise.all([
+    const [puzzles, seedRuns, users] = await Promise.all([
       fetchJSON('/dashboard/puzzles'),
       fetchJSON('/dashboard/seed-runs?limit=200'),
+      fetchJSON('/dashboard/users?days=90').catch(() => []),
     ])
-    render(puzzles, seedRuns)
+    render(puzzles, seedRuns, users)
   } catch (err) {
-    main.innerHTML = `<div class="state"><span style="color:var(--danger)">Failed to load: ${err.message}</span></div>`
+    main.innerHTML = `<div class="state"><span style="color:#f38ba8">Failed to load: ${err.message}</span></div>`
   }
 }
 
-function render(puzzles, seedRuns) {
+function render(puzzles, seedRuns, users) {
   const main = document.getElementById('main')
 
-  // Totals
   const total = puzzles.reduce((s, r) => s + r.count, 0)
   const byConfig = {}
-  puzzles.forEach(r => { byConfig[configKey(r.grid_size, r.stars)] = r.count })
+  puzzles.forEach(r => { byConfig[ck(r.grid_size, r.stars)] = r.count })
 
-  // Seed run summaries
-  const recentRuns = seedRuns.slice(0, 20)
-  const totalInserted = seedRuns.reduce((s, r) => s + r.inserted, 0)
-  const lastRun = seedRuns[0]
+  const allKeys = ['5x1','6x1','8x1','10x2']
+  const lastRun = seedRuns[0] ?? null
+
+  // User growth — daily registrations + cumulative total
+  const userDates = users.map(r => r.date)
+  const userDaily = users.map(r => r.count)
+  const userCumulative = userDaily.reduce((acc, v) => {
+    acc.push((acc[acc.length - 1] ?? 0) + v)
+    return acc
+  }, [])
+  const totalUsers = userCumulative[userCumulative.length - 1] ?? 0
+
+  // Build sparkline data per config from seed runs (inserted over time)
+  const runsByConfig = {}
+  allKeys.forEach(k => { runsByConfig[k] = [] })
+  seedRuns.slice().reverse().forEach(r => {
+    const k = ck(r.grid_size, r.stars)
+    if (runsByConfig[k]) runsByConfig[k].push(r.inserted)
+  })
+  // Pad to 12 points for sparkline
+  const sparkFor = k => {
+    const d = runsByConfig[k].slice(-12)
+    while (d.length < 12) d.unshift(0)
+    return d
+  }
+
+  // Chart data — last 20 seed runs per config
+  const chartRuns = seedRuns.slice().reverse().slice(-40)
+  const chartLabels = chartRuns.map(r => formatDate(r.started_at))
+
+  // Inserted over time grouped by config
+  const insertedDatasets = allKeys
+    .filter(k => runsByConfig[k].length > 0)
+    .map(k => ({
+      label: LABELS[k],
+      data: (() => {
+        const byDate = {}
+        seedRuns.slice().reverse().slice(-40).forEach(r => {
+          if (ck(r.grid_size, r.stars) === k) byDate[formatDate(r.started_at)] = r.inserted
+        })
+        return chartLabels.map(l => byDate[l] ?? null)
+      })(),
+      borderColor: COLORS[k],
+      backgroundColor: COLORS[k] + '18',
+      spanGaps: true,
+    }))
+
+  // Dupe rate datasets
+  const dupeDatasets = allKeys
+    .filter(k => runsByConfig[k].length > 0)
+    .map(k => ({
+      label: LABELS[k],
+      data: (() => {
+        const byDate = {}
+        seedRuns.slice().reverse().slice(-40).forEach(r => {
+          if (ck(r.grid_size, r.stars) === k)
+            byDate[formatDate(r.started_at)] = r.generated > 0 ? Math.round(r.duplicates / r.generated * 100) : 0
+        })
+        return chartLabels.map(l => byDate[l] ?? null)
+      })(),
+      borderColor: COLORS[k],
+      backgroundColor: COLORS[k] + '18',
+      spanGaps: true,
+    }))
+
+  const lastRunEff = lastRun && lastRun.generated > 0
+    ? Math.round(lastRun.inserted / lastRun.generated * 100)
+    : null
 
   main.innerHTML = `
-    <div class="last-updated animate" style="animation-delay:0s">
-      <span class="dot"></span>Last updated ${new Date().toLocaleTimeString('en-GB')} · ${env.toUpperCase()}
-    </div>
-
-    <div class="section-title animate" style="animation-delay:0.05s">Overview</div>
-    <div class="cards animate" style="animation-delay:0.1s">
-      <div class="card" style="--card-color:var(--accent)">
-        <div class="card-label">Total Puzzles</div>
-        <div class="card-value" id="total-count">0</div>
-        <div class="card-sub">across all configs</div>
-      </div>
-      <div class="card" style="--card-color:var(--accent3)">
-        <div class="card-label">Seed Runs</div>
-        <div class="card-value" id="runs-count">0</div>
-        <div class="card-sub">total recorded</div>
-      </div>
-      <div class="card" style="--card-color:var(--accent2)">
-        <div class="card-label">Ever Inserted</div>
-        <div class="card-value" id="inserted-count">0</div>
-        <div class="card-sub">via seed runs</div>
-      </div>
-      <div class="card" style="--card-color:var(--accent4)">
-        <div class="card-label">Last Seeded</div>
-        <div class="card-value" style="font-size:18px;padding-top:6px">${lastRun ? formatDate(lastRun.started_at) : '—'}</div>
-        <div class="card-sub">${lastRun ? configBadge(lastRun.grid_size, lastRun.stars) : ''}</div>
+    <!-- Hero: stat cards -->
+    <div class="hero anim" style="animation-delay:0.05s">
+      ${allKeys.map((k, i) => `
+        <div class="stat-card" style="--c:${COLORS[k]}">
+          <div class="stat-tag">${LABELS[k]}</div>
+          <div class="stat-big" id="sc-${k}">0</div>
+          <div class="stat-sub">puzzles</div>
+          <canvas class="stat-spark" id="spark-${k}"></canvas>
+        </div>
+      `).join('')}
+      <div class="stat-card" style="--c:#f38ba8">
+        <div class="stat-tag">Total Users</div>
+        <div class="stat-big" id="sc-users">0</div>
+        <div class="stat-sub">registered</div>
+        <canvas class="stat-spark" id="spark-users"></canvas>
       </div>
     </div>
 
-    <div class="section-title animate" style="animation-delay:0.15s">Puzzle DB Breakdown</div>
-    <div class="gauges animate" style="animation-delay:0.2s" id="gauges"></div>
-
-    <div class="section-title animate" style="animation-delay:0.25s">Seed Performance</div>
-    <div class="charts animate" style="animation-delay:0.3s">
-      <div class="chart-card wide">
-        <div class="chart-title">Puzzles Inserted Over Time</div>
-        <div class="chart-desc">Cumulative new puzzles per seed run, by config</div>
+    <!-- Mid: wide chart + right column -->
+    <div class="mid anim" style="animation-delay:0.15s">
+      <div class="chart-card">
+        <h3>Puzzles Inserted Over Time</h3>
+        <p>New puzzles added per seed run by config</p>
         <div class="chart-wrap"><canvas id="chart-inserted"></canvas></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Attempts vs Generated</div>
-        <div class="chart-desc">Efficiency of recent seed runs</div>
-        <div class="chart-wrap"><canvas id="chart-efficiency"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Duplicate Rate</div>
-        <div class="chart-desc">% of generated puzzles already in DB</div>
-        <div class="chart-wrap"><canvas id="chart-dupes"></canvas></div>
+      <div class="right-col">
+        <div class="chart-card">
+          <h3>Duplicate Rate</h3>
+          <p>% of generated puzzles already in DB</p>
+          <div class="chart-wrap-sm"><canvas id="chart-dupes"></canvas></div>
+        </div>
+        <div class="last-run-card">
+          <h3>Last Run</h3>
+          <div class="meta">${lastRun ? `${badge(lastRun.grid_size, lastRun.stars)} &middot; ${formatAgo(lastRun.started_at)}` : '—'}</div>
+          ${lastRun ? `
+          <div class="lr-stats">
+            <div class="lr-stat">
+              <div class="lr-label">Inserted</div>
+              <div class="lr-val" style="color:#a6e3a1" id="lr-inserted">0</div>
+            </div>
+            <div class="lr-stat">
+              <div class="lr-label">Dupes</div>
+              <div class="lr-val" style="color:#f38ba8" id="lr-dupes">0</div>
+            </div>
+            <div class="lr-stat">
+              <div class="lr-label">Eff.</div>
+              <div class="lr-val" style="color:${effColor(lastRunEff)}">${lastRunEff}%</div>
+            </div>
+          </div>` : '<p style="color:var(--muted);font-size:13px">No runs yet</p>'}
+        </div>
       </div>
     </div>
 
-    <div class="section-title animate" style="animation-delay:0.35s">Recent Seed Runs</div>
-    <div class="table-card animate" style="animation-delay:0.4s">
-      <table>
-        <thead>
-          <tr>
-            <th>Config</th>
-            <th>Started</th>
-            <th>Duration</th>
-            <th>Attempts</th>
-            <th>Generated</th>
-            <th>Duplicates</th>
-            <th>Inserted</th>
-            <th>Eff.</th>
-          </tr>
-        </thead>
-        <tbody id="runs-table"></tbody>
-      </table>
+    <!-- User growth chart -->
+    <div class="chart-card anim" style="animation-delay:0.22s">
+      <h3>User Growth</h3>
+      <p>Daily registrations and cumulative total (last 90 days)</p>
+      <div class="chart-wrap"><canvas id="chart-users"></canvas></div>
+    </div>
+
+    <!-- Table -->
+    <div class="anim" style="animation-delay:0.25s">
+      <div class="section-label">Recent Seed Runs</div>
+      <div class="table-card">
+        <table>
+          <thead><tr>
+            <th>Config</th><th>Started</th><th>Duration</th>
+            <th>Attempts</th><th>Generated</th><th>Duplicates</th><th>Inserted</th><th>Eff.</th>
+          </tr></thead>
+          <tbody id="runs-tbody"></tbody>
+        </table>
+      </div>
     </div>
   `
 
-  // Animate counters
-  animateCount(document.getElementById('total-count'), total)
-  animateCount(document.getElementById('runs-count'), seedRuns.length)
-  animateCount(document.getElementById('inserted-count'), totalInserted)
+  // Animate stat card counts
+  allKeys.forEach(k => animateCount(document.getElementById(`sc-${k}`), byConfig[k] ?? 0))
+  animateCount(document.getElementById('sc-users'), totalUsers)
 
-  // Gauges
-  const gaugesEl = document.getElementById('gauges')
-  const configs = ['5x1', '6x1', '8x1', '10x2']
-  configs.forEach(key => {
-    const count = byConfig[key] ?? 0
-    const color = CONFIG_COLORS[key]
-    const label = CONFIG_LABELS[key]
-    const div = document.createElement('div')
-    div.className = 'gauge-card'
-    div.innerHTML = `
-      <div class="gauge-label">${label}</div>
-      <div class="gauge-wrap">
-        <canvas id="gauge-${key}"></canvas>
-        <div class="gauge-num" style="color:${color}" id="gauge-num-${key}">0</div>
-      </div>
-      <div class="gauge-total">${count.toLocaleString()} puzzles</div>
-    `
-    gaugesEl.appendChild(div)
-    // Max reference: rough cap based on config
-    const maxes = { '5x1': 2000, '6x1': 3000, '8x1': 5000, '10x2': 5000 }
-    const max = maxes[key] ?? 5000
-    setTimeout(() => {
-      buildGauge(document.getElementById(`gauge-${key}`), count, max, color)
-      animateCount(document.getElementById(`gauge-num-${key}`), count)
-    }, 300)
-  })
+  // Animate last run stats
+  if (lastRun) {
+    animateCount(document.getElementById('lr-inserted'), lastRun.inserted)
+    animateCount(document.getElementById('lr-dupes'), lastRun.duplicates)
+  }
 
-  // Charts — group seed runs by config
-  const runsByConfig = {}
-  configs.forEach(k => { runsByConfig[k] = [] })
-  seedRuns.slice().reverse().forEach(r => {
-    const k = configKey(r.grid_size, r.stars)
-    if (runsByConfig[k]) runsByConfig[k].push(r)
-  })
+  // Sparklines
+  allKeys.forEach(k => sparkChart(`spark-${k}`, COLORS[k], sparkFor(k)))
+  sparkChart('spark-users', '#f38ba8', userDaily.slice(-12).length ? userDaily.slice(-12) : [0])
 
-  // Inserted over time — use last 30 runs per config
-  const allDates = [...new Set(
-    seedRuns.slice().reverse().slice(-60).map(r => formatDate(r.started_at))
-  )]
-
-  buildLineChart(
-    document.getElementById('chart-inserted'),
-    allDates,
-    configs.map(k => ({
-      label: CONFIG_LABELS[k],
-      data: runsByConfig[k].slice(-60).map(r => r.inserted),
-      borderColor: CONFIG_COLORS[k],
-      backgroundColor: CONFIG_COLORS[k] + '18',
-    }))
-  )
-
-  // Efficiency — last 20 runs across all configs
-  const recent20 = seedRuns.slice(0, 20).reverse()
-  buildBarChart(
-    document.getElementById('chart-efficiency'),
-    recent20.map(r => formatDate(r.started_at)),
-    [
-      {
-        label: 'Inserted',
-        data: recent20.map(r => r.inserted),
-        backgroundColor: configs.map(k => CONFIG_COLORS[configKey(recent20[0]?.grid_size, recent20[0]?.stars)] + 'cc'),
-        borderRadius: 4,
+  // User growth chart
+  if (document.getElementById('chart-users')) {
+    const existing = Chart.getChart('chart-users')
+    if (existing) existing.destroy()
+    new Chart(document.getElementById('chart-users'), {
+      type: 'bar',
+      data: {
+        labels: userDates,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Daily registrations',
+            data: userDaily,
+            backgroundColor: '#f38ba844',
+            borderColor: '#f38ba8',
+            borderWidth: 1,
+            borderRadius: 3,
+            yAxisID: 'y',
+          },
+          {
+            type: 'line',
+            label: 'Cumulative users',
+            data: userCumulative,
+            borderColor: '#cba6f7',
+            backgroundColor: '#cba6f718',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y2',
+          }
+        ]
       },
-      {
-        label: 'Duplicates',
-        data: recent20.map(r => r.duplicates),
-        backgroundColor: 'rgba(248,113,113,0.5)',
-        borderRadius: 4,
-      }
-    ]
-  )
-
-  // Dupe rate
-  buildLineChart(
-    document.getElementById('chart-dupes'),
-    recent20.map(r => formatDate(r.started_at)),
-    configs.map(k => {
-      const runs = runsByConfig[k].slice(-20)
-      return {
-        label: CONFIG_LABELS[k],
-        data: runs.map(r => r.generated > 0 ? Math.round((r.duplicates / r.generated) * 100) : 0),
-        borderColor: CONFIG_COLORS[k],
-        backgroundColor: CONFIG_COLORS[k] + '18',
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        animation: { duration: 800, easing: 'easeOutQuart' },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#6c7a9c', font: { size: 11 }, maxTicksLimit: 10 } },
+          y:  { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#f38ba8', font: { size: 11 } }, beginAtZero: true, position: 'left' },
+          y2: { grid: { display: false }, ticks: { color: '#cba6f7', font: { size: 11 } }, beginAtZero: true, position: 'right' },
+        },
+        plugins: {
+          legend: { labels: { color: '#8c9abf', font: { size: 11 }, boxWidth: 10, padding: 14 } },
+          tooltip: { backgroundColor: '#1e2536', borderColor: '#2a3349', borderWidth: 1, titleColor: '#cdd6f4', bodyColor: '#8c9abf', padding: 10 }
+        }
       }
     })
-  )
+  }
+
+  // Charts
+  lineChart('chart-inserted', chartLabels, insertedDatasets)
+  lineChart('chart-dupes', chartLabels, dupeDatasets, {
+    scales: {
+      ...chartOpts.scales,
+      y: { ...chartOpts.scales.y, max: 100, ticks: { ...chartOpts.scales.y.ticks, callback: v => v + '%' } }
+    }
+  })
 
   // Table
-  const tbody = document.getElementById('runs-table')
-  recentRuns.forEach((r, i) => {
-    const eff = r.generated > 0 ? Math.round((r.inserted / r.generated) * 100) : 0
-    const effColor = eff > 60 ? 'var(--accent3)' : eff > 30 ? 'var(--accent4)' : 'var(--danger)'
+  const tbody = document.getElementById('runs-tbody')
+  seedRuns.slice(0, 25).forEach(r => {
+    const eff = r.generated > 0 ? Math.round(r.inserted / r.generated * 100) : 0
     const tr = document.createElement('tr')
-    tr.style.animationDelay = `${0.4 + i * 0.03}s`
     tr.innerHTML = `
-      <td>${configBadge(r.grid_size, r.stars)}</td>
+      <td>${badge(r.grid_size, r.stars)}</td>
       <td style="color:var(--muted)">${formatDate(r.started_at)}</td>
       <td>${formatDuration(r.started_at, r.finished_at)}</td>
       <td>${r.attempts.toLocaleString()}</td>
       <td>${r.generated.toLocaleString()}</td>
-      <td style="color:var(--danger)">${r.duplicates.toLocaleString()}</td>
-      <td style="color:var(--accent3);font-weight:700">${r.inserted.toLocaleString()}</td>
-      <td style="color:${effColor};font-weight:700">${eff}%</td>
+      <td style="color:#f38ba8">${r.duplicates.toLocaleString()}</td>
+      <td style="color:#a6e3a1;font-weight:700">${r.inserted.toLocaleString()}</td>
+      <td style="color:${effColor(eff)};font-weight:700">${eff}%</td>
     `
     tbody.appendChild(tr)
   })
+
+  // Show last updated
+  const lu = document.getElementById('last-updated')
+  lu.style.display = 'flex'
+  document.getElementById('last-updated-text').textContent =
+    `Updated ${new Date().toLocaleTimeString('en-GB')} · ${env.toUpperCase()}`
 }
 
 load()
