@@ -1,14 +1,13 @@
-name: Deploy Game
+name: Deploy
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'web/**'
   workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-web:
+    name: Deploy Web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
@@ -30,3 +29,25 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/out --project-name queens-web --commit-dirty=true
+
+  deploy-api:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: cd api && npm ci
+
+      - uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: api
+          command: deploy
