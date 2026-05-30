@@ -21,6 +21,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { overflow-x: hidden; }
 
     body {
       background: var(--bg);
@@ -34,7 +35,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 20px 32px;
+      padding: clamp(12px, 2vw, 20px) clamp(16px, 3vw, 32px);
       border-bottom: 1px solid var(--border);
       background: var(--surface);
       position: sticky;
@@ -81,12 +82,12 @@
 
     /* ── Main layout (Layout 3 — Magazine) ── */
     main {
-      padding: 32px;
+      padding: clamp(12px, 3vw, 32px);
       max-width: 1300px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: clamp(12px, 2vw, 24px);
     }
 
     .section-label {
@@ -96,12 +97,12 @@
     }
 
     /* Hero row — stat cards */
-    .hero { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+    .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
     .hero .active-card { grid-column: 1 / -1; }
 
     /* Mid row — wide chart + right column */
-    .mid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
-    .right-col { display: flex; flex-direction: column; gap: 16px; }
+    .mid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+    .right-col { display: flex; flex-direction: column; gap: 12px; }
 
     /* ── Stat card (Option C) ── */
     .stat-card {
@@ -194,6 +195,23 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .anim { animation: fadeUp 0.45s ease forwards; opacity: 0; }
+
+    .active-card-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 6px;
+    }
+    .active-card-stats > div {
+      flex: 1 1 80px;
+    }
+    .active-stat-num {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+      line-height: 1;
+    }
   </style>
 </head>
 <body>
@@ -442,49 +460,25 @@ function render(puzzles, seedRuns, users, puzzleServes) {
         <div class="stat-sub">registered</div>
         <canvas class="stat-spark" id="spark-users"></canvas>
       </div>
-      <div class="stat-card active-card" style="--c:#94e2d5;min-height:120px;display:flex;flex-direction:column;justify-content:center">
+      <div class="stat-card active-card" style="--c:#94e2d5">
         <div class="stat-tag">Active Users</div>
-        <div style="display:flex;gap:0;margin-top:6px;justify-content:space-around">
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">1h</div>
-            <div id="sc-active-1h" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">24h</div>
-            <div id="sc-active-24h" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">7d</div>
-            <div id="sc-active-7d" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">30d</div>
-            <div id="sc-active-30d" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-          </div>
+        <div class="active-card-stats">
+          <div><div class="stat-tag">1h</div><div id="sc-active-1h" class="active-stat-num" style="color:#94e2d5">0</div></div>
+          <div><div class="stat-tag">24h</div><div id="sc-active-24h" class="active-stat-num" style="color:#94e2d5">0</div></div>
+          <div><div class="stat-tag">7d</div><div id="sc-active-7d" class="active-stat-num" style="color:#94e2d5">0</div></div>
+          <div><div class="stat-tag">30d</div><div id="sc-active-30d" class="active-stat-num" style="color:#94e2d5">0</div></div>
         </div>
       </div>
     </div>
 
     <!-- Puzzles Served -->
-    <div class="stat-card active-card anim" style="--c:#cba6f7;min-height:120px;display:flex;flex-direction:column;justify-content:center;animation-delay:0.12s">
+    <div class="stat-card active-card anim" style="--c:#cba6f7;animation-delay:0.12s">
       <div class="stat-tag">Puzzles Served</div>
-      <div style="display:flex;gap:0;margin-top:6px;justify-content:space-around">
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">1h</div>
-          <div id="sc-serves-1h" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">24h</div>
-          <div id="sc-serves-24h" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">7d</div>
-          <div id="sc-serves-7d" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">30d</div>
-          <div id="sc-serves-30d" style="font-size:44px;font-weight:900;color:#cba6f7;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
-        </div>
+      <div class="active-card-stats">
+        <div><div class="stat-tag">1h</div><div id="sc-serves-1h" class="active-stat-num" style="color:#cba6f7">0</div></div>
+        <div><div class="stat-tag">24h</div><div id="sc-serves-24h" class="active-stat-num" style="color:#cba6f7">0</div></div>
+        <div><div class="stat-tag">7d</div><div id="sc-serves-7d" class="active-stat-num" style="color:#cba6f7">0</div></div>
+        <div><div class="stat-tag">30d</div><div id="sc-serves-30d" class="active-stat-num" style="color:#cba6f7">0</div></div>
       </div>
     </div>
 
