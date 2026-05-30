@@ -21,4 +21,10 @@ export const tokenAuth: MiddlewareHandler<{ Bindings: Bindings }> = async (c, ne
 
   c.set('user', user)
   await next()
+
+  c.executionCtx.waitUntil(
+    c.env.DB.prepare(
+      "UPDATE users SET last_active_at = datetime('now') WHERE api_token = ?"
+    ).bind(token).run()
+  )
 }
