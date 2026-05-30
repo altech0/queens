@@ -1,0 +1,46 @@
+name: Backup Database
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # 2am UTC every Sunday
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: cd api && npm ci
+
+      - name: Export prod DB
+        uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: api
+          command: d1 export queens --remote --output ../backup-prod-${{ github.run_id }}.sql
+
+      - name: Export dev DB
+        uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: api
+          command: d1 export queens-dev --remote --env dev --output ../backup-dev-${{ github.run_id }}.sql
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: |
+            backup-prod-${{ github.run_id }}.sql
+            backup-dev-${{ github.run_id }}.sql
+          retention-days: 90
