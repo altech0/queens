@@ -38,3 +38,15 @@ export const dashboardUsersHandler = async (c: Context<{ Bindings: Bindings }>) 
   ])
   return c.json({ registrations: registrations.results, active })
 }
+
+export const dashboardPuzzleServesHandler = async (c: Context<{ Bindings: Bindings }>) => {
+  const row = await c.env.DB.prepare(`
+    SELECT
+      COUNT(CASE WHEN served_at >= datetime('now', '-1 hours')  THEN 1 END) as served_1h,
+      COUNT(CASE WHEN served_at >= datetime('now', '-24 hours') THEN 1 END) as served_24h,
+      COUNT(CASE WHEN served_at >= datetime('now', '-7 days')   THEN 1 END) as served_7d,
+      COUNT(CASE WHEN served_at >= datetime('now', '-30 days')  THEN 1 END) as served_30d
+    FROM puzzle_serves
+  `).first()
+  return c.json(row)
+}
