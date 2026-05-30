@@ -15,7 +15,8 @@ export function validate(
     }
   }
 
-  const required = puzzle.gridSize
+  const limit = puzzle.stars
+  const required = puzzle.gridSize * limit
   const conflicts = new Set<string>()
 
   // Row/col/region counts
@@ -34,7 +35,7 @@ export function validate(
   for (const [r, c] of stars) {
     const key = `${r},${c}`
 
-    if ((rowCounts.get(r) ?? 0) > 1 || (colCounts.get(c) ?? 0) > 1 || (regionCounts.get(puzzle.regions[r][c]) ?? 0) > 1) {
+    if ((rowCounts.get(r) ?? 0) > limit || (colCounts.get(c) ?? 0) > limit || (regionCounts.get(puzzle.regions[r][c]) ?? 0) > limit) {
       conflicts.add(key)
     }
 
