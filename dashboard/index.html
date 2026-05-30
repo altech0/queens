@@ -97,6 +97,7 @@
 
     /* Hero row — stat cards */
     .hero { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+    .hero .active-card { grid-column: 1 / -1; }
 
     /* Mid row — wide chart + right column */
     .mid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
@@ -337,7 +338,7 @@ async function load() {
     const [puzzles, seedRuns, users] = await Promise.all([
       fetchJSON('/dashboard/puzzles'),
       fetchJSON('/dashboard/seed-runs?limit=200'),
-      fetchJSON('/dashboard/users?days=90').catch(() => []),
+      fetchJSON('/dashboard/users?days=90').catch(() => ({ registrations: [], active: null })),
     ])
     render(puzzles, seedRuns, users)
   } catch (err) {
@@ -356,8 +357,10 @@ function render(puzzles, seedRuns, users) {
   const lastRun = seedRuns[0] ?? null
 
   // User growth — daily registrations + cumulative total
-  const userDates = users.map(r => r.date)
-  const userDaily = users.map(r => r.count)
+  const registrations = users.registrations ?? []
+  const active = users.active ?? {}
+  const userDates = registrations.map(r => r.date)
+  const userDaily = registrations.map(r => r.count)
   const userCumulative = userDaily.reduce((acc, v) => {
     acc.push((acc[acc.length - 1] ?? 0) + v)
     return acc
@@ -438,6 +441,27 @@ function render(puzzles, seedRuns, users) {
         <div class="stat-sub">registered</div>
         <canvas class="stat-spark" id="spark-users"></canvas>
       </div>
+      <div class="stat-card active-card" style="--c:#94e2d5;min-height:120px;display:flex;flex-direction:column;justify-content:center">
+        <div class="stat-tag">Active Users</div>
+        <div style="display:flex;gap:0;margin-top:6px;justify-content:space-around">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">1h</div>
+            <div id="sc-active-1h" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">24h</div>
+            <div id="sc-active-24h" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">7d</div>
+            <div id="sc-active-7d" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">30d</div>
+            <div id="sc-active-30d" style="font-size:44px;font-weight:900;color:#94e2d5;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">0</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Mid: wide chart + right column -->
@@ -500,6 +524,10 @@ function render(puzzles, seedRuns, users) {
   // Animate stat card counts
   allKeys.forEach(k => animateCount(document.getElementById(`sc-${k}`), byConfig[k] ?? 0))
   animateCount(document.getElementById('sc-users'), totalUsers)
+  animateCount(document.getElementById('sc-active-1h'),  active.active_1h  ?? 0)
+  animateCount(document.getElementById('sc-active-24h'), active.active_24h ?? 0)
+  animateCount(document.getElementById('sc-active-7d'),  active.active_7d  ?? 0)
+  animateCount(document.getElementById('sc-active-30d'), active.active_30d ?? 0)
 
   // Animate last run stats
   if (lastRun) {
@@ -509,7 +537,7 @@ function render(puzzles, seedRuns, users) {
 
   // Sparklines
   allKeys.forEach(k => sparkChart(`spark-${k}`, COLORS[k], sparkFor(k)))
-  sparkChart('spark-users', '#f38ba8', userDaily.slice(-12).length ? userDaily.slice(-12) : [0])
+  sparkChart('spark-users', '#f38ba8', userDaily.slice(-12).length ? userDaily.slice(-12) : [0,0,0,0,0,0,0,0,0,0,0,0])
 
   // User growth chart
   if (document.getElementById('chart-users')) {
