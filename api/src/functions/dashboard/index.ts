@@ -18,12 +18,23 @@ export const dashboardSeedRunsHandler = async (c: Context<{ Bindings: Bindings }
 
 export const dashboardUsersHandler = async (c: Context<{ Bindings: Bindings }>) => {
   const days = Math.min(Number(c.req.query('days') ?? 90), 365)
-  const rows = await c.env.DB.prepare(`
-    SELECT date(created_at) as date, COUNT(*) as count
-    FROM users
-    WHERE created_at >= date('now', ? || ' days')
-    GROUP BY date(created_at)
-    ORDER BY date ASC
-  `).bind(-days).all()
-  return c.json(rows.results)
+  const [registrations, active] = await Promise.all([
+    c.env.DB.prepare(`
+      SELECT date(created_at) as date, COUNT(*) as count
+      FROM users
+      WHERE created_at >= date('now', ?)
+      GROUP BY date(created_at)
+      ORDER BY date ASC
+    `).bind(`-${days} days`).all(),
+    c.env.DB.prepare(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(CASE WHEN last_active_at >= datetime('now', '-1 hours')  THEN 1 END) as active_1h,
+        COUNT(CASE WHEN last_active_at >= datetime('now', '-24 hours') THEN 1 END) as active_24h,
+        COUNT(CASE WHEN last_active_at >= datetime('now', '-7 days')   THEN 1 END) as active_7d,
+        COUNT(CASE WHEN last_active_at >= datetime('now', '-30 days')  THEN 1 END) as active_30d
+      FROM users
+    `).first(),
+  ])
+  return c.json({ registrations: registrations.results, active })
 }
