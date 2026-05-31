@@ -18,7 +18,7 @@
   --grid-available: min(100vw - 22rem, 100vh - 18rem);
 }
 
-[data-theme="dark"] {
+.dark {
   --bg-from: #1a2032;
   --bg-to: #1e2840;
   --primary: #9eb3e0;
