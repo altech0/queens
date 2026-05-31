@@ -16,6 +16,8 @@ interface SidebarProps {
   onToggleSingleTap: () => void
   enhancedContrast: boolean
   onToggleEnhancedContrast: () => void
+  darkMode: boolean
+  onToggleDarkMode: () => void
   loading: boolean
   completed: boolean
   puzzleActive: boolean
@@ -107,6 +109,7 @@ export default function Sidebar({
   highlightConflicts, onToggleHighlightConflicts,
   singleTapMode, onToggleSingleTap,
   enhancedContrast, onToggleEnhancedContrast,
+  darkMode, onToggleDarkMode,
   loading, completed, puzzleActive,
   cachedPuzzles, cacheAdding, cacheAddError, isCacheFull,
   pendingSize, onPendingSizeChange, onAddToCache, onPlayCached, onRemoveCached,
@@ -136,8 +139,8 @@ export default function Sidebar({
               className="flex-1 py-3 rounded-xl font-semibold transition-all"
               style={{
                 fontSize: 16,
-                background: size === s ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'rgba(235,233,245,0.8)',
-                color: size === s ? 'white' : 'var(--primary)',
+                background: size === s ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'var(--surface-btn)',
+                color: size === s ? 'white' : 'var(--btn-text)',
                 border: 'none',
                 cursor: 'pointer',
               }}
@@ -160,8 +163,8 @@ export default function Sidebar({
                 className="flex-1 py-3 rounded-xl font-medium transition-all"
                 style={{
                   fontSize: 15,
-                  background: selected && available ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'rgba(235,233,245,0.8)',
-                  color: selected && available ? 'white' : available ? 'var(--primary)' : 'var(--text-light)',
+                  background: selected && available ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'var(--surface-btn)',
+                  color: selected && available ? 'white' : available ? 'var(--btn-text)' : 'var(--text-light)',
                   border: 'none',
                   cursor: available ? 'pointer' : 'default',
                   opacity: available ? 1 : 0.4,
@@ -194,8 +197,8 @@ export default function Sidebar({
             <button key={s} onClick={() => onPendingSizeChange(s)}
               className="flex-1 py-2 rounded-xl text-xs font-semibold"
               style={{
-                background: pendingSize === s ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'rgba(235,233,245,0.8)',
-                color: pendingSize === s ? 'white' : 'var(--primary)',
+                background: pendingSize === s ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'var(--surface-btn)',
+                color: pendingSize === s ? 'white' : 'var(--btn-text)',
                 border: 'none', cursor: 'pointer',
               }}
             >{s}×{s}</button>
@@ -226,7 +229,7 @@ export default function Sidebar({
                 onClick={() => setSelectedCachedId(prev => prev === c.id ? null : c.id)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  background: selectedCachedId === c.id ? 'rgba(114,139,192,0.08)' : 'rgba(255,255,255,0.6)',
+                  background: selectedCachedId === c.id ? 'rgba(114,139,192,0.08)' : 'var(--surface)',
                   borderRadius: 10, padding: '8px 10px',
                   border: `1.5px solid ${selectedCachedId === c.id ? 'var(--primary)' : 'transparent'}`,
                   cursor: 'pointer',
@@ -274,6 +277,9 @@ export default function Sidebar({
       {/* Settings — collapsible */}
       <Section title="Settings" open={openSection === 'settings'} onToggle={() => toggle('settings')}>
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--sidebar-border)' }}>
+          <Toggle on={darkMode} onToggle={onToggleDarkMode}
+            label="Dark Mode" description="Navy dark theme" />
+          {bd}
           <Toggle on={enhancedContrast} onToggle={onToggleEnhancedContrast}
             label="Enhanced Contrast" description="More vivid region colours" />
           {bd}
@@ -291,7 +297,7 @@ export default function Sidebar({
       {/* How to Play — collapsible */}
       <Section title="How to Play" open={openSection === 'howToPlay'} onToggle={() => toggle('howToPlay')}>
         <div className="flex flex-col gap-2.5">
-          <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid var(--sidebar-border)' }}>
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--sidebar-border)' }}>
             <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-dark)' }}>Controls</p>
             <p className="text-xs leading-relaxed whitespace-pre-line" style={{ color: 'var(--text-mid)' }}>
               {singleTapMode
@@ -301,7 +307,7 @@ export default function Sidebar({
             </p>
           </div>
           {HOW_TO_PLAY.map(item => (
-            <div key={item.title} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid var(--sidebar-border)' }}>
+            <div key={item.title} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--sidebar-border)' }}>
               <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-dark)' }}>{item.title}</p>
               <p className="text-xs leading-relaxed whitespace-pre-line" style={{ color: 'var(--text-mid)' }}>{item.text}</p>
             </div>

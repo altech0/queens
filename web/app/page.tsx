@@ -29,9 +29,10 @@ function loadSettings() {
       highlightConflicts: s.highlightConflicts ?? true,
       singleTapMode:      s.singleTapMode      ?? false,
       enhancedContrast:   s.enhancedContrast   ?? false,
+      darkMode:           s.darkMode           ?? false,
     }
   } catch {
-    return { hideTimer: false, highlightConflicts: true, singleTapMode: false, enhancedContrast: false }
+    return { hideTimer: false, highlightConflicts: true, singleTapMode: false, enhancedContrast: false, darkMode: false }
   }
 }
 
@@ -60,6 +61,7 @@ export default function Home() {
   const [highlightConflicts, setHighlight] = useState(true)
   const [singleTapMode, setSingleTap]      = useState(false)
   const [enhancedContrast, setEnhanced]    = useState(false)
+  const [darkMode, setDarkMode]            = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startRef = useRef<number>(0)
   const pausedElapsedRef = useRef<number>(0)
@@ -111,15 +113,21 @@ export default function Home() {
     setHighlight(s.highlightConflicts)
     setSingleTap(s.singleTapMode)
     setEnhanced(s.enhancedContrast)
+    setDarkMode(s.darkMode)
   }, [])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '')
+  }, [darkMode])
+
 
   useEffect(() => {
     try {
       localStorage.setItem('queens_settings', JSON.stringify(
-        { hideTimer, highlightConflicts, singleTapMode, enhancedContrast }
+        { hideTimer, highlightConflicts, singleTapMode, enhancedContrast, darkMode }
       ))
     } catch {}
-  }, [hideTimer, highlightConflicts, singleTapMode, enhancedContrast])
+  }, [hideTimer, highlightConflicts, singleTapMode, enhancedContrast, darkMode])
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
@@ -383,7 +391,7 @@ export default function Home() {
     <div className="flex flex-col h-screen">
       <header
         className="shrink-0"
-        style={{ height: 56, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--sidebar-border)', display: 'grid', gridTemplateColumns: '288px 1fr 288px' }}
+        style={{ height: 56, background: 'var(--surface)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--sidebar-border)', display: 'grid', gridTemplateColumns: '288px 1fr 288px' }}
       >
         {/* Left — brand, flush with sidebar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px', borderRight: '1px solid var(--sidebar-border)' }}>
@@ -405,13 +413,14 @@ export default function Home() {
         <div style={{ borderLeft: '1px solid var(--sidebar-border)' }} />
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-72 shrink-0 h-full overflow-y-auto" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)', borderRight: '1px solid var(--sidebar-border)' }}>
+        <aside className="w-72 shrink-0 h-full overflow-y-auto" style={{ background: 'var(--surface-mid)', backdropFilter: 'blur(12px)', borderRight: '1px solid var(--sidebar-border)' }}>
           <Sidebar
             size={size} onSizeChange={setSize} onNewGame={() => loadPuzzle(size)}
             hideTimer={hideTimer} onToggleHideTimer={() => setHideTimer(v => !v)}
             highlightConflicts={highlightConflicts} onToggleHighlightConflicts={() => setHighlight(v => !v)}
             singleTapMode={singleTapMode} onToggleSingleTap={() => setSingleTap(v => !v)}
             enhancedContrast={enhancedContrast} onToggleEnhancedContrast={() => setEnhanced(v => !v)}
+            darkMode={darkMode} onToggleDarkMode={() => setDarkMode(v => !v)}
             loading={loading} completed={completed} puzzleActive={puzzle !== null || loading}
             cachedPuzzles={cachedPuzzles} cacheAdding={cacheAdding} cacheAddError={cacheAddError}
             isCacheFull={isCacheFull()} pendingSize={pendingSize} onPendingSizeChange={setPendingSize}
@@ -446,7 +455,7 @@ export default function Home() {
                 Puzzle #{puzzle.code} · {puzzle.gridSize}×{puzzle.gridSize} · {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region
               </p>
               <div style={{ position: 'relative' }}>
-                <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} onCellClick={handleCellClick} completed={completed} />
+                <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} darkMode={darkMode} onCellClick={handleCellClick} completed={completed} />
                 {completionPhase !== 'hidden' && (
                   <div style={{
                     position: 'absolute', inset: 0, borderRadius: 'inherit',
@@ -457,13 +466,13 @@ export default function Home() {
                     {completionPhase === 'text' && (
                       <span style={{
                         fontSize: 34, fontWeight: 300, letterSpacing: '0.5px', color: 'var(--primary)',
-                        background: 'rgba(245,243,252,0.88)', borderRadius: 16, padding: '16px 32px',
+                        background: 'var(--surface-mid)', backdropFilter: 'blur(8px)', borderRadius: 16, padding: '16px 32px',
                         animation: 'fadeScaleIn 0.5s ease forwards',
                       }}>Solved ★</span>
                     )}
                     {completionPhase === 'time' && (
                       <div style={{
-                        background: 'rgba(245,243,252,0.88)', borderRadius: 16, padding: '16px 32px',
+                        background: 'var(--surface-mid)', backdropFilter: 'blur(8px)', borderRadius: 16, padding: '16px 32px',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                         animation: 'fadeScaleIn 0.5s ease forwards',
                       }}>
@@ -480,7 +489,7 @@ export default function Home() {
                 {completed ? (
                   <>
                     <button onClick={handleReset} className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
-                      style={{ background: 'rgba(235,233,245,0.8)', color: 'var(--primary)', border: '1.5px solid var(--primary)', cursor: 'pointer' }}>
+                      style={{ background: 'var(--surface-btn)', color: 'var(--primary)', border: '1.5px solid var(--primary)', cursor: 'pointer' }}>
                       Reset
                     </button>
                     <button onClick={() => loadPuzzle(size)} className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
@@ -497,7 +506,7 @@ export default function Home() {
                       { label: '✓ Check', onClick: handleCheck, disabled: false },
                     ].map(({ label, onClick, disabled }) => (
                       <button key={label} onClick={onClick} disabled={disabled} className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
-                        style={{ background: 'rgba(235,233,245,0.8)', color: disabled ? 'var(--text-light)' : 'var(--primary)', border: '1.5px solid', borderColor: disabled ? 'var(--text-light)' : 'var(--primary)', opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer' }}>
+                        style={{ background: 'var(--surface-btn)', color: disabled ? 'var(--text-light)' : 'var(--primary)', border: '1.5px solid', borderColor: disabled ? 'var(--text-light)' : 'var(--primary)', opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer' }}>
                         {label}
                       </button>
                     ))}
@@ -630,7 +639,7 @@ export default function Home() {
         )}
         {puzzle && !loading && (
           <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
-            <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} onCellClick={handleCellClick} completed={completed} />
+            <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} darkMode={darkMode} onCellClick={handleCellClick} completed={completed} />
             {completionPhase !== 'hidden' && (
               <div className="mobile-completion">
                 {completionPhase === 'text' && (
@@ -680,6 +689,7 @@ export default function Home() {
       highlightConflicts={highlightConflicts} onToggleHighlightConflicts={() => setHighlight(v => !v)}
       singleTapMode={singleTapMode} onToggleSingleTap={() => setSingleTap(v => !v)}
       enhancedContrast={enhancedContrast} onToggleEnhancedContrast={() => setEnhanced(v => !v)}
+      darkMode={darkMode} onToggleDarkMode={() => setDarkMode(v => !v)}
     />
   )
 
@@ -872,7 +882,7 @@ export default function Home() {
           onClick={() => setShowHint(false)}
         >
           <div
-            style={{ background: 'white', borderRadius: 18, padding: '28px 28px 20px', maxWidth: 300, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', gap: 12 }}
+            style={{ background: 'var(--surface-mid)', backdropFilter: 'blur(16px)', borderRadius: 18, padding: '28px 28px 20px', maxWidth: 300, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.24)', border: '1px solid var(--sidebar-border)', display: 'flex', flexDirection: 'column', gap: 12 }}
             onClick={e => e.stopPropagation()}
           >
             <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)', margin: 0 }}>Not quite right</p>

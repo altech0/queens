@@ -11,12 +11,13 @@ interface PuzzleGridProps {
   flashCells?: Set<string>
   highlightConflicts: boolean
   enhancedContrast: boolean
+  darkMode?: boolean
   onCellClick: (row: number, col: number) => void
   completed: boolean
 }
 
 export default function PuzzleGrid({
-  puzzle, cells, conflicts, flashCells = new Set(), highlightConflicts, enhancedContrast, onCellClick, completed
+  puzzle, cells, conflicts, flashCells = new Set(), highlightConflicts, enhancedContrast, darkMode = false, onCellClick, completed
 }: PuzzleGridProps) {
   const size = puzzle.gridSize
   const containerRef = useRef<HTMLDivElement>(null)
@@ -54,7 +55,7 @@ export default function PuzzleGrid({
             const key = `${row},${col}`
             const isConflict = conflicts.has(key)
             const isFlash = flashCells.has(key)
-            const base = regionColor(puzzle.regions[row][col], enhancedContrast)
+            const base = regionColor(puzzle.regions[row][col], enhancedContrast, darkMode)
 
             let bg = base
             if (isFlash) {
@@ -69,7 +70,7 @@ export default function PuzzleGrid({
               <div
                 key={col}
                 onClick={() => onCellClick(row, col)}
-                className="flex items-center justify-center cursor-pointer select-none transition-all duration-100 hover:brightness-95 active:scale-95"
+                className="puzzle-cell flex items-center justify-center cursor-pointer select-none transition-all duration-100 hover:brightness-95 active:scale-95"
                 style={{
                   width: `calc(var(--grid-available) / ${size})`,
                   height: `calc(var(--grid-available) / ${size})`,
