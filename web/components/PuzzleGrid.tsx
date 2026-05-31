@@ -8,6 +8,7 @@ interface PuzzleGridProps {
   puzzle: Puzzle
   cells: CellState[][]
   conflicts: Set<string>
+  flashCells?: Set<string>
   highlightConflicts: boolean
   enhancedContrast: boolean
   onCellClick: (row: number, col: number) => void
@@ -15,7 +16,7 @@ interface PuzzleGridProps {
 }
 
 export default function PuzzleGrid({
-  puzzle, cells, conflicts, highlightConflicts, enhancedContrast, onCellClick, completed
+  puzzle, cells, conflicts, flashCells = new Set(), highlightConflicts, enhancedContrast, onCellClick, completed
 }: PuzzleGridProps) {
   const size = puzzle.gridSize
   const containerRef = useRef<HTMLDivElement>(null)
@@ -50,14 +51,17 @@ export default function PuzzleGrid({
         <div key={row} className="flex">
           {Array.from({ length: size }, (_, col) => {
             const state = cells[row][col]
-            const isConflict = conflicts.has(`${row},${col}`)
+            const key = `${row},${col}`
+            const isConflict = conflicts.has(key)
+            const isFlash = flashCells.has(key)
             const base = regionColor(puzzle.regions[row][col], enhancedContrast)
 
             let bg = base
-            if (highlightConflicts && isConflict && state === 'star') {
+            if (isFlash) {
               bg = 'rgba(235, 51, 39, 0.35)'
-            }
-            if (completed && state === 'star') {
+            } else if (highlightConflicts && isConflict && state === 'star') {
+              bg = 'rgba(235, 51, 39, 0.35)'
+            } else if (completed && state === 'star') {
               bg = 'rgba(114, 139, 192, 0.35)'
             }
 
@@ -71,13 +75,14 @@ export default function PuzzleGrid({
                   height: `calc(var(--grid-available) / ${size})`,
                   background: bg,
                   borderStyle: 'solid',
+                  transition: 'background 0.15s',
                   ...borderStyle(row, col),
                 }}
               >
                 {state === 'x' && (
                   <span
                     className="text-lg font-bold leading-none select-none"
-                    style={{ color: 'rgba(80,90,120,0.55)', fontSize: `calc(var(--grid-available) / ${size} * 0.45)` }}
+                    style={{ color: isFlash ? 'rgba(210,25,20,0.9)' : 'rgba(80,90,120,0.55)', fontSize: `calc(var(--grid-available) / ${size} * 0.45)` }}
                   >
                     ✕
                   </span>
@@ -87,7 +92,7 @@ export default function PuzzleGrid({
                     className="leading-none select-none"
                     style={{
                       fontSize: `calc(var(--grid-available) / ${size} * 0.5)`,
-                      color: highlightConflicts && isConflict
+                      color: isFlash || (highlightConflicts && isConflict)
                         ? 'rgba(210, 25, 20, 0.9)'
                         : completed
                         ? '#5a73a8'
