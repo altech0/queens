@@ -117,7 +117,7 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '')
+    document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
 
 
@@ -474,18 +474,26 @@ export default function Home() {
                     {completionPhase === 'text' && (
                       <span style={{
                         fontSize: 34, fontWeight: 300, letterSpacing: '0.5px', color: 'var(--primary)',
-                        background: 'var(--surface-mid)', backdropFilter: 'blur(8px)', borderRadius: 16, padding: '16px 32px',
+                        background: darkMode ? 'rgba(26,32,50,0.85)' : 'var(--surface-mid)',
+                        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                        border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                        borderRadius: 20, padding: '20px 40px',
+                        boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
                         animation: 'fadeScaleIn 0.5s ease forwards',
                       }}>Solved ★</span>
                     )}
                     {completionPhase === 'time' && (
                       <div style={{
-                        background: 'var(--surface-mid)', backdropFilter: 'blur(8px)', borderRadius: 16, padding: '16px 32px',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                        background: darkMode ? 'rgba(26,32,50,0.85)' : 'var(--surface-mid)',
+                        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                        border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                        borderRadius: 20, padding: '24px 44px',
+                        boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                         animation: 'fadeScaleIn 0.5s ease forwards',
                       }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-light)' }}>Time</span>
-                        <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-1px', color: 'var(--text-dark)', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 18, fontWeight: 400, letterSpacing: '0.3px', color: 'var(--primary)' }}>Solved ★</span>
+                        <span style={{ fontSize: 42, fontWeight: 600, letterSpacing: '-1.5px', color: darkMode ? 'white' : 'var(--text-dark)', fontVariantNumeric: 'tabular-nums' }}>
                           {formatTime(completionTimeRef.current)}
                         </span>
                       </div>
@@ -651,14 +659,27 @@ export default function Home() {
             {completionPhase !== 'hidden' && (
               <div className="mobile-completion">
                 {completionPhase === 'text' && (
-                  <div className="mobile-completion-congrats" style={{ animation: 'fadeScaleIn 0.5s ease forwards' }}>
+                  <div className="mobile-completion-congrats" style={{
+                    animation: 'fadeScaleIn 0.5s ease forwards',
+                    background: darkMode ? 'rgba(26,32,50,0.85)' : undefined,
+                    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                    border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                    boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
+                    color: 'var(--primary)',
+                  }}>
                     Solved ★
                   </div>
                 )}
                 {completionPhase === 'time' && (
-                  <div className="mobile-completion-inner" style={{ animation: 'fadeScaleIn 0.5s ease forwards' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-light)' }}>Time</span>
-                    <div className="mobile-completion-time">{formatTime(completionTimeRef.current)}</div>
+                  <div className="mobile-completion-inner" style={{
+                    animation: 'fadeScaleIn 0.5s ease forwards',
+                    background: darkMode ? 'rgba(26,32,50,0.85)' : undefined,
+                    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                    border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                    boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
+                  }}>
+                    <span style={{ fontSize: 16, fontWeight: 400, color: 'var(--primary)' }}>Solved ★</span>
+                    <div className="mobile-completion-time" style={{ color: darkMode ? 'white' : undefined }}>{formatTime(completionTimeRef.current)}</div>
                     {typeof navigator !== 'undefined' && 'share' in navigator && (
                       <button
                         onClick={() => navigator.share({
