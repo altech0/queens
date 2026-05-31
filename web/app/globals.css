@@ -10,8 +10,28 @@
   --text-light: #a0a8b8;
   --sidebar-bg: #ffffffcc;
   --sidebar-border: #e2e0ee;
-  /* Desktop: grid constrained by sidebar; mobile: full width minus padding */
+  --surface: rgba(255,255,255,0.6);
+  --surface-mid: rgba(255,255,255,0.55);
+  --surface-low: rgba(255,255,255,0.2);
+  --surface-btn: rgba(235,233,245,0.8);
+  --btn-text: #728bc0;
   --grid-available: min(100vw - 22rem, 100vh - 18rem);
+}
+
+[data-theme="dark"] {
+  --bg-from: #1a2032;
+  --bg-to: #1e2840;
+  --primary: #9eb3e0;
+  --primary-dark: #7a96cc;
+  --text-dark: #c8d4f0;
+  --text-mid: #7a8aaa;
+  --text-light: #4a5878;
+  --sidebar-border: rgba(255,255,255,0.08);
+  --surface: rgba(255,255,255,0.04);
+  --surface-mid: rgba(255,255,255,0.06);
+  --surface-low: rgba(255,255,255,0.06);
+  --surface-btn: rgba(255,255,255,0.08);
+  --btn-text: #c8d4f0;
 }
 
 @keyframes fadeScaleIn {
@@ -22,6 +42,11 @@
 * { box-sizing: border-box; }
 
 html, body { height: 100%; margin: 0; padding: 0; overflow-x: hidden; }
+
+/* Smooth dark/light theme transition on all elements except grid cells */
+*:not(.puzzle-cell), *:not(.puzzle-cell)::before, *:not(.puzzle-cell)::after {
+  transition: background 0.4s ease, background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease;
+}
 
 body {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -115,7 +140,7 @@ body {
   width: 100%; padding: 12px 0;
   border-radius: 12px;
   border: 1.5px solid var(--primary);
-  background: rgba(255,255,255,0.25);
+  background: var(--surface-low);
   color: var(--primary); font-size: 15px; font-weight: 600;
   text-align: center; cursor: pointer;
   font-family: inherit;
@@ -185,7 +210,7 @@ body {
   width: 100%; padding: 12px 0;
   border-radius: 12px;
   border: 1.5px solid var(--primary);
-  background: rgba(255,255,255,0.3);
+  background: var(--surface-low);
   color: var(--primary); font-size: 15px; font-weight: 600;
   text-align: center; cursor: pointer; font-family: inherit;
 }
@@ -198,7 +223,7 @@ body {
   flex: 1; padding: 10px 0;
   border-radius: 11px;
   border: 1.5px solid var(--primary);
-  background: rgba(255,255,255,0.2);
+  background: var(--surface-low);
   color: var(--primary); font-size: 13px; font-weight: 600;
   text-align: center; cursor: pointer; font-family: inherit;
 }
@@ -250,11 +275,11 @@ body {
 }
 
 .mobile-setup-btn-inactive {
-  background: rgba(235,233,245,0.9); color: var(--primary);
+  background: var(--surface-btn); color: var(--btn-text);
 }
 
 .mobile-setup-btn-disabled {
-  background: rgba(235,233,245,0.9); color: var(--text-light);
+  background: var(--surface-btn); color: var(--text-light);
   opacity: 0.5; cursor: default;
 }
 
@@ -269,7 +294,7 @@ body {
 
 /* ── Mobile settings group ── */
 .mobile-settings-group {
-  background: rgba(255,255,255,0.65);
+  background: var(--surface);
   border-radius: 14px;
   border: 1px solid var(--sidebar-border);
   overflow: hidden;
@@ -277,7 +302,7 @@ body {
 
 /* ── Mobile how to play ── */
 .mobile-htp-card {
-  background: rgba(255,255,255,0.65);
+  background: var(--surface);
   border-radius: 12px;
   border: 1px solid var(--sidebar-border);
   padding: 12px 14px;
@@ -293,14 +318,18 @@ body {
 }
 
 .mobile-completion-inner {
-  background: rgba(245,243,252,0.88);
+  background: var(--surface-mid);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 16px;
   padding: 20px 36px;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
 
 .mobile-completion-congrats {
-  background: rgba(245,243,252,0.88);
+  background: var(--surface-mid);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 16px; padding: 16px 32px;
   font-size: 30px; font-weight: 300; letter-spacing: 0.5px;
   color: var(--primary);
@@ -340,7 +369,7 @@ body {
   padding: 16px 20px;
   border-radius: 16px;
   border: none;
-  background: rgba(255,255,255,0.7);
+  background: var(--surface);
   font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums;
   text-align: center; color: var(--text-dark);
   font-family: monospace;
@@ -379,7 +408,7 @@ body {
 }
 
 .mobile-offline-row {
-  background: rgba(255,255,255,0.6);
+  background: var(--surface);
   border-radius: 12px; padding: 12px 14px;
   display: flex; align-items: center; justify-content: space-between;
   border: 1.5px solid transparent;

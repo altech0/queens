@@ -24,6 +24,20 @@ const HIGH_CONTRAST = [
   '#5bbfb5', // vivid teal
 ]
 
-export function regionColor(regionId: number, enhanced = false): string {
+const DARK = [
+  '#7a6898', // muted lavender
+  '#5a7898', // muted blue
+  '#5a8870', // muted mint
+  '#8c7848', // muted sand
+  '#8c5870', // muted rose
+  '#5a6898', // muted periwinkle
+  '#886048', // muted peach
+  '#6a8858', // muted green
+  '#6a5898', // muted purple
+  '#508880', // muted aqua
+]
+
+export function regionColor(regionId: number, enhanced = false, dark = false): string {
+  if (dark) return DARK[regionId % DARK.length]
   return (enhanced ? HIGH_CONTRAST : PASTEL)[regionId % PASTEL.length]
 }
