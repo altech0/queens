@@ -74,6 +74,9 @@ export default function Home() {
   // ID of the currently-playing offline puzzle (for completion tracking)
   const [offlinePuzzleId, setOfflinePuzzleId] = useState<string | null>(null)
 
+  // Where to go when back is pressed from the game screen
+  const [gameBackView, setGameBackView] = useState<MobileView>('landing')
+
   // Completion hint — shown once per puzzle when star count is right but puzzle isn't solved
   const [showHint, setShowHint] = useState(false)
   const hintShownRef = useRef(false)
@@ -292,11 +295,14 @@ export default function Home() {
 
   const startGame = useCallback(async (gridSize: number) => {
     setSize(gridSize)
+    setGameBackView('landing')
     setMobileView('game')
     await loadPuzzle(gridSize)
   }, [loadPuzzle])
 
   const refreshCache = useCallback(() => setCachedPuzzles(getCachedPuzzles()), [])
+
+  useEffect(() => { refreshCache() }, [refreshCache])
 
   const playOfflinePuzzle = useCallback((cached: CachedPuzzle) => {
     const p = cached.puzzle
@@ -310,6 +316,7 @@ export default function Home() {
     setUndoStack([])
     setRedoStack([])
     setOfflinePuzzleId(cached.id)
+    setGameBackView('offline')
     hintShownRef.current = false
     historyRef.current = null
     stopTimer()
@@ -354,6 +361,7 @@ export default function Home() {
       setUndoStack([])
       setRedoStack([])
       setOfflinePuzzleId(null)
+      setGameBackView('landing')
       hintShownRef.current = false
       historyRef.current = null
       stopTimer()
@@ -368,25 +376,59 @@ export default function Home() {
     setSpecificLoading(false)
   }, [puzzleCode, stopTimer])
 
+  const puzzleActive = puzzle !== null || loading
+
   // ── Desktop layout ──────────────────────────────────────────────
   const desktopLayout = (
     <div className="flex flex-col h-screen">
       <header
-        className="shrink-0 flex flex-col items-center justify-center gap-0.5"
-        style={{ height: 68, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--sidebar-border)' }}
+        className="shrink-0"
+        style={{ height: 56, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--sidebar-border)', display: 'grid', gridTemplateColumns: '288px 1fr 288px' }}
       >
-        <span className="leading-none" style={{ fontSize: 22, color: 'var(--primary)' }}>★</span>
-        <h1 className="text-lg font-semibold tracking-tight leading-none" style={{ color: 'var(--text-dark)' }}>Queens</h1>
+        {/* Left — brand, flush with sidebar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px', borderRight: '1px solid var(--sidebar-border)' }}>
+          <span style={{ fontSize: 20, color: 'var(--primary)', lineHeight: 1 }}>★</span>
+          <h1 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-dark)', letterSpacing: '-0.3px', margin: 0 }}>Queens</h1>
+        </div>
+        {/* Centre — timer */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+          {puzzleActive && !hideTimer && (
+            <>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-light)' }}>Time</span>
+              <span style={{ fontSize: 26, fontWeight: 300, letterSpacing: '-1px', color: 'var(--primary)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                {formatTime(elapsed)}
+              </span>
+            </>
+          )}
+        </div>
+        {/* Right — empty, puzzle info stays above the grid */}
+        <div style={{ borderLeft: '1px solid var(--sidebar-border)' }} />
       </header>
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-72 shrink-0 h-full overflow-y-auto" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)', borderRight: '1px solid var(--sidebar-border)' }}>
           <Sidebar
             size={size} onSizeChange={setSize} onNewGame={() => loadPuzzle(size)}
-            elapsed={elapsed} hideTimer={hideTimer} onToggleHideTimer={() => setHideTimer(v => !v)}
+            hideTimer={hideTimer} onToggleHideTimer={() => setHideTimer(v => !v)}
             highlightConflicts={highlightConflicts} onToggleHighlightConflicts={() => setHighlight(v => !v)}
             singleTapMode={singleTapMode} onToggleSingleTap={() => setSingleTap(v => !v)}
             enhancedContrast={enhancedContrast} onToggleEnhancedContrast={() => setEnhanced(v => !v)}
             loading={loading} completed={completed} puzzleActive={puzzle !== null || loading}
+            cachedPuzzles={cachedPuzzles} cacheAdding={cacheAdding} cacheAddError={cacheAddError}
+            isCacheFull={isCacheFull()} pendingSize={pendingSize} onPendingSizeChange={setPendingSize}
+            onAddToCache={handleAddToCache}
+            onRemoveCached={id => { removeFromCache(id); refreshCache() }}
+            onPlayCached={cached => {
+              const p = cached.puzzle
+              setPuzzle(p)
+              setCells(Array.from({ length: p.gridSize }, () => Array(p.gridSize).fill('empty')))
+              setSize(p.gridSize)
+              setCompleted(false); setCompletionPhase('hidden'); setFlashCells(new Set())
+              setConflicts(new Set()); setUndoStack([]); setRedoStack([])
+              setOfflinePuzzleId(cached.id); hintShownRef.current = false; historyRef.current = null
+              stopTimer(); setElapsed(0); pausedElapsedRef.current = 0
+              startRef.current = Date.now()
+              timerRef.current = setInterval(() => setElapsed(Date.now() - startRef.current), 100)
+            }}
           />
         </aside>
         <main className="flex-1 flex flex-col items-center justify-center gap-5 p-8 overflow-auto">
@@ -541,7 +583,7 @@ export default function Home() {
   const mobileGame = (
     <div className="mobile-screen">
       <div className="mobile-nav">
-        <button className="mobile-nav-icon" onClick={() => setMobileView('landing')} aria-label="Back">‹</button>
+        <button className="mobile-nav-icon" onClick={() => { if (gameBackView === 'offline') refreshCache(); setMobileView(gameBackView) }} aria-label="Back">‹</button>
         <div />
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <button
@@ -569,9 +611,11 @@ export default function Home() {
           <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-light)', marginTop: 3 }}>
             {puzzle.gridSize}×{puzzle.gridSize} &nbsp;·&nbsp; {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region
           </div>
-          <div style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600, marginTop: 4, fontVariantNumeric: 'tabular-nums', visibility: hideTimer || completed ? 'hidden' : 'visible' }}>
-            {formatTime(elapsed)}
-          </div>
+          {!hideTimer && (
+            <div style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600, marginTop: 4, fontVariantNumeric: 'tabular-nums', visibility: completed ? 'hidden' : 'visible' }}>
+              {formatTime(elapsed)}
+            </div>
+          )}
         </div>
       )}
 
