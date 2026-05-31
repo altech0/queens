@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import Toggle from './Toggle'
+import type { CachedPuzzle } from '@/lib/puzzleCache'
 
 interface SidebarProps {
   size: number
   onSizeChange: (s: number) => void
   onNewGame: () => void
-  elapsed: number
   hideTimer: boolean
   onToggleHideTimer: () => void
   highlightConflicts: boolean
@@ -19,16 +19,21 @@ interface SidebarProps {
   loading: boolean
   completed: boolean
   puzzleActive: boolean
+  // Offline cache
+  cachedPuzzles: CachedPuzzle[]
+  cacheAdding: boolean
+  cacheAddError: string | null
+  isCacheFull: boolean
+  pendingSize: number
+  onPendingSizeChange: (s: number) => void
+  onAddToCache: () => void
+  onPlayCached: (c: CachedPuzzle) => void
+  onRemoveCached: (id: string) => void
 }
 
 const VALID_STARS: Record<number, number[]> = { 6: [1], 8: [1], 10: [2] }
 const DEFAULT_STARS: Record<number, number> = { 6: 1, 8: 1, 10: 2 }
 
-function formatTime(ms: number) {
-  const s = Math.floor(ms / 1000)
-  const m = Math.floor(s / 60)
-  return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-}
 
 function Section({ title, open, onToggle, children }: {
   title: string; open: boolean; onToggle: () => void; children: React.ReactNode
@@ -98,16 +103,18 @@ const HOW_TO_PLAY = [
 
 export default function Sidebar({
   size, onSizeChange, onNewGame,
-  elapsed, hideTimer, onToggleHideTimer,
+  hideTimer, onToggleHideTimer,
   highlightConflicts, onToggleHighlightConflicts,
   singleTapMode, onToggleSingleTap,
   enhancedContrast, onToggleEnhancedContrast,
   loading, completed, puzzleActive,
+  cachedPuzzles, cacheAdding, cacheAddError, isCacheFull,
+  pendingSize, onPendingSizeChange, onAddToCache, onPlayCached, onRemoveCached,
 }: SidebarProps) {
-  const [gameInfoOpen, setGameInfoOpen]   = useState(true)
-  const [settingsOpen, setSettingsOpen]   = useState(false)
-  const [howToOpen, setHowToOpen]         = useState(false)
-  const [aboutOpen, setAboutOpen]         = useState(false)
+  type Section = 'gameInfo' | 'offline' | 'settings' | 'howToPlay' | 'about'
+  const [openSection, setOpenSection] = useState<Section>('gameInfo')
+  const toggle = (s: Section) => setOpenSection(prev => prev === s ? 'gameInfo' : s)
+  const [selectedCachedId, setSelectedCachedId] = useState<string | null>(null)
 
   const bd = <div style={{ height: 1, background: 'var(--sidebar-border)', margin: '2px 0' }} />
   const validStars = VALID_STARS[size]
@@ -116,19 +123,8 @@ export default function Sidebar({
   return (
     <div className="flex flex-col h-full">
 
-      {/* Timer — only when puzzle is active */}
-      {puzzleActive && !hideTimer && (
-        <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
-          <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-mid)' }}>Time</p>
-          <p className="text-3xl font-mono font-semibold tabular-nums"
-            style={{ color: completed ? '#5a73a8' : 'var(--text-dark)' }}>
-            {formatTime(elapsed)}
-          </p>
-        </div>
-      )}
-
       {/* Game Info — collapsible */}
-      <Section title="Game Info" open={gameInfoOpen} onToggle={() => setGameInfoOpen(v => !v)}>
+      <Section title="Game Info" open={openSection === 'gameInfo'} onToggle={() => toggle('gameInfo')}>
 
         {/* Grid size */}
         <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-mid)' }}>Size</p>
@@ -189,8 +185,94 @@ export default function Sidebar({
 
       </Section>
 
+      {/* Offline Cache — collapsible */}
+      <Section title={`Offline Cache${cachedPuzzles.length > 0 ? ` · ${cachedPuzzles.length}/30` : ''}`} open={openSection === 'offline'} onToggle={() => toggle('offline')}>
+
+        {/* Size picker + download */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+          {[6, 8, 10].map(s => (
+            <button key={s} onClick={() => onPendingSizeChange(s)}
+              className="flex-1 py-2 rounded-xl text-xs font-semibold"
+              style={{
+                background: pendingSize === s ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'rgba(235,233,245,0.8)',
+                color: pendingSize === s ? 'white' : 'var(--primary)',
+                border: 'none', cursor: 'pointer',
+              }}
+            >{s}×{s}</button>
+          ))}
+        </div>
+        <button
+          onClick={onAddToCache}
+          disabled={cacheAdding || isCacheFull}
+          className="w-full py-2 rounded-xl text-xs font-semibold mb-3"
+          style={{
+            border: '1.5px solid var(--primary)', background: 'none',
+            color: 'var(--primary)', cursor: cacheAdding || isCacheFull ? 'default' : 'pointer',
+            opacity: cacheAdding || isCacheFull ? 0.5 : 1,
+          }}
+        >
+          {cacheAdding ? 'Downloading…' : isCacheFull ? 'Cache full (30/30)' : '↓ Add to Cache'}
+        </button>
+        {cacheAddError && <p className="text-xs mb-2" style={{ color: '#c0392b' }}>{cacheAddError}</p>}
+
+        {/* Puzzle list */}
+        {cachedPuzzles.length === 0 ? (
+          <p className="text-xs text-center py-2" style={{ color: 'var(--text-light)' }}>No cached puzzles yet</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+            {cachedPuzzles.map(c => (
+              <div
+                key={c.id}
+                onClick={() => setSelectedCachedId(prev => prev === c.id ? null : c.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: selectedCachedId === c.id ? 'rgba(114,139,192,0.08)' : 'rgba(255,255,255,0.6)',
+                  borderRadius: 10, padding: '8px 10px',
+                  border: `1.5px solid ${selectedCachedId === c.id ? 'var(--primary)' : 'transparent'}`,
+                  cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dark)' }}>
+                    {c.puzzle.gridSize}×{c.puzzle.gridSize} · {c.puzzle.stars === 1 ? '1 star' : '2 stars'}
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--text-mid)', marginTop: 1 }}>#{c.puzzle.code}</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {c.completionTime != null && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary)' }}>
+                      ✓ {Math.floor(c.completionTime / 60000).toString().padStart(2,'0')}:{Math.floor((c.completionTime % 60000) / 1000).toString().padStart(2,'0')}
+                    </span>
+                  )}
+                  <button
+                    onClick={e => { e.stopPropagation(); onRemoveCached(c.id); if (selectedCachedId === c.id) setSelectedCachedId(null) }}
+                    style={{ background: 'none', border: 'none', fontSize: 14, color: 'var(--text-light)', cursor: 'pointer', padding: '2px 4px', lineHeight: 1 }}
+                  >✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Play button */}
+        <button
+          onClick={() => {
+            const c = cachedPuzzles.find(p => p.id === selectedCachedId)
+            if (c) { onPlayCached(c); setSelectedCachedId(null) }
+          }}
+          disabled={!selectedCachedId}
+          className="w-full py-2 rounded-xl text-sm font-semibold"
+          style={{
+            background: '#728bc0', color: 'white', border: 'none',
+            cursor: selectedCachedId ? 'pointer' : 'default',
+            opacity: selectedCachedId ? 1 : 0.4,
+          }}
+        >▶ Play selected</button>
+
+      </Section>
+
       {/* Settings — collapsible */}
-      <Section title="Settings" open={settingsOpen} onToggle={() => setSettingsOpen(v => !v)}>
+      <Section title="Settings" open={openSection === 'settings'} onToggle={() => toggle('settings')}>
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--sidebar-border)' }}>
           <Toggle on={enhancedContrast} onToggle={onToggleEnhancedContrast}
             label="Enhanced Contrast" description="More vivid region colours" />
@@ -207,7 +289,7 @@ export default function Sidebar({
       </Section>
 
       {/* How to Play — collapsible */}
-      <Section title="How to Play" open={howToOpen} onToggle={() => setHowToOpen(v => !v)}>
+      <Section title="How to Play" open={openSection === 'howToPlay'} onToggle={() => toggle('howToPlay')}>
         <div className="flex flex-col gap-2.5">
           <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid var(--sidebar-border)' }}>
             <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-dark)' }}>Controls</p>
@@ -228,7 +310,7 @@ export default function Sidebar({
       </Section>
 
       {/* About — collapsible */}
-      <Section title="About" open={aboutOpen} onToggle={() => setAboutOpen(v => !v)}>
+      <Section title="About" open={openSection === 'about'} onToggle={() => toggle('about')}>
         <div className="flex flex-col items-center text-center gap-4">
           <span style={{ fontSize: 48, color: 'var(--primary)' }}>★</span>
           <p className="text-lg font-semibold" style={{ color: 'var(--text-dark)' }}>Queens</p>
