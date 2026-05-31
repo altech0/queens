@@ -451,9 +451,17 @@ export default function Home() {
           )}
           {puzzle && !loading && (
             <>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-mid)' }}>
-                Puzzle #{puzzle.code} · {puzzle.gridSize}×{puzzle.gridSize} · {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region
-              </p>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 20, fontWeight: 300, letterSpacing: '-0.3px', color: 'var(--primary)', lineHeight: 1.1 }}>
+                  Puzzle #{puzzle.code}
+                </p>
+                <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-mid)', marginTop: 3 }}>
+                  {puzzle.gridSize}×{puzzle.gridSize}
+                </p>
+                <p style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-mid)', marginTop: 2 }}>
+                  {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region, row and column
+                </p>
+              </div>
               <div style={{ position: 'relative' }}>
                 <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} darkMode={darkMode} onCellClick={handleCellClick} completed={completed} />
                 {completionPhase !== 'hidden' && (
