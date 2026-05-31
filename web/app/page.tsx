@@ -8,7 +8,7 @@ import type { Puzzle, CellState } from '@/lib/types'
 import { fetchPuzzle, fetchPuzzleByCode } from '@/lib/api'
 import {
   getCachedPuzzles, addToCache, removeFromCache, clearCache, isCacheFull,
-  type CachedPuzzle,
+  updateCacheCompletion, type CachedPuzzle,
 } from '@/lib/puzzleCache'
 import { validate } from '@/lib/validator'
 
@@ -62,6 +62,21 @@ export default function Home() {
   const [enhancedContrast, setEnhanced]    = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startRef = useRef<number>(0)
+  const pausedElapsedRef = useRef<number>(0)
+
+  // 'hidden' → 'text' (congrats pops in) → 'time' (congrats fades, time card + share appear)
+  const [completionPhase, setCompletionPhase] = useState<'hidden' | 'text' | 'time'>('hidden')
+  const completionTimeRef = useRef<number>(0)
+
+  // Cells to flash red on explicit check (cleared after 1.5s)
+  const [flashCells, setFlashCells] = useState<Set<string>>(new Set())
+
+  // ID of the currently-playing offline puzzle (for completion tracking)
+  const [offlinePuzzleId, setOfflinePuzzleId] = useState<string | null>(null)
+
+  // Completion hint — shown once per puzzle when star count is right but puzzle isn't solved
+  const [showHint, setShowHint] = useState(false)
+  const hintShownRef = useRef(false)
 
   // Mobile navigation state
   const [mobileView, setMobileView] = useState<MobileView>('landing')
@@ -104,8 +119,24 @@ export default function Home() {
   }, [hideTimer, highlightConflicts, singleTapMode, enhancedContrast])
 
   const stopTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current)
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
   }, [])
+
+  // Pause/resume timer when tab is hidden/visible
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        pausedElapsedRef.current = Date.now() - startRef.current
+        stopTimer()
+      } else {
+        if (timerRef.current) return
+        startRef.current = Date.now() - pausedElapsedRef.current
+        timerRef.current = setInterval(() => setElapsed(Date.now() - startRef.current), 100)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [stopTimer])
 
   useEffect(() => () => stopTimer(), [stopTimer])
 
@@ -116,11 +147,16 @@ export default function Home() {
     setCells([])
     setPuzzle(null)
     setCompleted(false)
+    setCompletionPhase('hidden')
+    setFlashCells(new Set())
     setElapsed(0)
     setConflicts(new Set())
     setUndoStack([])
     setRedoStack([])
+    setOfflinePuzzleId(null)
+    hintShownRef.current = false
     historyRef.current = null
+    pausedElapsedRef.current = 0
     try {
       const p = await fetchPuzzle(gridSize, CONFIGS[gridSize])
       setPuzzle(p)
@@ -150,7 +186,21 @@ export default function Home() {
     setRedoStack([])
     const { result, conflicts: c } = validate(next, puzzle)
     setConflicts(c)
-    if (result === 'valid') { stopTimer(); setCompleted(true) }
+    if (result === 'valid') {
+      stopTimer()
+      setCompleted(true)
+      const t = Date.now() - startRef.current
+      completionTimeRef.current = t
+      setCompletionPhase('text')
+      setTimeout(() => setCompletionPhase('time'), 1500)
+      setOfflinePuzzleId(id => { if (id) updateCacheCompletion(id, t); return id })
+    } else if (!hintShownRef.current) {
+      const starCount = next.flat().filter(s => s === 'star').length
+      if (starCount === puzzle.gridSize * puzzle.stars) {
+        hintShownRef.current = true
+        setShowHint(true)
+      }
+    }
   }, [puzzle, completed, singleTapMode, stopTimer, cells, undoStack])
 
   const handleUndo = useCallback(() => {
@@ -183,7 +233,13 @@ export default function Home() {
     setCells(next); setUndoStack(newUndo); setRedoStack(newRedo)
     const { result, conflicts: c } = validate(next, puzzle)
     setConflicts(c)
-    if (result === 'valid') { stopTimer(); setCompleted(true) }
+    if (result === 'valid') {
+      stopTimer()
+      setCompleted(true)
+      completionTimeRef.current = Date.now() - startRef.current
+      setCompletionPhase('text')
+      setTimeout(() => setCompletionPhase('time'), 1500)
+    }
   }, [puzzle, cells, undoStack, redoStack, stopTimer])
 
   const handleReset = useCallback(() => {
@@ -195,8 +251,44 @@ export default function Home() {
     const newUndo = [...undo, currentCells]
     historyRef.current = { cells: empty, undo: newUndo, redo: [] }
     setCells(empty); setUndoStack(newUndo); setRedoStack([])
-    setConflicts(new Set()); setCompleted(false)
+    setConflicts(new Set()); setCompleted(false); setCompletionPhase('hidden'); setFlashCells(new Set())
   }, [puzzle, cells, undoStack])
+
+  const handleCheck = useCallback(() => {
+    if (!puzzle || completed) return
+    const cur = historyRef.current
+    const currentCells = cur?.cells ?? cells
+
+    const { result, conflicts: c } = validate(currentCells, puzzle)
+    setConflicts(c)
+
+    if (result === 'valid') {
+      stopTimer()
+      setCompleted(true)
+      completionTimeRef.current = Date.now() - startRef.current
+      setCompletionPhase('text')
+      setTimeout(() => setCompletionPhase('time'), 1500)
+      return
+    }
+
+    // Build flash set: structural conflicts + stars not in the solution
+    // solution is number[][] where solution[row] = sorted column indices
+    const solutionSet = new Set<string>()
+    puzzle.solution.forEach((cols, r) => cols.forEach(col => solutionSet.add(`${r},${col}`)))
+    const wrong = new Set<string>()
+    for (let r = 0; r < puzzle.gridSize; r++) {
+      for (let col = 0; col < puzzle.gridSize; col++) {
+        const state = currentCells[r][col]
+        const key = `${r},${col}`
+        if (state === 'star' && !solutionSet.has(key)) wrong.add(key)
+        if (state === 'x' && solutionSet.has(key)) wrong.add(key)
+      }
+    }
+    const toFlash = new Set([...c, ...wrong])
+    if (toFlash.size === 0) return
+    setFlashCells(toFlash)
+    setTimeout(() => setFlashCells(new Set()), 1500)
+  }, [puzzle, completed, cells, stopTimer])
 
   const startGame = useCallback(async (gridSize: number) => {
     setSize(gridSize)
@@ -212,12 +304,17 @@ export default function Home() {
     setCells(Array.from({ length: p.gridSize }, () => Array(p.gridSize).fill('empty')))
     setSize(p.gridSize)
     setCompleted(false)
+    setCompletionPhase('hidden')
+    setFlashCells(new Set())
     setConflicts(new Set())
     setUndoStack([])
     setRedoStack([])
+    setOfflinePuzzleId(cached.id)
+    hintShownRef.current = false
     historyRef.current = null
     stopTimer()
     setElapsed(0)
+    pausedElapsedRef.current = 0
     startRef.current = Date.now()
     timerRef.current = setInterval(() => setElapsed(Date.now() - startRef.current), 100)
     setMobileView('game')
@@ -251,12 +348,17 @@ export default function Home() {
       setCells(Array.from({ length: p.gridSize }, () => Array(p.gridSize).fill('empty')))
       setSize(p.gridSize)
       setCompleted(false)
+      setCompletionPhase('hidden')
+      setFlashCells(new Set())
       setConflicts(new Set())
       setUndoStack([])
       setRedoStack([])
+      setOfflinePuzzleId(null)
+      hintShownRef.current = false
       historyRef.current = null
       stopTimer()
       setElapsed(0)
+      pausedElapsedRef.current = 0
       startRef.current = Date.now()
       timerRef.current = setInterval(() => setElapsed(Date.now() - startRef.current), 100)
       setMobileView('game')
@@ -301,27 +403,65 @@ export default function Home() {
               <p className="text-sm font-medium" style={{ color: 'var(--text-mid)' }}>
                 Puzzle #{puzzle.code} · {puzzle.gridSize}×{puzzle.gridSize} · {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region
               </p>
-              <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} onCellClick={handleCellClick} completed={completed} />
-              {!completed && (
-                <div className="flex gap-2">
-                  {[
-                    { label: 'Undo', onClick: handleUndo, disabled: undoStack.length === 0 },
-                    { label: 'Redo', onClick: handleRedo, disabled: redoStack.length === 0 },
-                    { label: 'Reset', onClick: handleReset, disabled: false },
-                  ].map(({ label, onClick, disabled }) => (
-                    <button key={label} onClick={onClick} disabled={disabled} className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
-                      style={{ background: 'rgba(235,233,245,0.8)', color: disabled ? 'var(--text-light)' : 'var(--primary)', border: '1.5px solid', borderColor: disabled ? 'var(--text-light)' : 'var(--primary)', opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer' }}>
-                      {label}
+              <div style={{ position: 'relative' }}>
+                <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} onCellClick={handleCellClick} completed={completed} />
+                {completionPhase !== 'hidden' && (
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: 'inherit',
+                    backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    pointerEvents: 'none',
+                  }}>
+                    {completionPhase === 'text' && (
+                      <span style={{
+                        fontSize: 34, fontWeight: 300, letterSpacing: '0.5px', color: 'var(--primary)',
+                        background: 'rgba(245,243,252,0.88)', borderRadius: 16, padding: '16px 32px',
+                        animation: 'fadeScaleIn 0.5s ease forwards',
+                      }}>Solved ★</span>
+                    )}
+                    {completionPhase === 'time' && (
+                      <div style={{
+                        background: 'rgba(245,243,252,0.88)', borderRadius: 16, padding: '16px 32px',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                        animation: 'fadeScaleIn 0.5s ease forwards',
+                      }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-light)' }}>Time</span>
+                        <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-1px', color: 'var(--text-dark)', fontVariantNumeric: 'tabular-nums' }}>
+                          {formatTime(completionTimeRef.current)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {completed ? (
+                  <>
+                    <button onClick={handleReset} className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                      style={{ background: 'rgba(235,233,245,0.8)', color: 'var(--primary)', border: '1.5px solid var(--primary)', cursor: 'pointer' }}>
+                      Reset
                     </button>
-                  ))}
-                </div>
-              )}
-              {completed && (
-                <div className="text-center">
-                  <p className="text-3xl font-semibold mb-1" style={{ color: '#5a73a8' }}>Solved! ★</p>
-                  <p className="text-sm" style={{ color: 'var(--text-mid)' }}>Click New Game to keep going</p>
-                </div>
-              )}
+                    <button onClick={() => loadPuzzle(size)} className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                      style={{ background: '#728bc0', color: 'white', border: '1.5px solid #728bc0', cursor: 'pointer' }}>
+                      New Game
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {[
+                      { label: 'Undo', onClick: handleUndo, disabled: undoStack.length === 0 },
+                      { label: 'Redo', onClick: handleRedo, disabled: redoStack.length === 0 },
+                      { label: 'Reset', onClick: handleReset, disabled: false },
+                      { label: '✓ Check', onClick: handleCheck, disabled: false },
+                    ].map(({ label, onClick, disabled }) => (
+                      <button key={label} onClick={onClick} disabled={disabled} className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                        style={{ background: 'rgba(235,233,245,0.8)', color: disabled ? 'var(--text-light)' : 'var(--primary)', border: '1.5px solid', borderColor: disabled ? 'var(--text-light)' : 'var(--primary)', opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer' }}>
+                        {label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
             </>
           )}
         </main>
@@ -403,7 +543,7 @@ export default function Home() {
       <div className="mobile-nav">
         <button className="mobile-nav-icon" onClick={() => setMobileView('landing')} aria-label="Back">‹</button>
         <div />
-        <div style={{ display: 'flex' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <button
             className="mobile-nav-icon"
             style={{ fontSize: 17 }}
@@ -411,17 +551,27 @@ export default function Home() {
             title="Save to offline cache"
             disabled={!puzzle || loading}
           >＋</button>
+          <button
+            className="mobile-nav-icon"
+            style={{ fontSize: 17, opacity: !puzzle || loading || completed ? 0.4 : 1 }}
+            onClick={handleCheck}
+            title="Check solution"
+            disabled={!puzzle || loading || completed}
+          >✓</button>
         </div>
       </div>
 
       {puzzle && !loading && (
-        <div className="mobile-game-info">
-          <div className="mobile-game-info-title">
-            {puzzle.gridSize}×{puzzle.gridSize} Grid · {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per row, column &amp; region
+        <div style={{ textAlign: 'center', padding: '2px 16px 6px', flexShrink: 0 }}>
+          <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: '-0.3px', color: 'var(--primary)', lineHeight: 1.1 }}>
+            #{puzzle.code}
           </div>
-          {!hideTimer && !completed && (
-            <div className="mobile-game-info-timer">{formatTime(elapsed)}</div>
-          )}
+          <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-light)', marginTop: 3 }}>
+            {puzzle.gridSize}×{puzzle.gridSize} &nbsp;·&nbsp; {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600, marginTop: 4, fontVariantNumeric: 'tabular-nums', visibility: hideTimer || completed ? 'hidden' : 'visible' }}>
+            {formatTime(elapsed)}
+          </div>
         </div>
       )}
 
@@ -436,11 +586,28 @@ export default function Home() {
         )}
         {puzzle && !loading && (
           <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
-            <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} onCellClick={handleCellClick} completed={completed} />
-            {completed && (
+            <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} onCellClick={handleCellClick} completed={completed} />
+            {completionPhase !== 'hidden' && (
               <div className="mobile-completion">
-                <div className="mobile-completion-congrats">Congratulations!</div>
-                <div className="mobile-completion-time">{formatTime(elapsed)}</div>
+                {completionPhase === 'text' && (
+                  <div className="mobile-completion-congrats" style={{ animation: 'fadeScaleIn 0.5s ease forwards' }}>
+                    Solved ★
+                  </div>
+                )}
+                {completionPhase === 'time' && (
+                  <div className="mobile-completion-inner" style={{ animation: 'fadeScaleIn 0.5s ease forwards' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-light)' }}>Time</span>
+                    <div className="mobile-completion-time">{formatTime(completionTimeRef.current)}</div>
+                    {typeof navigator !== 'undefined' && 'share' in navigator && (
+                      <button
+                        onClick={() => navigator.share({
+                          text: `I solved Queens puzzle #${puzzle.code} in ${formatTime(completionTimeRef.current)}! ★\n${puzzle.gridSize}×${puzzle.gridSize} grid · ${CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region`,
+                        })}
+                        className="mobile-completion-share"
+                      >Share ↗</button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -456,7 +623,7 @@ export default function Home() {
           <button className="mobile-btn-secondary" onClick={handleRedo} disabled={redoStack.length === 0 || completed}>Redo ↪</button>
         </div>
         <div className="mobile-btn-row">
-          <button className="mobile-btn-tertiary" onClick={handleReset} disabled={!puzzle || completed}>↺ Reset</button>
+          <button className="mobile-btn-tertiary" onClick={handleReset} disabled={!puzzle}>↺ Reset</button>
         </div>
       </div>
     </div>
@@ -655,6 +822,30 @@ export default function Home() {
   return (
     <div style={{ height: '100%' }}>
       {isMobile ? mobileScreens[mobileView] : desktopLayout}
+      {showHint && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+          onClick={() => setShowHint(false)}
+        >
+          <div
+            style={{ background: 'white', borderRadius: 18, padding: '28px 28px 20px', maxWidth: 300, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', gap: 12 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)', margin: 0 }}>Not quite right</p>
+            <p style={{ fontSize: 14, color: 'var(--text-mid)', margin: 0, lineHeight: 1.5 }}>
+              You&apos;ve placed all the stars, but the solution isn&apos;t valid yet. Tap <strong>✓ Check</strong> to see which cells are wrong.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+              <button
+                onClick={() => setShowHint(false)}
+                style={{ padding: '8px 18px', borderRadius: 10, border: '1.5px solid var(--primary)', background: 'none', color: 'var(--primary)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
