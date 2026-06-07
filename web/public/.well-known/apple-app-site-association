@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["JSTLGFC3HC.aes.queens"],
+        "components": [
+          {
+            "/": "/puzzle",
+            "comment": "Puzzle deep link redirect"
+          }
+        ]
+      }
+    ]
+  }
+}
