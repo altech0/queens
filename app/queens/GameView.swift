@@ -772,7 +772,7 @@ struct GameView: View {
                         saveStateForUndo()
                     }
                 )
-                .padding(.horizontal, 16)
+                .frame(width: UIScreen.main.bounds.width - 32, height: UIScreen.main.bounds.width - 32)
                 .disabled(isCompleted)
                 
                 // Completion animation overlay
@@ -1602,9 +1602,8 @@ struct GameGridView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            let maxGridSize: CGFloat = 750 // Increased by 50% from 500
-            let availableSize = min(geometry.size.width, geometry.size.height)
-            let gridSize = min(availableSize, maxGridSize)
+            let maxGridSize: CGFloat = 750
+            let gridSize = min(geometry.size.width, maxGridSize)
             let cellSize = gridSize / CGFloat(puzzle.size)
             let gridWidth = cellSize * CGFloat(puzzle.size)
             
