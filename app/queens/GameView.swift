@@ -43,6 +43,7 @@ struct GameView: View {
     @State private var redoStack: [[GridPosition: CellState]] = []
 
     @State private var timerPulse = false
+    @State private var showProgressToast = false
     
     // Cached region colors (to prevent randomization on every redraw)
     @State private var regionColors: [Int: Color] = [:]
@@ -211,6 +212,26 @@ struct GameView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showSaveMessage)
+            }
+        }
+        .overlay(alignment: .top) {
+            // Progress toast — shown when check is tapped and everything so far is correct
+            if showProgressToast {
+                VStack {
+                    Text("✓ Looking good so far!")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+                        )
+                        .padding(.top, 60)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showProgressToast)
             }
         }
         .task {
@@ -1318,7 +1339,15 @@ struct GameView: View {
             }
             
         case .incomplete:
-            flashErrors(errors)
+            if errors.isEmpty {
+                withAnimation { showProgressToast = true }
+                Task {
+                    try? await Task.sleep(for: .seconds(1.8))
+                    withAnimation { showProgressToast = false }
+                }
+            } else {
+                flashErrors(errors)
+            }
 
         case .invalid:
             flashErrors(errors)
