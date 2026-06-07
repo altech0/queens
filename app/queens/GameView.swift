@@ -41,6 +41,8 @@ struct GameView: View {
     // Undo/Redo support
     @State private var undoStack: [[GridPosition: CellState]] = []
     @State private var redoStack: [[GridPosition: CellState]] = []
+
+    @State private var timerPulse = false
     
     // Cached region colors (to prevent randomization on every redraw)
     @State private var regionColors: [Int: Color] = [:]
@@ -425,10 +427,12 @@ struct GameView: View {
                     }
                     
                     if !settings.hideTimer {
-                        Text(formatTime(elapsedTime))
+                        Text(formatTimeLive(elapsedTime))
                             .font(.system(size: 20, weight: .semibold, design: .monospaced))
                             .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
                             .padding(.top, 8)
+                            .scaleEffect(timerPulse ? 1.07 : 1.0)
+                            .animation(.easeOut(duration: 0.25), value: timerPulse)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -682,10 +686,12 @@ struct GameView: View {
                 
                 // Timer display
                 if !settings.hideTimer {
-                    Text(formatTime(elapsedTime))
+                    Text(formatTimeLive(elapsedTime))
                         .font(.system(size: 16, weight: .medium, design: .monospaced))
                         .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
                         .padding(.top, 4)
+                        .scaleEffect(timerPulse ? 1.07 : 1.0)
+                        .animation(.easeOut(duration: 0.25), value: timerPulse)
                 }
             }
             
@@ -1094,9 +1100,16 @@ struct GameView: View {
         guard !isCompleted else { return }
         
         startTime = Date()
+        var lastPulsedSecond = -1
         timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { _ in
             if let startTime = startTime, !isCompleted {
                 elapsedTime = pausedTime + Date().timeIntervalSince(startTime)
+                let currentSecond = Int(elapsedTime)
+                if currentSecond != lastPulsedSecond {
+                    lastPulsedSecond = currentSecond
+                    timerPulse = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { timerPulse = false }
+                }
             }
         }
     }
@@ -1146,6 +1159,12 @@ struct GameView: View {
         let seconds = Int(timeInterval) % 60
         let centiseconds = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 100)
         return String(format: "%02d:%02d.%02d", minutes, seconds, centiseconds)
+    }
+
+    private func formatTimeLive(_ timeInterval: TimeInterval) -> String {
+        let minutes = Int(timeInterval) / 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
     
     /// Format time in a readable way for sharing (e.g., "2 minutes 34 seconds")
