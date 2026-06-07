@@ -32,11 +32,22 @@ struct queensApp: App {
     }
 
     private func handleDeepLink(_ url: URL) {
-        guard url.scheme == "queens",
-              url.host == "puzzle",
-              let code = url.pathComponents.last,
-              code != "/" else { return }
-        NotificationCenter.default.post(name: .openPuzzle, object: nil, userInfo: ["code": code])
+        // Universal link: https://queens.knittedmice.com/puzzle?code=12847
+        if url.scheme == "https",
+           url.host == "queens.knittedmice.com",
+           url.path == "/puzzle",
+           let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+               .queryItems?.first(where: { $0.name == "code" })?.value {
+            NotificationCenter.default.post(name: .openPuzzle, object: nil, userInfo: ["code": code])
+            return
+        }
+        // Custom scheme: queens://puzzle/12847
+        if url.scheme == "queens",
+           url.host == "puzzle",
+           let code = url.pathComponents.last,
+           code != "/" {
+            NotificationCenter.default.post(name: .openPuzzle, object: nil, userInfo: ["code": code])
+        }
     }
 }
 
