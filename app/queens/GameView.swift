@@ -44,6 +44,7 @@ struct GameView: View {
 
     @State private var timerPulse = false
     @State private var showProgressToast = false
+    @State private var menuOpen = false
     
     // Cached region colors (to prevent randomization on every redraw)
     @State private var regionColors: [Int: Color] = [:]
@@ -97,33 +98,52 @@ struct GameView: View {
     // Offline mode support
     private let providedPuzzle: StarBattlePuzzle?
     private let puzzleID: String?
-    
+    private let deepLinkCode: String?
+
     // Puzzle generation parameters
     private let puzzleSize: Int
     private let starsPerUnit: Int
-    
+
+    private let onDismiss: (() -> Void)?
+
     /// Initialize GameView for online mode (fetches puzzle from API)
     init() {
         self.providedPuzzle = nil
         self.puzzleID = nil
+        self.deepLinkCode = nil
         self.puzzleSize = 6
         self.starsPerUnit = 1
+        self.onDismiss = nil
     }
-    
+
     /// Initialize GameView with custom puzzle parameters
     init(puzzleSize: Int, starsPerUnit: Int) {
         self.providedPuzzle = nil
         self.puzzleID = nil
+        self.deepLinkCode = nil
         self.puzzleSize = puzzleSize
         self.starsPerUnit = starsPerUnit
+        self.onDismiss = nil
     }
-    
-    /// Initialize GameView for offline mode (uses provided puzzle)
-    init(puzzle: StarBattlePuzzle, puzzleID: String) {
+
+    /// Initialize GameView for offline/specific puzzle mode (uses provided puzzle)
+    init(puzzle: StarBattlePuzzle, puzzleID: String, onDismiss: (() -> Void)? = nil) {
         self.providedPuzzle = puzzle
         self.puzzleID = puzzleID
+        self.deepLinkCode = nil
         self.puzzleSize = puzzle.size
         self.starsPerUnit = puzzle.starsPerRegion
+        self.onDismiss = onDismiss
+    }
+
+    /// Initialize GameView for deep link (fetches puzzle by code, shows loading inline)
+    init(deepLinkCode: String) {
+        self.providedPuzzle = nil
+        self.puzzleID = nil
+        self.deepLinkCode = deepLinkCode
+        self.puzzleSize = 6
+        self.starsPerUnit = 1
+        self.onDismiss = nil
     }
     
     var body: some View {
@@ -193,7 +213,7 @@ struct GameView: View {
                 gameContent(puzzle: puzzle)
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .overlay(alignment: .top) {
             // Save message toast
             if showSaveMessage {
@@ -282,6 +302,7 @@ struct GameView: View {
                     
                     // Back button in top left
                     Button(action: {
+                        onDismiss?()
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -300,6 +321,7 @@ struct GameView: View {
                     
                     // Back button in top left
                     Button(action: {
+                        onDismiss?()
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -641,6 +663,26 @@ struct GameView: View {
         .background(Color.white.opacity(0.4))
     }
     
+    @ViewBuilder
+    private func menuRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                    .frame(width: 20)
+                Text(label)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(Color(red: 0.25, green: 0.28, blue: 0.38))
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - iPhone Layout
     @ViewBuilder
     private func iPhoneLayout(puzzle: StarBattlePuzzle) -> some View {
@@ -648,6 +690,7 @@ struct GameView: View {
             // Header
             HStack {
                 Button(action: {
+                    onDismiss?()
                     dismiss()
                 }) {
                     Image(systemName: "chevron.left")
@@ -660,31 +703,22 @@ struct GameView: View {
                 
                 Spacer()
                 
-                HStack(spacing: 4) {
-                    // Save to cache button
-                    Button(action: {
-                        savePuzzleToCache()
-                    }) {
-                        Image(systemName: "plus.circle")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
-                            .frame(width: 44, height: 44)
+                // Burger button
+                Button(action: {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                        menuOpen.toggle()
                     }
-                    
-                    // Check button
-                    Button(action: {
-                        checkSolution()
-                    }) {
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
-                            .frame(width: 44, height: 44)
-                    }
+                }) {
+                    Image(systemName: menuOpen ? "xmark" : "line.3.horizontal")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                        .frame(width: 44, height: 44)
+                        .contentTransition(.symbolEffect(.replace))
                 }
             }
             .padding(.horizontal)
             .padding(.top, 10)
-            
+
             // Game info
             VStack(spacing: 8) {
                 Text("\(puzzle.size)×\(puzzle.size) Grid")
@@ -901,11 +935,54 @@ struct GameView: View {
                 .frame(maxWidth: 280)
             }
             .padding(.horizontal)
-            
+
             Spacer()
         }
+        .overlay(alignment: .topTrailing) {
+            if menuOpen {
+                VStack(spacing: 0) {
+                    menuRow(icon: "checkmark", label: "Validate") {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { menuOpen = false }
+                        checkSolution()
+                    }
+                    Divider().padding(.horizontal, 12)
+                    menuRow(icon: "plus", label: "Save Offline") {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { menuOpen = false }
+                        savePuzzleToCache()
+                    }
+                    Divider().padding(.horizontal, 12)
+                    menuRow(icon: "square.and.arrow.up", label: "Share") {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { menuOpen = false }
+                        let text = generatePuzzleShareText(puzzle: puzzle)
+                        let av = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+                        UIApplication.shared.connectedScenes
+                            .compactMap { $0 as? UIWindowScene }
+                            .first?.windows.first?.rootViewController?
+                            .present(av, animated: true)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.white)
+                        .shadow(color: Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.15), radius: 16, x: 0, y: 4)
+                )
+                .frame(width: 160)
+                .padding(.top, 62)
+                .padding(.trailing, 16)
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.88, anchor: .topTrailing).combined(with: .opacity),
+                    removal:   .scale(scale: 0.88, anchor: .topTrailing).combined(with: .opacity)
+                ))
+                .zIndex(100)
+            }
+        }
+        .onTapGesture {
+            if menuOpen {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { menuOpen = false }
+            }
+        }
     }
-    
+
     private func loadPuzzle() async {
         logger.info("🎮 GameView: Starting puzzle load")
         isLoading = true
@@ -917,17 +994,31 @@ struct GameView: View {
         if let providedPuzzle = providedPuzzle {
             logger.info("🎮 GameView: Using provided puzzle (offline mode)")
             self.puzzle = providedPuzzle
-            // Generate and cache region colors
             regionColors = RegionColorPalette.assignColors(for: providedPuzzle, enhancedContrast: settings.enhancedContrastMode)
             isLoading = false
             startTimer()
             return
         }
-        
+
+        // If we have a deep link code, fetch that specific puzzle
+        if let code = deepLinkCode {
+            logger.info("🎮 GameView: Fetching deep link puzzle \(code)")
+            do {
+                let loadedPuzzle = try await PuzzleFetcher.fetchPuzzleByCode(code)
+                self.puzzle = loadedPuzzle
+                regionColors = RegionColorPalette.assignColors(for: loadedPuzzle, enhancedContrast: settings.enhancedContrastMode)
+                isLoading = false
+                startTimer()
+            } catch {
+                loadingError = "Couldn't find puzzle #\(code)"
+                isLoading = false
+            }
+            return
+        }
+
         // Otherwise, fetch from API (online mode)
         do {
             logger.debug("🎮 GameView: Calling PuzzleFetcher...")
-            // Exclude current puzzle ID to get a different one
             let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit)
             
             logger.info("🎮 GameView: Puzzle loaded successfully")
@@ -1232,10 +1323,10 @@ struct GameView: View {
         """
     }
     
-    /// Generate the share URL for the puzzle
-    private func generateShareURL(puzzle: StarBattlePuzzle) -> String {
-        let puzzleCode = puzzle.code ?? "Unknown"
-        return "queens://puzzle/\(puzzleCode)"
+    /// Generate share text + deep link for challenging a friend
+    private func generatePuzzleShareText(puzzle: StarBattlePuzzle) -> String {
+        let code = puzzle.code ?? "?"
+        return "Try puzzle #\(code) on Queens! https://queens.knittedmice.com/puzzle?code=\(code)"
     }
     
     /// Save puzzle completion stats to cache (for offline puzzles)

@@ -14,7 +14,7 @@ struct GameSetupView: View {
     @State private var selectedStars: Int = 1
     @State private var selectedSize: Int = 6
     @State private var navigateToGame = false
-    
+
     let starOptions = [1, 2]
     let sizeOptions = [6, 8, 10]
     
