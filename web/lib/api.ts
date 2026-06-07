@@ -24,24 +24,29 @@ async function register(): Promise<string> {
   return data.api_token
 }
 
-export async function fetchPuzzle(size?: number, stars?: number): Promise<Puzzle> {
+async function authedFetch(url: string, retried = false): Promise<Response> {
   const token = await getToken()
+  const res = await fetch(url, { headers: { 'X-API-Token': token } })
+  if (res.status === 401 && !retried) {
+    localStorage.removeItem('queens_token')
+    tokenPromise = null
+    return authedFetch(url, true)
+  }
+  return res
+}
+
+export async function fetchPuzzle(size?: number, stars?: number): Promise<Puzzle> {
   const params = new URLSearchParams()
   if (size)  params.set('size',  String(size))
   if (stars) params.set('stars', String(stars))
 
-  const res = await fetch(`${API}/puzzle?${params}`, {
-    headers: { 'X-API-Token': token },
-  })
+  const res = await authedFetch(`${API}/puzzle?${params}`)
   if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
   return res.json()
 }
 
 export async function fetchPuzzleByCode(code: string): Promise<Puzzle> {
-  const token = await getToken()
-  const res = await fetch(`${API}/puzzle?code=${encodeURIComponent(code)}`, {
-    headers: { 'X-API-Token': token },
-  })
+  const res = await authedFetch(`${API}/puzzle?code=${encodeURIComponent(code)}`)
   if (res.status === 404) throw new Error('Puzzle not found')
   if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
   return res.json()
