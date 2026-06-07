@@ -98,7 +98,7 @@ struct GameView: View {
     // Offline mode support
     private let providedPuzzle: StarBattlePuzzle?
     private let puzzleID: String?
-    private let deepLinkCode: String?
+    @State private var deepLinkCode: String?
 
     // Puzzle generation parameters
     private let puzzleSize: Int
@@ -1002,6 +1002,7 @@ struct GameView: View {
 
         // If we have a deep link code, fetch that specific puzzle
         if let code = deepLinkCode {
+            deepLinkCode = nil
             logger.info("🎮 GameView: Fetching deep link puzzle \(code)")
             do {
                 let loadedPuzzle = try await PuzzleFetcher.fetchPuzzleByCode(code)
