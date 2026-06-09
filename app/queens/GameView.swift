@@ -19,6 +19,7 @@ struct GameView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(PuzzleCache.self) private var cache
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     
     @State private var puzzle: StarBattlePuzzle?
     @State private var cellStates: [GridPosition: CellState] = [:]
@@ -148,27 +149,19 @@ struct GameView: View {
     
     var body: some View {
         ZStack {
-            // Same relaxing background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.94, blue: 0.98),
-                    Color(red: 0.89, green: 0.93, blue: 0.97)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppColors.backgroundGradient(colorScheme)
+                .ignoresSafeArea()
             
             if let error = loadingError {
                 // Error state
                 VStack(spacing: 16) {
                     Image(systemName: "cup.and.saucer.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                        .foregroundColor(AppColors.textSecondary(colorScheme))
                     
                     Text(error)
                         .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                        .foregroundColor(AppColors.textPrimary(colorScheme))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                         .padding(.top, 8)
@@ -181,18 +174,9 @@ struct GameView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: 200)
                             .padding(.vertical, 14)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.45, green: 0.55, blue: 0.75),
-                                        Color(red: 0.5, green: 0.6, blue: 0.8)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .background(AppColors.primaryGradient(colorScheme))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .shadow(color: Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.3), radius: 10, x: 0, y: 5)
+                            .shadow(color: AppColors.primary(colorScheme).opacity(0.3), radius: 10, x: 0, y: 5)
                     }
                     .padding(.top, 24)
                 }
@@ -202,11 +186,11 @@ struct GameView: View {
                 VStack(spacing: 20) {
                     ProgressView()
                         .scaleEffect(1.5)
-                        .tint(Color(red: 0.4, green: 0.5, blue: 0.7))
+                        .tint(AppColors.primary(colorScheme))
                     
                     Text("Loading puzzle...")
                         .font(.system(size: 18, weight: .regular, design: .rounded))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                        .foregroundColor(AppColors.textSecondary(colorScheme))
                 }
             } else if let puzzle = puzzle {
                 // Game content
@@ -225,7 +209,7 @@ struct GameView: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                .fill(AppColors.primary(colorScheme))
                                 .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
                         )
                         .padding(.top, 60)
@@ -245,7 +229,7 @@ struct GameView: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                .fill(AppColors.primary(colorScheme))
                                 .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
                         )
                         .padding(.top, 60)
@@ -307,7 +291,7 @@ struct GameView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .frame(width: 44, height: 44)
                     }
                     .padding(.top, 16)
@@ -326,7 +310,7 @@ struct GameView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .frame(width: 44, height: 44)
                     }
                     .padding(.top, 16)
@@ -370,16 +354,7 @@ struct GameView: View {
                 VStack(spacing: 20) {
                     Text("Congratulations!")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.4, green: 0.5, blue: 0.7),
-                                    Color(red: 0.5, green: 0.6, blue: 0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .foregroundStyle(AppColors.primaryGradient(colorScheme))
                         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                         .scaleEffect(showCongratulations ? 1.0 : 0.5)
                         .opacity(showCongratulations ? 0 : 1)
@@ -388,14 +363,14 @@ struct GameView: View {
                     HStack(spacing: 12) {
                         Text(formatTime(completionTime))
                             .font(.system(size: 40, weight: .semibold, design: .monospaced))
-                            .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                            .foregroundColor(AppColors.textPrimary(colorScheme))
                         
                         // Share button - appears with time
                         if showCongratulations {
                             ShareLink(item: generateShareText(puzzle: puzzle, time: completionTime)) {
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.system(size: 20, weight: .medium))
-                                    .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                    .foregroundColor(AppColors.primary(colorScheme))
                                     .frame(width: 32, height: 32)
                             }
                         }
@@ -404,7 +379,7 @@ struct GameView: View {
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.9))
+                            .fill(AppColors.surfaceCard(colorScheme))
                             .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                     )
                     .opacity(showCongratulations ? 1 : 0)
@@ -425,7 +400,7 @@ struct GameView: View {
                     
                     Text("Queens")
                         .font(.system(size: 28, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                        .foregroundColor(AppColors.textPrimary(colorScheme))
                     
                     Spacer()
                     
@@ -437,7 +412,7 @@ struct GameView: View {
                     }) {
                         Image(systemName: sidebarOnLeft ? "sidebar.right" : "sidebar.left")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .frame(width: 44, height: 44)
                     }
                 }
@@ -451,11 +426,11 @@ struct GameView: View {
                 VStack(spacing: 10) {
                     Text("\(puzzle.size)×\(puzzle.size) Grid")
                         .font(.system(size: 17, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                        .foregroundColor(AppColors.textSecondary(colorScheme))
                     
                     Text("\(puzzle.starsPerRegion) star\(puzzle.starsPerRegion > 1 ? "s" : "") per row, column & region")
                         .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                        .foregroundColor(AppColors.textSecondary(colorScheme))
                         .opacity(0.85)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -464,7 +439,7 @@ struct GameView: View {
                     if let code = puzzle.code {
                         Text("ID: \(code)")
                             .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
                             .opacity(0.7)
                             .padding(.top, 4)
                     }
@@ -472,7 +447,7 @@ struct GameView: View {
                     if !settings.hideTimer {
                         Text(formatTimeLive(elapsedTime))
                             .font(.system(size: 20, weight: .semibold, design: .monospaced))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .padding(.top, 8)
                             .scaleEffect(timerPulse ? 1.07 : 1.0)
                             .animation(.easeOut(duration: 0.25), value: timerPulse)
@@ -491,7 +466,7 @@ struct GameView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Quick Actions")
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
                             .opacity(0.8)
                             .padding(.horizontal, 4)
                         
@@ -506,12 +481,12 @@ struct GameView: View {
                                         .font(.system(size: 16, weight: .medium, design: .rounded))
                                     Spacer()
                                 }
-                                .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                .foregroundColor(AppColors.primary(colorScheme))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.5))
+                                        .fill(AppColors.surface(colorScheme))
                                 )
                             }
                             
@@ -525,12 +500,12 @@ struct GameView: View {
                                         .font(.system(size: 16, weight: .medium, design: .rounded))
                                     Spacer()
                                 }
-                                .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                .foregroundColor(AppColors.primary(colorScheme))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.5))
+                                        .fill(AppColors.surface(colorScheme))
                                 )
                             }
                         }
@@ -541,7 +516,7 @@ struct GameView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Puzzle Controls")
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
                             .opacity(0.8)
                             .padding(.horizontal, 4)
                         
@@ -564,16 +539,7 @@ struct GameView: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 14)
-                                    .background(
-                                        LinearGradient(
-                                            colors: [
-                                                Color(red: 0.45, green: 0.55, blue: 0.75),
-                                                Color(red: 0.5, green: 0.6, blue: 0.8)
-                                            ],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
+                                    .background(AppColors.primaryGradient(colorScheme))
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
                             }
@@ -588,12 +554,12 @@ struct GameView: View {
                                         .font(.system(size: 16, weight: .medium, design: .rounded))
                                     Spacer()
                                 }
-                                .foregroundColor(Color(red: 0.6, green: 0.62, blue: 0.68))
+                                .foregroundColor(AppColors.textDisabled(colorScheme))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.5))
+                                        .fill(AppColors.surface(colorScheme))
                                 )
                             }
                         }
@@ -604,7 +570,7 @@ struct GameView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("History")
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
                             .opacity(0.8)
                             .padding(.horizontal, 4)
                         
@@ -619,12 +585,12 @@ struct GameView: View {
                                         .font(.system(size: 16, weight: .medium, design: .rounded))
                                     Spacer()
                                 }
-                                .foregroundColor(undoStack.isEmpty ? Color(red: 0.7, green: 0.72, blue: 0.76) : Color(red: 0.5, green: 0.6, blue: 0.75))
+                                .foregroundColor(undoStack.isEmpty ? AppColors.textDisabled(colorScheme) : AppColors.primary(colorScheme))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.5))
+                                        .fill(AppColors.surface(colorScheme))
                                 )
                             }
                             .disabled(undoStack.isEmpty)
@@ -640,12 +606,12 @@ struct GameView: View {
                                         .font(.system(size: 16, weight: .medium, design: .rounded))
                                     Spacer()
                                 }
-                                .foregroundColor(redoStack.isEmpty ? Color(red: 0.7, green: 0.72, blue: 0.76) : Color(red: 0.5, green: 0.6, blue: 0.75))
+                                .foregroundColor(redoStack.isEmpty ? AppColors.textDisabled(colorScheme) : AppColors.primary(colorScheme))
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.5))
+                                        .fill(AppColors.surface(colorScheme))
                                 )
                             }
                             .disabled(redoStack.isEmpty)
@@ -660,7 +626,7 @@ struct GameView: View {
             
             Spacer()
         }
-        .background(Color.white.opacity(0.4))
+        .background(AppColors.sidebarBackground(colorScheme))
     }
     
     @ViewBuilder
@@ -669,11 +635,11 @@ struct GameView: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                    .foregroundColor(AppColors.primary(colorScheme))
                     .frame(width: 20)
                 Text(label)
                     .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(red: 0.25, green: 0.28, blue: 0.38))
+                    .foregroundColor(AppColors.textPrimary(colorScheme))
                 Spacer()
             }
             .padding(.horizontal, 14)
@@ -695,7 +661,7 @@ struct GameView: View {
                 }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                        .foregroundColor(AppColors.primary(colorScheme))
                         .frame(width: 44, height: 44)
                 }
                 
@@ -711,7 +677,7 @@ struct GameView: View {
                 }) {
                     Image(systemName: menuOpen ? "xmark" : "line.3.horizontal")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                        .foregroundColor(AppColors.primary(colorScheme))
                         .frame(width: 44, height: 44)
                         .contentTransition(.symbolEffect(.replace))
                 }
@@ -723,18 +689,18 @@ struct GameView: View {
             VStack(spacing: 8) {
                 Text("\(puzzle.size)×\(puzzle.size) Grid")
                     .font(.system(size: 16, weight: .regular, design: .rounded))
-                    .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
-                
+                    .foregroundColor(AppColors.textSecondary(colorScheme))
+
                 Text("\(puzzle.starsPerRegion) star\(puzzle.starsPerRegion > 1 ? "s" : "") per row, column & region")
                     .font(.system(size: 14, weight: .regular, design: .rounded))
-                    .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                    .foregroundColor(AppColors.textSecondary(colorScheme))
                     .opacity(0.8)
                 
                 // Puzzle ID/Code
                 if let code = puzzle.code {
                     Text("Puzzle ID: \(code)")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                        .foregroundColor(AppColors.textSecondary(colorScheme))
                         .opacity(0.7)
                         .padding(.top, 2)
                 }
@@ -743,7 +709,7 @@ struct GameView: View {
                 if !settings.hideTimer {
                     Text(formatTimeLive(elapsedTime))
                         .font(.system(size: 16, weight: .medium, design: .monospaced))
-                        .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                        .foregroundColor(AppColors.primary(colorScheme))
                         .padding(.top, 4)
                         .scaleEffect(timerPulse ? 1.07 : 1.0)
                         .animation(.easeOut(duration: 0.25), value: timerPulse)
@@ -781,16 +747,7 @@ struct GameView: View {
                         // "Congratulations!" message
                         Text("Congratulations!")
                             .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.4, green: 0.5, blue: 0.7),
-                                        Color(red: 0.5, green: 0.6, blue: 0.8)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundStyle(AppColors.primaryGradient(colorScheme))
                             .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                             .scaleEffect(showCongratulations ? 1.0 : 0.5)
                             .opacity(showCongratulations ? 0 : 1)
@@ -799,14 +756,14 @@ struct GameView: View {
                         HStack(spacing: 12) {
                             Text(formatTime(completionTime))
                                 .font(.system(size: 32, weight: .semibold, design: .monospaced))
-                                .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
                             
                             // Share button - appears with time
                             if showCongratulations {
                                 ShareLink(item: generateShareText(puzzle: puzzle, time: completionTime)) {
                                     Image(systemName: "square.and.arrow.up")
                                         .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                        .foregroundColor(AppColors.primary(colorScheme))
                                         .frame(width: 28, height: 28)
                                 }
                             }
@@ -815,7 +772,7 @@ struct GameView: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.9))
+                                .fill(AppColors.surfaceCard(colorScheme))
                                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                         )
                         .opacity(showCongratulations ? 1 : 0)
@@ -839,15 +796,15 @@ struct GameView: View {
                     }) {
                         Text("New Puzzle")
                             .font(.system(size: 18, weight: .medium, design: .rounded))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .frame(maxWidth: 280)
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(red: 0.4, green: 0.5, blue: 0.7), lineWidth: 2)
+                                    .stroke(AppColors.primary(colorScheme), lineWidth: 2)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .fill(Color.white.opacity(0.3))
+                                            .fill(AppColors.surfaceLow(colorScheme))
                                     )
                             )
                     }
@@ -865,15 +822,15 @@ struct GameView: View {
                             Text("Undo")
                                 .font(.system(size: 16, weight: .medium, design: .rounded))
                         }
-                        .foregroundColor(undoStack.isEmpty ? Color(red: 0.7, green: 0.72, blue: 0.76) : Color(red: 0.5, green: 0.6, blue: 0.75))
+                        .foregroundColor(undoStack.isEmpty ? AppColors.textDisabled(colorScheme) : AppColors.primary(colorScheme))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(undoStack.isEmpty ? Color(red: 0.7, green: 0.72, blue: 0.76) : Color(red: 0.5, green: 0.6, blue: 0.75), lineWidth: 1.5)
+                                .stroke(undoStack.isEmpty ? AppColors.textDisabled(colorScheme) : AppColors.primary(colorScheme), lineWidth: 1.5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.2))
+                                        .fill(AppColors.surfaceLow(colorScheme))
                                 )
                         )
                     }
@@ -890,15 +847,15 @@ struct GameView: View {
                             Image(systemName: "arrow.uturn.forward")
                                 .font(.system(size: 16, weight: .medium))
                         }
-                        .foregroundColor(redoStack.isEmpty ? Color(red: 0.7, green: 0.72, blue: 0.76) : Color(red: 0.5, green: 0.6, blue: 0.75))
+                        .foregroundColor(redoStack.isEmpty ? AppColors.textDisabled(colorScheme) : AppColors.primary(colorScheme))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(redoStack.isEmpty ? Color(red: 0.7, green: 0.72, blue: 0.76) : Color(red: 0.5, green: 0.6, blue: 0.75), lineWidth: 1.5)
+                                .stroke(redoStack.isEmpty ? AppColors.textDisabled(colorScheme) : AppColors.primary(colorScheme), lineWidth: 1.5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.2))
+                                        .fill(AppColors.surfaceLow(colorScheme))
                                 )
                         )
                     }
@@ -919,15 +876,15 @@ struct GameView: View {
                             Text("Reset")
                                 .font(.system(size: 15, weight: .medium, design: .rounded))
                         }
-                        .foregroundColor(Color(red: 0.6, green: 0.62, blue: 0.68))
+                        .foregroundColor(AppColors.textDisabled(colorScheme))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color(red: 0.6, green: 0.62, blue: 0.68), lineWidth: 1.5)
+                                .stroke(AppColors.textDisabled(colorScheme), lineWidth: 1.5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.15))
+                                        .fill(AppColors.surfaceLow(colorScheme))
                                 )
                         )
                     }
@@ -963,8 +920,8 @@ struct GameView: View {
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(.white)
-                        .shadow(color: Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.15), radius: 16, x: 0, y: 4)
+                        .fill(AppColors.menuBackground(colorScheme))
+                        .shadow(color: AppColors.primary(colorScheme).opacity(0.15), radius: 16, x: 0, y: 4)
                 )
                 .frame(width: 160)
                 .padding(.top, 62)
@@ -994,7 +951,7 @@ struct GameView: View {
         if let providedPuzzle = providedPuzzle {
             logger.info("🎮 GameView: Using provided puzzle (offline mode)")
             self.puzzle = providedPuzzle
-            regionColors = RegionColorPalette.assignColors(for: providedPuzzle, enhancedContrast: settings.enhancedContrastMode)
+            regionColors = RegionColorPalette.assignColors(for: providedPuzzle, enhancedContrast: settings.enhancedContrastMode, scheme: colorScheme)
             isLoading = false
             startTimer()
             return
@@ -1007,7 +964,7 @@ struct GameView: View {
             do {
                 let loadedPuzzle = try await PuzzleFetcher.fetchPuzzleByCode(code)
                 self.puzzle = loadedPuzzle
-                regionColors = RegionColorPalette.assignColors(for: loadedPuzzle, enhancedContrast: settings.enhancedContrastMode)
+                regionColors = RegionColorPalette.assignColors(for: loadedPuzzle, enhancedContrast: settings.enhancedContrastMode, scheme: colorScheme)
                 isLoading = false
                 startTimer()
             } catch {
@@ -1025,7 +982,7 @@ struct GameView: View {
             logger.info("🎮 GameView: Puzzle loaded successfully")
             self.puzzle = loadedPuzzle
             // Generate and cache region colors
-            regionColors = RegionColorPalette.assignColors(for: loadedPuzzle, enhancedContrast: settings.enhancedContrastMode)
+            regionColors = RegionColorPalette.assignColors(for: loadedPuzzle, enhancedContrast: settings.enhancedContrastMode, scheme: colorScheme)
             isLoading = false
             startTimer()
             
@@ -1600,6 +1557,7 @@ struct GameGridView: View {
     let singleTapMode: Bool
     let onCellToggle: () -> Void
     let onSaveUndo: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         GeometryReader { geometry in
@@ -1639,7 +1597,7 @@ struct GameGridView: View {
                     .frame(width: gridWidth, height: gridWidth)
                     .allowsHitTesting(false) // Allow touches to pass through to cells below
             }
-            .background(Color.white.opacity(0.5))
+            .background(AppColors.gridBackground(colorScheme))
             .clipShape(Rectangle())
             .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1687,10 +1645,11 @@ struct GameGridView: View {
 struct RegionBordersOverlay: View {
     let puzzle: StarBattlePuzzle
     let cellSize: CGFloat
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Canvas { context, size in
-            let borderColor = Color(red: 0.5, green: 0.55, blue: 0.65)
+            let borderColor = AppColors.regionBorder(colorScheme)
             let borderWidth: CGFloat = 3
             
             // Draw horizontal borders
@@ -1757,6 +1716,7 @@ struct GameCellView: View {
     let isConflict: Bool
     let showConflicts: Bool
     let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         Button(action: action) {
@@ -1782,7 +1742,7 @@ struct GameCellView: View {
                 
                 // Thin inner grid lines
                 Rectangle()
-                    .stroke(Color(red: 0.25, green: 0.27, blue: 0.29), lineWidth: 0.5)
+                    .stroke(AppColors.cellGridLine(colorScheme), lineWidth: 0.5)
                     .frame(width: cellSize, height: cellSize)
                 
                 // Display content based on state
@@ -1827,9 +1787,9 @@ struct GameCellView: View {
         } else if isConflict && showConflicts && cellState == .star {
             return Color(red: 0.82, green: 0.1, blue: 0.08)
         } else if cellState == .star {
-            return Color(red: 0.4, green: 0.5, blue: 0.7)
+            return AppColors.primary(colorScheme)
         } else {
-            return Color(red: 0.6, green: 0.62, blue: 0.68)
+            return AppColors.textDisabled(colorScheme)
         }
     }
 }
