@@ -84,23 +84,10 @@ struct SettingsView: View {
                             .padding(.horizontal, 20)
                             .padding(.vertical, 16)
                             .background(AppColors.surface(colorScheme))
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .frame(maxWidth: isIPadLandscape ? 600 : .infinity)
-                        .padding(.horizontal, 16)
-                    }
-                    .frame(maxWidth: .infinity)
 
-                    // Accessibility section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Accessibility")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(AppColors.textSecondary(colorScheme))
-                            .textCase(.uppercase)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 32)
-                        
-                        VStack(spacing: 0) {
+                            Divider()
+                                .padding(.leading, 20)
+
                             Toggle(isOn: Binding(
                                 get: { settings.enhancedContrastMode },
                                 set: { settings.enhancedContrastMode = $0 }
@@ -109,8 +96,8 @@ struct SettingsView: View {
                                     Text("Enhanced Contrast")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textPrimary(colorScheme))
-                                    
-                                    Text("Use high-contrast colors for better region differentiation")
+
+                                    Text("Use high-contrast colours for better region differentiation")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
