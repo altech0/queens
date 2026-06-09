@@ -67,7 +67,7 @@ struct SettingsView: View {
                         VStack(spacing: 0) {
                             Toggle(isOn: Binding(
                                 get: { settings.darkMode },
-                                set: { settings.darkMode = $0 }
+                                set: { withAnimation(.easeInOut(duration: 0.35)) { settings.darkMode = $0 } }
                             )) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Dark Mode")
