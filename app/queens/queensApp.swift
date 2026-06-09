@@ -25,6 +25,7 @@ struct queensApp: App {
                 .environment(puzzleCache)
                 .environment(authManager)
                 .preferredColorScheme(settings.darkMode ? .dark : .light)
+                .animation(.easeInOut(duration: 0.35), value: settings.darkMode)
                 .onOpenURL { url in handleDeepLink(url) }
                 .onReceive(NotificationCenter.default.publisher(for: .authenticationExpired)) { _ in
                     Task { await authManager.register() }
