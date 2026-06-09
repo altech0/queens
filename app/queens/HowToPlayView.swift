@@ -265,7 +265,7 @@ struct MiniGridExample: View {
                                 
                                 // Thin inner grid lines (like in the game)
                                 Rectangle()
-                                    .stroke(AppColors.cellGridLine(colorScheme), lineWidth: 0.5)
+                                    .stroke(AppColors.cellMinorLine(colorScheme), lineWidth: 1)
                                     .frame(width: 33, height: 33)
 
                                 if hasStar {

@@ -1650,7 +1650,7 @@ struct RegionBordersOverlay: View {
     var body: some View {
         Canvas { context, size in
             let borderColor = AppColors.regionBorder(colorScheme)
-            let borderWidth: CGFloat = 3
+            let borderWidth: CGFloat = 1
             
             // Draw horizontal borders
             for row in 0..<puzzle.size {
@@ -1740,9 +1740,9 @@ struct GameCellView: View {
                         .frame(width: cellSize, height: cellSize)
                 }
                 
-                // Thin inner grid lines
+                // Minor grid lines
                 Rectangle()
-                    .stroke(AppColors.cellGridLine(colorScheme), lineWidth: 0.5)
+                    .stroke(AppColors.cellMinorLine(colorScheme), lineWidth: 1)
                     .frame(width: cellSize, height: cellSize)
                 
                 // Display content based on state
