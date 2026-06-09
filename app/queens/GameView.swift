@@ -1582,7 +1582,8 @@ struct GameGridView: View {
                                     isError: errorCells.contains(position),
                                     showingErrors: showingErrors,
                                     isConflict: conflictCells.contains(position),
-                                    showConflicts: showConflicts
+                                    showConflicts: showConflicts,
+                                    enhancedContrast: enhancedContrast
                                 ) {
                                     toggleCell(position: position)
                                 }
@@ -1593,7 +1594,7 @@ struct GameGridView: View {
                 .frame(width: gridWidth, height: gridWidth)
                 
                 // Draw thick region borders on top
-                RegionBordersOverlay(puzzle: puzzle, cellSize: cellSize)
+                RegionBordersOverlay(puzzle: puzzle, cellSize: cellSize, enhanced: enhancedContrast)
                     .frame(width: gridWidth, height: gridWidth)
                     .allowsHitTesting(false) // Allow touches to pass through to cells below
             }
@@ -1645,12 +1646,13 @@ struct GameGridView: View {
 struct RegionBordersOverlay: View {
     let puzzle: StarBattlePuzzle
     let cellSize: CGFloat
+    let enhanced: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Canvas { context, size in
-            let borderColor = AppColors.regionBorder(colorScheme)
-            let borderWidth: CGFloat = 1
+            let borderColor = AppColors.regionBorder(colorScheme, enhanced: enhanced)
+            let borderWidth = AppColors.regionBorderWidth(colorScheme, enhanced: enhanced)
             
             // Draw horizontal borders
             for row in 0..<puzzle.size {
@@ -1715,6 +1717,7 @@ struct GameCellView: View {
     let showingErrors: Bool
     let isConflict: Bool
     let showConflicts: Bool
+    let enhancedContrast: Bool
     let action: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     
@@ -1787,9 +1790,9 @@ struct GameCellView: View {
         } else if isConflict && showConflicts && cellState == .star {
             return Color(red: 0.82, green: 0.1, blue: 0.08)
         } else if cellState == .star {
-            return AppColors.cellStar(colorScheme)
+            return AppColors.cellStar(colorScheme, enhanced: enhancedContrast)
         } else {
-            return AppColors.cellMark(colorScheme)
+            return AppColors.cellMark(colorScheme, enhanced: enhancedContrast)
         }
     }
 }

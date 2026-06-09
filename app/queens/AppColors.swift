@@ -81,22 +81,32 @@ enum AppColors {
         scheme == .dark ? Color(white: 1, opacity: 0.06) : Color(white: 1, opacity: 0.55)
     }
 
-    // X mark — PuzzleGrid.tsx: rgba(80,90,120,0.55) light / rgba(200,180,130,0.7) dark
-    static func cellMark(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: 0xc8b482).opacity(0.7)
-                        : Color(hex: 0x505a78).opacity(0.55)
+    // X mark — PuzzleGrid.tsx
+    // light: rgba(80,90,120,0.55)  dark: rgba(200,180,130,0.7)  dark+enhanced: rgba(255,255,255,0.6)
+    static func cellMark(_ scheme: ColorScheme, enhanced: Bool = false) -> Color {
+        if scheme == .dark && enhanced { return Color.white.opacity(0.6) }
+        return scheme == .dark ? Color(hex: 0xc8b482).opacity(0.7)
+                               : Color(hex: 0x505a78).opacity(0.55)
     }
 
-    // Star — PuzzleGrid.tsx: rgba(60,75,110,0.85) light / rgba(200,180,130,0.9) dark
-    static func cellStar(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: 0xc8b482).opacity(0.9)
-                        : Color(hex: 0x3c4b6e).opacity(0.85)
+    // Star — PuzzleGrid.tsx
+    // light: rgba(60,75,110,0.85)  dark: rgba(200,180,130,0.9)  dark+enhanced: rgba(255,255,255,0.85)
+    static func cellStar(_ scheme: ColorScheme, enhanced: Bool = false) -> Color {
+        if scheme == .dark && enhanced { return Color.white.opacity(0.85) }
+        return scheme == .dark ? Color(hex: 0xc8b482).opacity(0.9)
+                               : Color(hex: 0x3c4b6e).opacity(0.85)
     }
 
-    // Major region border — PuzzleGrid.tsx: rgba(100,110,140,0.5) light / rgba(180,160,120,0.9) dark, 1px
-    static func regionBorder(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(hex: 0xb4a078).opacity(0.9)
-                        : Color(hex: 0x646e8c).opacity(0.5)
+    // Major region border — PuzzleGrid.tsx
+    // light: 2px rgba(100,110,140,0.3)  dark: 1px rgba(180,160,120,0.8)  dark+enhanced: 2px rgba(255,255,255,0.6)
+    static func regionBorder(_ scheme: ColorScheme, enhanced: Bool = false) -> Color {
+        if scheme == .dark && enhanced { return Color.white.opacity(0.6) }
+        return scheme == .dark ? Color(hex: 0xb4a078).opacity(0.8)
+                               : Color(hex: 0x646e8c).opacity(0.3)
+    }
+
+    static func regionBorderWidth(_ scheme: ColorScheme, enhanced: Bool = false) -> CGFloat {
+        scheme == .dark && enhanced ? 2 : 1
     }
 
     // Minor cell grid line — PuzzleGrid.tsx: rgba(180,185,200,0.4) light / rgba(255,255,255,0.06) dark, 1px
