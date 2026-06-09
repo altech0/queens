@@ -1789,7 +1789,7 @@ struct GameCellView: View {
         } else if cellState == .star {
             return AppColors.primary(colorScheme)
         } else {
-            return AppColors.textDisabled(colorScheme)
+            return AppColors.cellMark(colorScheme)
         }
     }
 }
