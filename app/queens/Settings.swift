@@ -10,6 +10,12 @@ import SwiftUI
 /// App-wide settings stored in UserDefaults
 @Observable
 class AppSettings {
+    // darkMode needs a real stored property so @Observable can track changes and
+    // .preferredColorScheme() at the root re-evaluates when it flips.
+    var darkMode: Bool = UserDefaults.standard.bool(forKey: "darkMode") {
+        didSet { UserDefaults.standard.set(darkMode, forKey: "darkMode") }
+    }
+
     var enhancedContrastMode: Bool {
         get {
             guard UserDefaults.standard.object(forKey: "enhancedContrastMode") != nil else { return true }
@@ -58,11 +64,6 @@ class AppSettings {
         set {
             UserDefaults.standard.set(newValue, forKey: "showCompletionHints")
         }
-    }
-
-    var darkMode: Bool {
-        get { UserDefaults.standard.bool(forKey: "darkMode") }
-        set { UserDefaults.standard.set(newValue, forKey: "darkMode") }
     }
 
     var highlightConflicts: Bool {
