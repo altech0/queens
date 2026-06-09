@@ -68,6 +68,11 @@ enum AppColors {
         scheme == .dark ? Color(red: 0.78, green: 0.71, blue: 0.51) : Color(red: 0.60, green: 0.62, blue: 0.68)
     }
 
+    // Star icon — warm gold in dark mode to match web (rgba(200,180,130,0.9))
+    static func cellStar(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(red: 0.78, green: 0.71, blue: 0.51) : Color(red: 0.40, green: 0.50, blue: 0.70)
+    }
+
     static func regionBorder(_ scheme: ColorScheme) -> Color {
         // Dark: warm gold matching the web (rgba(180,160,120,0.9))
         scheme == .dark ? Color(red: 0.71, green: 0.63, blue: 0.47) : Color(red: 0.50, green: 0.55, blue: 0.65)

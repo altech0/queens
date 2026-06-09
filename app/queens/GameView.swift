@@ -1787,7 +1787,7 @@ struct GameCellView: View {
         } else if isConflict && showConflicts && cellState == .star {
             return Color(red: 0.82, green: 0.1, blue: 0.08)
         } else if cellState == .star {
-            return AppColors.primary(colorScheme)
+            return AppColors.cellStar(colorScheme)
         } else {
             return AppColors.cellMark(colorScheme)
         }
