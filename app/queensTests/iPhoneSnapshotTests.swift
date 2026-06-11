@@ -3,125 +3,109 @@ import SnapshotTesting
 import SwiftUI
 @testable import queens
 
-final class iPhoneSnapshotTests: XCTestCase {
+// MARK: - Helpers
 
-    // iPhone 16 Pro — 393×852 pt at 3x
-    private let deviceConfig = ViewImageConfig.iPhone13Pro
+private let iPhone = ViewImageConfig.iPhone13Pro  // 390×844 pt, matches iPhone 16 Pro class
 
-    private func record() -> Bool { false } // flip to true to re-record references
+private func snap<V: View>(_ view: V, record: Bool = false) {
+    assertSnapshot(of: view, as: .image(layout: .device(config: iPhone)), record: record)
+}
 
-    // MARK: - ContentView
+/// Set to true once to write reference images, then flip back to false.
+private let recording = false
 
-    func testContentView_light() {
-        let view = ContentView()
-            .environment(AppSettings())
-            .environment(PuzzleCache())
-            .environment(AuthManager())
-            .preferredColorScheme(.light)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+private func settings(
+    dark: Bool = false,
+    enhanced: Bool = false,
+    hideTimer: Bool = false,
+    highlightConflicts: Bool = true,
+    singleTap: Bool = false,
+    showHints: Bool = true
+) -> AppSettings {
+    let s = AppSettings()
+    s.darkMode = dark
+    s.enhancedContrastMode = enhanced
+    s.hideTimer = hideTimer
+    s.highlightConflicts = highlightConflicts
+    s.singleTapMode = singleTap
+    s.showCompletionHints = showHints
+    return s
+}
 
-    func testContentView_dark() {
-        let view = ContentView()
-            .environment(AppSettings())
-            .environment(PuzzleCache())
-            .environment(AuthManager())
-            .preferredColorScheme(.dark)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+private func wrapped<V: View>(_ view: V, settings s: AppSettings = AppSettings()) -> some View {
+    NavigationStack { view }
+        .environment(s)
+        .environment(PuzzleCache())
+        .environment(AuthManager())
+        .preferredColorScheme(s.darkMode ? .dark : .light)
+}
 
-    // MARK: - GameSetupView
+// MARK: - ContentView
 
-    func testGameSetupView_light() {
-        let view = NavigationStack { GameSetupView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.light)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+final class ContentViewSnapshotTests: XCTestCase {
+    func testLight()         { snap(wrapped(ContentView(), settings: settings())) }
+    func testDark()          { snap(wrapped(ContentView(), settings: settings(dark: true))) }
+    func testDarkEnhanced()  { snap(wrapped(ContentView(), settings: settings(dark: true, enhanced: true))) }
+}
 
-    func testGameSetupView_dark() {
-        let view = NavigationStack { GameSetupView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.dark)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+// MARK: - GameSetupView
 
-    // MARK: - SettingsView
+final class GameSetupViewSnapshotTests: XCTestCase {
+    func testLight()  { snap(wrapped(GameSetupView())) }
+    func testDark()   { snap(wrapped(GameSetupView(), settings: settings(dark: true))) }
+}
 
-    func testSettingsView_light() {
-        let view = NavigationStack { SettingsView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.light)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+// MARK: - SettingsView — layout + all toggle states
 
-    func testSettingsView_dark() {
-        let view = NavigationStack { SettingsView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.dark)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+final class SettingsViewSnapshotTests: XCTestCase {
+    func testLight()                { snap(wrapped(SettingsView())) }
+    func testDark()                 { snap(wrapped(SettingsView(), settings: settings(dark: true))) }
+    func testDarkModeOn()           { snap(wrapped(SettingsView(), settings: settings(dark: true))) }
+    func testEnhancedContrastOn()   { snap(wrapped(SettingsView(), settings: settings(enhanced: true))) }
+    func testDarkEnhanced()         { snap(wrapped(SettingsView(), settings: settings(dark: true, enhanced: true))) }
+    func testHideTimerOn()          { snap(wrapped(SettingsView(), settings: settings(hideTimer: true))) }
+    func testHighlightConflictsOff(){ snap(wrapped(SettingsView(), settings: settings(highlightConflicts: false))) }
+    func testSingleTapOn()          { snap(wrapped(SettingsView(), settings: settings(singleTap: true))) }
+    func testShowHintsOff()         { snap(wrapped(SettingsView(), settings: settings(showHints: false))) }
+}
 
-    func testSettingsView_darkEnhanced() {
-        let settings = AppSettings()
-        settings.darkMode = true
-        settings.enhancedContrastMode = true
-        let view = NavigationStack { SettingsView() }
-            .environment(settings)
-            .preferredColorScheme(.dark)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+// MARK: - GameView (loading + error states; no network needed)
 
-    // MARK: - GameView loading state
+final class GameViewSnapshotTests: XCTestCase {
+    func testLoadingLight()         { snap(wrapped(GameView())) }
+    func testLoadingDark()          { snap(wrapped(GameView(), settings: settings(dark: true))) }
+    func testLoadingHideTimer()     { snap(wrapped(GameView(), settings: settings(hideTimer: true))) }
+    func testLoadingEnhanced()      { snap(wrapped(GameView(), settings: settings(enhanced: true))) }
+    func testLoadingDarkEnhanced()  { snap(wrapped(GameView(), settings: settings(dark: true, enhanced: true))) }
+}
 
-    func testGameView_loading_light() {
-        let view = NavigationStack { GameView() }
-            .environment(AppSettings())
-            .environment(PuzzleCache())
-            .environment(AuthManager())
-            .preferredColorScheme(.light)
-        // Snapshot immediately — puzzle won't have loaded yet so we capture the loading state
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+// MARK: - HowToPlayView
 
-    func testGameView_loading_dark() {
-        let view = NavigationStack { GameView() }
-            .environment(AppSettings())
-            .environment(PuzzleCache())
-            .environment(AuthManager())
-            .preferredColorScheme(.dark)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+final class HowToPlayViewSnapshotTests: XCTestCase {
+    func testLight()  { snap(wrapped(HowToPlayView())) }
+    func testDark()   { snap(wrapped(HowToPlayView(), settings: settings(dark: true))) }
+    func testEnhanced() { snap(wrapped(HowToPlayView(), settings: settings(enhanced: true))) }
+}
 
-    // MARK: - HowToPlayView
+// MARK: - AboutView
 
-    func testHowToPlayView_light() {
-        let view = NavigationStack { HowToPlayView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.light)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+final class AboutViewSnapshotTests: XCTestCase {
+    func testLight() { snap(wrapped(AboutView())) }
+    func testDark()  { snap(wrapped(AboutView(), settings: settings(dark: true))) }
+}
 
-    func testHowToPlayView_dark() {
-        let view = NavigationStack { HowToPlayView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.dark)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+// MARK: - SpecificPuzzleView
 
-    // MARK: - AboutView
+final class SpecificPuzzleViewSnapshotTests: XCTestCase {
+    func testLight() { snap(wrapped(SpecificPuzzleView())) }
+    func testDark()  { snap(wrapped(SpecificPuzzleView(), settings: settings(dark: true))) }
+}
 
-    func testAboutView_light() {
-        let view = NavigationStack { AboutView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.light)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+// MARK: - OfflinePuzzlesView
 
-    func testAboutView_dark() {
-        let view = NavigationStack { AboutView() }
-            .environment(AppSettings())
-            .preferredColorScheme(.dark)
-        assertSnapshot(of: view, as: .image(layout: .device(config: deviceConfig)), record: record())
-    }
+final class OfflinePuzzlesViewSnapshotTests: XCTestCase {
+    func testLight()        { snap(wrapped(OfflinePuzzlesView())) }
+    func testDark()         { snap(wrapped(OfflinePuzzlesView(), settings: settings(dark: true))) }
+    func testEnhanced()     { snap(wrapped(OfflinePuzzlesView(), settings: settings(enhanced: true))) }
+    func testDarkEnhanced() { snap(wrapped(OfflinePuzzlesView(), settings: settings(dark: true, enhanced: true))) }
 }
