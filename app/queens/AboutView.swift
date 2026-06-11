@@ -65,19 +65,33 @@ struct AboutView: View {
 
                         // About text
                         VStack(spacing: 16) {
-                            Text("Thanks for downloading! I built this app simply because I love these puzzles and couldn't find a clean, ad-free version.")
+                            Text("Thanks for downloading! I built it to keep me occupied on the train to and from work and I couldn't stand the gimmicky paid ones out there.")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
                                 .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(4)
 
-                            Text("There is zero data collection and no annoying ads here — just pure puzzles. This project is a true labor of love, so please enjoy it for free!")
+                            Text("Zero data collection. Zero ads. Zero bloat (1.1Mb last time I checked)")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
                                 .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(4)
 
-                            Text("If you'd like to show your appreciation, you can buy me a decaf oat latte below. No reciprocation expected — it's purely a tip jar and won't unlock any extra features.")
+                            Link(destination: URL(string: "https://knittedmice.com")!) {
+                                Text("If you notice something not working, have a feature suggestion, or just want to chat — visit knittedmice.com")
+                                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                                    .foregroundColor(AppColors.primary(colorScheme))
+                                    .multilineTextAlignment(.center)
+                                    .lineSpacing(4)
+                            }
+
+                            Text("This project is a labour of love — please enjoy it for free. If you're enjoying it, leaving a review really helps.")
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+
+                            Text("If you really want to make my day, you can buy me a decaf oat latte below. No reciprocation expected — it's purely a tip jar.")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
                                 .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
