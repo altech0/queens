@@ -3,16 +3,10 @@ import SnapshotTesting
 import SwiftUI
 @testable import queens
 
-// MARK: - Helpers
-
-private let iPhone = ViewImageConfig.iPhone13Pro  // 390×844 pt, matches iPhone 16 Pro class
-
-private func snap<V: View>(_ view: V, record: Bool = false) {
-    assertSnapshot(of: view, as: .image(layout: .device(config: iPhone)), record: record)
-}
-
 /// Set to true once to write reference images, then flip back to false.
-private let recording = false
+private let recording = true
+
+private let iPhone = ViewImageConfig.iPhone13Pro
 
 private func settings(
     dark: Bool = false,
@@ -32,7 +26,7 @@ private func settings(
     return s
 }
 
-private func wrapped<V: View>(_ view: V, settings s: AppSettings = AppSettings()) -> some View {
+private func wrapped<V: View>(_ view: V, s: AppSettings = AppSettings()) -> some View {
     NavigationStack { view }
         .environment(s)
         .environment(PuzzleCache())
@@ -43,69 +37,126 @@ private func wrapped<V: View>(_ view: V, settings s: AppSettings = AppSettings()
 // MARK: - ContentView
 
 final class ContentViewSnapshotTests: XCTestCase {
-    func testLight()         { snap(wrapped(ContentView(), settings: settings())) }
-    func testDark()          { snap(wrapped(ContentView(), settings: settings(dark: true))) }
-    func testDarkEnhanced()  { snap(wrapped(ContentView(), settings: settings(dark: true, enhanced: true))) }
+    func testLight() {
+        assertSnapshot(of: wrapped(ContentView()), as: .image(layout: .device(config: iPhone)), named: "light", record: recording)
+    }
+    func testDark() {
+        assertSnapshot(of: wrapped(ContentView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "dark", record: recording)
+    }
+    func testDarkEnhanced() {
+        assertSnapshot(of: wrapped(ContentView(), s: settings(dark: true, enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "dark_enhanced", record: recording)
+    }
 }
 
 // MARK: - GameSetupView
 
 final class GameSetupViewSnapshotTests: XCTestCase {
-    func testLight()  { snap(wrapped(GameSetupView())) }
-    func testDark()   { snap(wrapped(GameSetupView(), settings: settings(dark: true))) }
+    func testLight() {
+        assertSnapshot(of: wrapped(GameSetupView()), as: .image(layout: .device(config: iPhone)), named: "light", record: recording)
+    }
+    func testDark() {
+        assertSnapshot(of: wrapped(GameSetupView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "dark", record: recording)
+    }
 }
 
-// MARK: - SettingsView — layout + all toggle states
+// MARK: - SettingsView
 
 final class SettingsViewSnapshotTests: XCTestCase {
-    func testLight()                { snap(wrapped(SettingsView())) }
-    func testDark()                 { snap(wrapped(SettingsView(), settings: settings(dark: true))) }
-    func testDarkModeOn()           { snap(wrapped(SettingsView(), settings: settings(dark: true))) }
-    func testEnhancedContrastOn()   { snap(wrapped(SettingsView(), settings: settings(enhanced: true))) }
-    func testDarkEnhanced()         { snap(wrapped(SettingsView(), settings: settings(dark: true, enhanced: true))) }
-    func testHideTimerOn()          { snap(wrapped(SettingsView(), settings: settings(hideTimer: true))) }
-    func testHighlightConflictsOff(){ snap(wrapped(SettingsView(), settings: settings(highlightConflicts: false))) }
-    func testSingleTapOn()          { snap(wrapped(SettingsView(), settings: settings(singleTap: true))) }
-    func testShowHintsOff()         { snap(wrapped(SettingsView(), settings: settings(showHints: false))) }
+    func testLight() {
+        assertSnapshot(of: wrapped(SettingsView()), as: .image(layout: .device(config: iPhone)), named: "light", record: recording)
+    }
+    func testDark() {
+        assertSnapshot(of: wrapped(SettingsView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "dark", record: recording)
+    }
+    func testEnhancedContrastOn() {
+        assertSnapshot(of: wrapped(SettingsView(), s: settings(enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "enhanced", record: recording)
+    }
+    func testDarkEnhanced() {
+        assertSnapshot(of: wrapped(SettingsView(), s: settings(dark: true, enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "dark_enhanced", record: recording)
+    }
+    func testHideTimerOn() {
+        assertSnapshot(of: wrapped(SettingsView(), s: settings(hideTimer: true)), as: .image(layout: .device(config: iPhone)), named: "hide_timer", record: recording)
+    }
+    func testHighlightConflictsOff() {
+        assertSnapshot(of: wrapped(SettingsView(), s: settings(highlightConflicts: false)), as: .image(layout: .device(config: iPhone)), named: "conflicts_off", record: recording)
+    }
+    func testSingleTapOn() {
+        assertSnapshot(of: wrapped(SettingsView(), s: settings(singleTap: true)), as: .image(layout: .device(config: iPhone)), named: "single_tap", record: recording)
+    }
+    func testShowHintsOff() {
+        assertSnapshot(of: wrapped(SettingsView(), s: settings(showHints: false)), as: .image(layout: .device(config: iPhone)), named: "hints_off", record: recording)
+    }
 }
 
-// MARK: - GameView (loading + error states; no network needed)
+// MARK: - GameView (loading state — no network needed)
 
 final class GameViewSnapshotTests: XCTestCase {
-    func testLoadingLight()         { snap(wrapped(GameView())) }
-    func testLoadingDark()          { snap(wrapped(GameView(), settings: settings(dark: true))) }
-    func testLoadingHideTimer()     { snap(wrapped(GameView(), settings: settings(hideTimer: true))) }
-    func testLoadingEnhanced()      { snap(wrapped(GameView(), settings: settings(enhanced: true))) }
-    func testLoadingDarkEnhanced()  { snap(wrapped(GameView(), settings: settings(dark: true, enhanced: true))) }
+    func testLoadingLight() {
+        assertSnapshot(of: wrapped(GameView()), as: .image(layout: .device(config: iPhone)), named: "loading_light", record: recording)
+    }
+    func testLoadingDark() {
+        assertSnapshot(of: wrapped(GameView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "loading_dark", record: recording)
+    }
+    func testLoadingHideTimer() {
+        assertSnapshot(of: wrapped(GameView(), s: settings(hideTimer: true)), as: .image(layout: .device(config: iPhone)), named: "loading_hide_timer", record: recording)
+    }
+    func testLoadingEnhanced() {
+        assertSnapshot(of: wrapped(GameView(), s: settings(enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "loading_enhanced", record: recording)
+    }
+    func testLoadingDarkEnhanced() {
+        assertSnapshot(of: wrapped(GameView(), s: settings(dark: true, enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "loading_dark_enhanced", record: recording)
+    }
 }
 
 // MARK: - HowToPlayView
 
 final class HowToPlayViewSnapshotTests: XCTestCase {
-    func testLight()  { snap(wrapped(HowToPlayView())) }
-    func testDark()   { snap(wrapped(HowToPlayView(), settings: settings(dark: true))) }
-    func testEnhanced() { snap(wrapped(HowToPlayView(), settings: settings(enhanced: true))) }
+    func testLight() {
+        assertSnapshot(of: wrapped(HowToPlayView()), as: .image(layout: .device(config: iPhone)), named: "light", record: recording)
+    }
+    func testDark() {
+        assertSnapshot(of: wrapped(HowToPlayView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "dark", record: recording)
+    }
+    func testEnhanced() {
+        assertSnapshot(of: wrapped(HowToPlayView(), s: settings(enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "enhanced", record: recording)
+    }
 }
 
 // MARK: - AboutView
 
 final class AboutViewSnapshotTests: XCTestCase {
-    func testLight() { snap(wrapped(AboutView())) }
-    func testDark()  { snap(wrapped(AboutView(), settings: settings(dark: true))) }
+    func testLight() {
+        assertSnapshot(of: wrapped(AboutView()), as: .image(layout: .device(config: iPhone)), named: "light", record: recording)
+    }
+    func testDark() {
+        assertSnapshot(of: wrapped(AboutView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "dark", record: recording)
+    }
 }
 
 // MARK: - SpecificPuzzleView
 
 final class SpecificPuzzleViewSnapshotTests: XCTestCase {
-    func testLight() { snap(wrapped(SpecificPuzzleView())) }
-    func testDark()  { snap(wrapped(SpecificPuzzleView(), settings: settings(dark: true))) }
+    func testLight() {
+        assertSnapshot(of: wrapped(SpecificPuzzleView()), as: .image(layout: .device(config: iPhone)), named: "light", record: recording)
+    }
+    func testDark() {
+        assertSnapshot(of: wrapped(SpecificPuzzleView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "dark", record: recording)
+    }
 }
 
 // MARK: - OfflinePuzzlesView
 
 final class OfflinePuzzlesViewSnapshotTests: XCTestCase {
-    func testLight()        { snap(wrapped(OfflinePuzzlesView())) }
-    func testDark()         { snap(wrapped(OfflinePuzzlesView(), settings: settings(dark: true))) }
-    func testEnhanced()     { snap(wrapped(OfflinePuzzlesView(), settings: settings(enhanced: true))) }
-    func testDarkEnhanced() { snap(wrapped(OfflinePuzzlesView(), settings: settings(dark: true, enhanced: true))) }
+    func testLight() {
+        assertSnapshot(of: wrapped(OfflinePuzzlesView()), as: .image(layout: .device(config: iPhone)), named: "light", record: recording)
+    }
+    func testDark() {
+        assertSnapshot(of: wrapped(OfflinePuzzlesView(), s: settings(dark: true)), as: .image(layout: .device(config: iPhone)), named: "dark", record: recording)
+    }
+    func testEnhanced() {
+        assertSnapshot(of: wrapped(OfflinePuzzlesView(), s: settings(enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "enhanced", record: recording)
+    }
+    func testDarkEnhanced() {
+        assertSnapshot(of: wrapped(OfflinePuzzlesView(), s: settings(dark: true, enhanced: true)), as: .image(layout: .device(config: iPhone)), named: "dark_enhanced", record: recording)
+    }
 }

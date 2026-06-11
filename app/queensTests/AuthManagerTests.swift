@@ -9,11 +9,12 @@ final class AuthManagerTests: XCTestCase {
         XCTAssertEqual(manager.state, .ready)
     }
 
-    func testInit_withNoToken_beginsInLoadingState() {
+    func testInit_withNoToken_beginsInLoadingState() async {
         let keychain = MockKeychain(values: [:])
         let manager = AuthManager(keychain: keychain)
-        // State starts as .loading while async registration runs
         XCTAssertEqual(manager.state, .loading)
+        // Yield so the spawned Task can start and be cancelled cleanly on teardown
+        await Task.yield()
     }
 }
 
