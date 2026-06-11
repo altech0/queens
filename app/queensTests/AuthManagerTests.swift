@@ -2,16 +2,22 @@ import XCTest
 @testable import queens
 
 final class AuthManagerTests: XCTestCase {
+    private var manager: AuthManager!
+
+    override func tearDown() {
+        manager = nil
+        super.tearDown()
+    }
 
     func testInit_withExistingToken_setsReadyState() {
         let keychain = MockKeychain(values: [KeychainHelper.apiTokenKey: "tok_abc"])
-        let manager = AuthManager(keychain: keychain)
+        manager = AuthManager(keychain: keychain)
         XCTAssertEqual(manager.state, .ready)
     }
 
     func testInit_withNoToken_beginsInLoadingState() async {
         let keychain = MockKeychain(values: [:])
-        let manager = AuthManager(keychain: keychain)
+        manager = AuthManager(keychain: keychain)
         XCTAssertEqual(manager.state, .loading)
         // Yield so the spawned Task can start and be cancelled cleanly on teardown
         await Task.yield()
