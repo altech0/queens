@@ -77,12 +77,17 @@ struct AboutView: View {
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(4)
 
+                            Text("If you notice something not working, have a feature suggestion, or just want to chat:")
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+
                             Link(destination: URL(string: "https://knittedmice.com")!) {
-                                Text("If you notice something not working, have a feature suggestion, or just want to chat — visit knittedmice.com")
-                                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                                Text("knittedmice.com")
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
                                     .foregroundColor(AppColors.primary(colorScheme))
-                                    .multilineTextAlignment(.center)
-                                    .lineSpacing(4)
+                                    .underline()
                             }
 
                             Text("This project is a labour of love — please enjoy it for free")
