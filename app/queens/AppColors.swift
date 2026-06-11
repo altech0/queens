@@ -63,8 +63,8 @@ enum AppColors {
     }
 
     static func surfaceCard(_ scheme: ColorScheme) -> Color {
-        // --surface-mid: rgba(255,255,255,0.55) light / rgba(255,255,255,0.06) dark
-        scheme == .dark ? Color(white: 1, opacity: 0.06) : Color(white: 1, opacity: 0.55)
+        // --surface-mid: rgba(255,255,255,0.55) light / rgba(255,255,255,0.18) dark
+        scheme == .dark ? Color(white: 1, opacity: 0.18) : Color(white: 1, opacity: 0.55)
     }
 
     static func sidebarBackground(_ scheme: ColorScheme) -> Color {
