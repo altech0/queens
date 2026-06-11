@@ -65,7 +65,7 @@ struct AboutView: View {
 
                         // About text
                         VStack(spacing: 16) {
-                            Text("Thanks for downloading! I built it to keep me occupied on the train to and from work and I couldn't stand the gimmicky paid ones out there.")
+                            Text("Thanks for downloading! I built this to keep me occupied on the train to and from work and also couldn't stand the paid ones out there.")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
                                 .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
@@ -85,7 +85,7 @@ struct AboutView: View {
                                     .lineSpacing(4)
                             }
 
-                            Text("This project is a labour of love — please enjoy it for free. If you're enjoying it, leaving a review really helps.")
+                            Text("This project is a labour of love — please enjoy it for free")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
                                 .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)

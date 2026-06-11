@@ -187,10 +187,25 @@ struct GameView: View {
                     ProgressView()
                         .scaleEffect(1.5)
                         .tint(AppColors.primary(colorScheme))
-                    
+
                     Text("Loading puzzle...")
                         .font(.system(size: 18, weight: .regular, design: .rounded))
                         .foregroundColor(AppColors.textSecondary(colorScheme))
+                }
+                // Back button in case load hangs (e.g. no signal)
+                VStack {
+                    HStack {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(AppColors.primary(colorScheme))
+                                .frame(width: 44, height: 44)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 10)
+                    Spacer()
                 }
             } else if let puzzle = puzzle {
                 // Game content
