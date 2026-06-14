@@ -1291,8 +1291,10 @@ struct GameView: View {
         
         return """
         ✨ I solved Queens puzzle #\(puzzleCode) in \(timeString)! 🏆
-        
+
         \(coloredSquares) \(size)×\(size) grid • \(stars) star\(stars == 1 ? "" : "s") per region ⭐️
+
+        https://queens.knittedmice.com/puzzle?code=\(puzzleCode)
         """
     }
     

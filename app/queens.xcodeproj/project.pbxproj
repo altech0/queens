@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		AE3004082FDB48D500C1CAC1 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = AE3004072FDB48D500C1CAC1 /* SnapshotTesting */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		AA100008000000000000AA08 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -22,8 +18,7 @@
 
 /* Begin PBXFileReference section */
 		AA100001000000000000AA01 /* queensTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = queensTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		AE30044B2FDB4D1700C1CAC1 /* queensTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = queensTests.xctestplan; sourceTree = "<group>"; };
-		AEE7F4F12F702D5000EF9080 /* queens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = queens.app; sourceTree = BUILT_PRODUCTS_DIR; };
+AEE7F4F12F702D5000EF9080 /* queens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = queens.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -44,7 +39,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AE3004082FDB48D500C1CAC1 /* SnapshotTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,7 +55,6 @@
 		AEE7F4E82F702D5000EF9080 = {
 			isa = PBXGroup;
 			children = (
-				AE30044B2FDB4D1700C1CAC1 /* queensTests.xctestplan */,
 				AEE7F4F32F702D5000EF9080 /* queens */,
 				AA100002000000000000AA02 /* queensTests */,
 				AEE7F4F22F702D5000EF9080 /* Products */,
@@ -98,7 +91,6 @@
 			);
 			name = queensTests;
 			packageProductDependencies = (
-				AE3004072FDB48D500C1CAC1 /* SnapshotTesting */,
 			);
 			productName = queensTests;
 			productReference = AA100001000000000000AA01 /* queensTests.xctest */;
@@ -153,9 +145,6 @@
 			);
 			mainGroup = AEE7F4E82F702D5000EF9080;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				AE3004062FDB48D500C1CAC1 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AEE7F4F22F702D5000EF9080 /* Products */;
 			projectDirPath = "";
@@ -516,24 +505,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		AE3004062FDB48D500C1CAC1 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.19.2;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		AE3004072FDB48D500C1CAC1 /* SnapshotTesting */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AE3004062FDB48D500C1CAC1 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
-			productName = SnapshotTesting;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AEE7F4E92F702D5000EF9080 /* Project object */;
 }
