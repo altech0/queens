@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share Button Options</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: #f0f2f7;
+    min-height: 100vh;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  h1 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #3a4060;
+    letter-spacing: -0.3px;
+  }
+
+  p.subtitle {
+    font-size: 13px;
+    color: #9098b0;
+    text-align: center;
+    max-width: 500px;
+    line-height: 1.5;
+    margin-top: -16px;
+  }
+
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    justify-content: center;
+    max-width: 1100px;
+    width: 100%;
+  }
+
+  .card {
+    background: white;
+    border-radius: 22px;
+    padding: 24px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 300px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8a90a8;
+    text-align: center;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: #9098b0;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* ── Phone shell ── */
+  .phone {
+    width: 260px;
+    background: #f8f9fc;
+    border-radius: 20px;
+    border: 1.5px solid #e0e4f0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Top nav bar ── */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 8px 8px;
+    background: white;
+    border-bottom: 1px solid #eef0f7;
+  }
+
+  .nav-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.15s;
+    color: #667ab3;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .nav-btn:hover { background: rgba(102,122,179,0.08); }
+  .nav-btn:active { background: rgba(102,122,179,0.16); }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Game body placeholder */
+  .game-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .puzzle-info {
+    text-align: center;
+  }
+  .puzzle-id {
+    font-size: 18px;
+    font-weight: 300;
+    color: #667ab3;
+    letter-spacing: -0.3px;
+  }
+  .puzzle-meta {
+    font-size: 11px;
+    color: #a0a8c0;
+    margin-top: 2px;
+  }
+
+  .grid-placeholder {
+    width: 180px;
+    height: 180px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #eef1fa 0%, #e8ecf6 100%);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 2px;
+    padding: 6px;
+  }
+
+  .grid-cell {
+    border-radius: 3px;
+    background: white;
+    opacity: 0.7;
+  }
+  .grid-cell.c1 { background: #c8d4f0; opacity: 1; }
+  .grid-cell.c2 { background: #d4c8f0; opacity: 1; }
+  .grid-cell.c3 { background: #c8f0e8; opacity: 1; }
+  .grid-cell.c4 { background: #f0e8c8; opacity: 1; }
+  .grid-cell.c5 { background: #f0c8d4; opacity: 1; }
+
+  /* ── Shared icon styles ── */
+  .icon-check::before   { content: "✓"; }
+  .icon-save::before    { content: "＋"; font-size: 16px; }
+  .icon-share::before   { content: "↑"; font-weight: 700; }
+  .icon-more::before    { content: "•••"; font-size: 10px; letter-spacing: 1px; }
+
+  /* ── Option 1: Ellipsis menu ── */
+  .action-sheet-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 10;
+    align-items: flex-end;
+  }
+  .action-sheet-overlay.visible { display: flex; }
+
+  .action-sheet {
+    width: 100%;
+    background: white;
+    border-radius: 16px 16px 0 0;
+    padding: 8px 0 20px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.34, 1.1, 0.64, 1);
+  }
+  .action-sheet-overlay.visible .action-sheet {
+    transform: translateY(0);
+  }
+
+  .action-sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: #d0d4e0;
+    border-radius: 2px;
+    margin: 8px auto 12px;
+  }
+
+  .action-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #3a4060;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    font-family: inherit;
+    transition: background 0.1s;
+  }
+  .action-item:hover { background: #f5f6fb; }
+  .action-item .action-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #eef1fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #667ab3;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .action-item-desc {
+    font-size: 11px;
+    color: #9098b0;
+    font-weight: 400;
+    margin-top: 1px;
+  }
+
+  .action-divider {
+    height: 1px;
+    background: #eef0f7;
+    margin: 2px 16px;
+  }
+
+  /* ── Option 2: Three icons ── */
+  /* nothing extra needed */
+
+  /* ── Option 3: Completion only ── */
+  .completion-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(248,249,252,0.88);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .completion-overlay.visible { display: flex; }
+
+  .completion-solved {
+    font-size: 22px;
+    font-weight: 300;
+    color: #667ab3;
+    letter-spacing: 0.3px;
+  }
+  .completion-time-txt {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: #3a4060;
+    letter-spacing: -1px;
+  }
+  .completion-share-btn {
+    margin-top: 8px;
+    padding: 10px 28px;
+    border-radius: 20px;
+    border: none;
+    background: #667ab3;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.15s;
+  }
+  .completion-share-btn:hover { opacity: 0.85; }
+
+  .trigger-btn {
+    padding: 9px 22px;
+    border-radius: 20px;
+    border: none;
+    background: #728bc0;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .trigger-btn:hover { opacity: 0.85; }
+  .trigger-btn.secondary {
+    background: none;
+    border: 1.5px solid #728bc0;
+    color: #728bc0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Share Button — Layout Options</h1>
+<p class="subtitle">Three approaches for adding a share action to the gameplay screen. Click the buttons to see interactions.</p>
+
+<div class="cards">
+
+  <!-- Option 1: Ellipsis menu -->
+  <div class="card">
+    <div class="card-label">Option 1 — Ellipsis Menu</div>
+    <div class="phone" id="phone1">
+      <div class="nav-bar">
+        <button class="nav-btn">‹</button>
+        <div style="font-size:13px;font-weight:600;color:#667ab3;">★ Queens</div>
+        <div class="nav-right">
+          <button class="nav-btn icon-more" onclick="openSheet()"></button>
+        </div>
+      </div>
+      <div class="game-body">
+        <div class="puzzle-info">
+          <div class="puzzle-id">#12847</div>
+          <div class="puzzle-meta">8×8 · 1 star per region</div>
+        </div>
+        <div class="grid-placeholder">
+          <div class="grid-cell c1"></div><div class="grid-cell c1"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div>
+          <div class="grid-cell c1"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c5"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c3"></div><div class="grid-cell c5"></div><div class="grid-cell c5"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c5"></div><div class="grid-cell c5"></div>
+        </div>
+      </div>
+      <!-- Action sheet -->
+      <div class="action-sheet-overlay" id="sheet1" onclick="closeSheet()">
+        <div class="action-sheet" onclick="event.stopPropagation()">
+          <div class="action-sheet-handle"></div>
+          <button class="action-item">
+            <div class="action-icon">✓</div>
+            <div><div>Check Solution</div><div class="action-item-desc">See if your progress is correct</div></div>
+          </button>
+          <div class="action-divider"></div>
+          <button class="action-item">
+            <div class="action-icon">＋</div>
+            <div><div>Save Offline</div><div class="action-item-desc">Add to your offline cache</div></div>
+          </button>
+          <div class="action-divider"></div>
+          <button class="action-item">
+            <div class="action-icon">↑</div>
+            <div><div>Share Puzzle</div><div class="action-item-desc">Challenge a friend with #12847</div></div>
+          </button>
+        </div>
+      </div>
+    </div>
+    <button class="trigger-btn" onclick="openSheet()">Open Menu</button>
+    <div class="card-desc">Replace the two icons with a single ••• button. All three actions live in an action sheet. Clean nav bar, one extra tap for check/save.</div>
+  </div>
+
+  <!-- Option 2: Three icons -->
+  <div class="card">
+    <div class="card-label">Option 2 — Three Icons</div>
+    <div class="phone">
+      <div class="nav-bar">
+        <button class="nav-btn">‹</button>
+        <div style="font-size:13px;font-weight:600;color:#667ab3;">★ Queens</div>
+        <div class="nav-right" style="gap:0">
+          <button class="nav-btn icon-save" title="Save offline"></button>
+          <button class="nav-btn icon-check" title="Check solution"></button>
+          <button class="nav-btn icon-share" title="Share puzzle"></button>
+        </div>
+      </div>
+      <div class="game-body">
+        <div class="puzzle-info">
+          <div class="puzzle-id">#12847</div>
+          <div class="puzzle-meta">8×8 · 1 star per region</div>
+        </div>
+        <div class="grid-placeholder">
+          <div class="grid-cell c1"></div><div class="grid-cell c1"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div>
+          <div class="grid-cell c1"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c5"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c3"></div><div class="grid-cell c5"></div><div class="grid-cell c5"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c5"></div><div class="grid-cell c5"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-desc">Add share as a third icon (↑) next to save and check. All actions always visible. Gets to 132pt on the right — snug but fine on any iPhone.</div>
+  </div>
+
+  <!-- Option 3: Completion only -->
+  <div class="card">
+    <div class="card-label">Option 3 — Completion Only</div>
+    <div class="phone" style="position:relative;">
+      <div class="nav-bar">
+        <button class="nav-btn">‹</button>
+        <div style="font-size:13px;font-weight:600;color:#667ab3;">★ Queens</div>
+        <div class="nav-right">
+          <button class="nav-btn icon-save"></button>
+          <button class="nav-btn icon-check"></button>
+        </div>
+      </div>
+      <div class="game-body">
+        <div class="puzzle-info">
+          <div class="puzzle-id">#12847</div>
+          <div class="puzzle-meta">8×8 · 1 star per region</div>
+        </div>
+        <div class="grid-placeholder">
+          <div class="grid-cell c1"></div><div class="grid-cell c1"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div>
+          <div class="grid-cell c1"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c2"></div><div class="grid-cell c2"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c3"></div><div class="grid-cell c5"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c3"></div><div class="grid-cell c5"></div><div class="grid-cell c5"></div>
+          <div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c4"></div><div class="grid-cell c5"></div><div class="grid-cell c5"></div>
+        </div>
+      </div>
+      <!-- Completion overlay -->
+      <div class="completion-overlay" id="completion3">
+        <div class="completion-solved">Solved ★</div>
+        <div class="completion-time-txt">02:14.08</div>
+        <button class="completion-share-btn" onclick="closeCompletion()">↑ Share</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="trigger-btn" onclick="openCompletion()">Simulate Solve</button>
+      <button class="trigger-btn secondary" onclick="closeCompletion()">Reset</button>
+    </div>
+    <div class="card-desc">No change to the nav bar. Share lives on the completion screen only — where it's most meaningful. Nav stays uncluttered.</div>
+  </div>
+
+</div>
+
+<script>
+  function openSheet() {
+    const s = document.getElementById('sheet1')
+    s.classList.add('visible')
+  }
+  function closeSheet() {
+    document.getElementById('sheet1').classList.remove('visible')
+  }
+  function openCompletion() {
+    document.getElementById('completion3').classList.add('visible')
+  }
+  function closeCompletion() {
+    document.getElementById('completion3').classList.remove('visible')
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Mockups</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:      #0d0f1a;
+      --surface: #13162a;
+      --surface2:#1a1e35;
+      --border:  #252a47;
+      --accent:  #6c8fff;
+      --accent2: #a78bfa;
+      --accent3: #34d399;
+      --accent4: #f59e0b;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; padding: 32px; }
+
+    h2 { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 48px 0 20px; }
+    h2:first-of-type { margin-top: 0; }
+
+    .label { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+
+    /* ── Option A: Full-circle donut gauges, large ── */
+    .opt-a { display: flex; gap: 20px; flex-wrap: wrap; }
+    .opt-a .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 28px 24px 20px; display: flex; flex-direction: column; align-items: center; width: 180px;
+    }
+    .opt-a .num { font-size: 28px; font-weight: 800; letter-spacing: -1px; margin-top: -68px; position: relative; z-index: 1; }
+    .opt-a .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Option B: Horizontal bar gauges ── */
+    .opt-b { display: flex; flex-direction: column; gap: 16px; max-width: 500px; }
+    .opt-b .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px;
+    }
+    .opt-b .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+    .opt-b .name { font-size: 13px; font-weight: 700; }
+    .opt-b .count { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+    .opt-b .track { height: 6px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+    .opt-b .fill { height: 100%; border-radius: 99px; transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+
+    /* ── Option C: Big stat cards with inline sparkline ── */
+    .opt-c { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .opt-c .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 24px;
+      position: relative; overflow: hidden;
+    }
+    .opt-c .card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--c);
+    }
+    .opt-c .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .opt-c .big { font-size: 40px; font-weight: 900; letter-spacing: -2px; color: var(--c); line-height: 1; }
+    .opt-c .sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .opt-c canvas { width: 100% !important; height: 50px !important; margin-top: 16px; opacity: 0.7; }
+
+    /* ── Option D: Half-arc gauges, bigger + glow ── */
+    .opt-d { display: flex; gap: 20px; flex-wrap: wrap; }
+    .opt-d .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 24px; display: flex; flex-direction: column; align-items: center; width: 200px;
+    }
+    .opt-d .arc-wrap { position: relative; width: 160px; height: 90px; }
+    .opt-d .arc-wrap canvas { width: 160px !important; height: 90px !important; }
+    .opt-d .arc-num {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      text-align: center; font-size: 26px; font-weight: 900; letter-spacing: -1px;
+    }
+    .opt-d .arc-total { font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .opt-d .glow { filter: drop-shadow(0 0 8px var(--c)); }
+  </style>
+</head>
+<body>
+
+<h2>Option A — Full circle donut, number centred</h2>
+<div class="opt-a" id="optA"></div>
+
+<h2>Option B — Horizontal progress bars</h2>
+<div class="opt-b" id="optB"></div>
+
+<h2>Option C — Big number cards with sparkline</h2>
+<div class="opt-c" id="optC"></div>
+
+<h2>Option D — Half-arc gauges, larger with glow</h2>
+<div class="opt-d" id="optD"></div>
+
+<script>
+const configs = [
+  { key: '6x1',  label: '6×6 1★',   count: 90,   max: 500,  color: '#6c8fff' },
+  { key: '8x1',  label: '8×8 1★',   count: 1503, max: 3000, color: '#a78bfa' },
+  { key: '10x2', label: '10×10 2★', count: 3197, max: 5000, color: '#34d399' },
+]
+
+// ── Option A ──
+configs.forEach(c => {
+  const card = document.createElement('div')
+  card.className = 'card'
+  card.innerHTML = `
+    <canvas id="a-${c.key}" width="130" height="130" style="width:130px;height:130px"></canvas>
+    <div class="num" style="color:${c.color}">${c.count.toLocaleString()}</div>
+    <div class="sub">puzzles</div>
+    <div class="label">${c.label}</div>
+  `
+  document.getElementById('optA').appendChild(card)
+  new Chart(document.getElementById(`a-${c.key}`), {
+    type: 'doughnut',
+    data: { datasets: [{ data: [c.count, Math.max(0, c.max - c.count)], backgroundColor: [c.color, 'rgba(255,255,255,0.04)'], borderWidth: 0, borderRadius: 6 }] },
+    options: { cutout: '75%', responsive: false, animation: { duration: 1200, easing: 'easeOutQuart' }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+  })
+})
+
+// ── Option B ──
+configs.forEach(c => {
+  const pct = Math.round((c.count / c.max) * 100)
+  const card = document.createElement('div')
+  card.className = 'card'
+  card.innerHTML = `
+    <div class="row">
+      <div class="name" style="color:${c.color}">${c.label}</div>
+      <div class="count" style="color:${c.color}">${c.count.toLocaleString()}</div>
+    </div>
+    <div class="track"><div class="fill" style="width:0%;background:${c.color}" id="b-${c.key}"></div></div>
+  `
+  document.getElementById('optB').appendChild(card)
+  setTimeout(() => { document.getElementById(`b-${c.key}`).style.width = pct + '%' }, 100)
+})
+
+// ── Option C ──
+const sparkData = [12, 45, 23, 67, 89, 34, 78, 92, 56, 103, 87, 120]
+configs.forEach(c => {
+  const card = document.createElement('div')
+  card.className = 'card'
+  card.style.setProperty('--c', c.color)
+  card.innerHTML = `
+    <div class="tag">${c.label}</div>
+    <div class="big">${c.count.toLocaleString()}</div>
+    <div class="sub">total puzzles</div>
+    <canvas id="c-${c.key}"></canvas>
+  `
+  document.getElementById('optC').appendChild(card)
+  new Chart(document.getElementById(`c-${c.key}`), {
+    type: 'line',
+    data: {
+      labels: sparkData.map(() => ''),
+      datasets: [{ data: sparkData, borderColor: c.color, backgroundColor: c.color + '22', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 1000 }, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+  })
+})
+// total card
+const totalCard = document.createElement('div')
+totalCard.className = 'card'
+totalCard.style.setProperty('--c', '#f59e0b')
+totalCard.innerHTML = `
+  <div class="tag">Total</div>
+  <div class="big">${configs.reduce((s,c) => s+c.count,0).toLocaleString()}</div>
+  <div class="sub">all puzzles</div>
+  <canvas id="c-total"></canvas>
+`
+document.getElementById('optC').appendChild(totalCard)
+new Chart(document.getElementById('c-total'), {
+  type: 'bar',
+  data: { labels: configs.map(c => c.label), datasets: [{ data: configs.map(c => c.count), backgroundColor: configs.map(c => c.color + 'cc'), borderRadius: 4 }] },
+  options: { responsive: true, maintainAspectRatio: false, animation: { duration: 1000 }, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+})
+
+// ── Option D ──
+configs.forEach(c => {
+  const card = document.createElement('div')
+  card.className = 'card'
+  card.style.setProperty('--c', c.color)
+  card.innerHTML = `
+    <div class="arc-wrap">
+      <canvas id="d-${c.key}" class="glow" style="--c:${c.color}"></canvas>
+      <div class="arc-num" style="color:${c.color}">${c.count.toLocaleString()}</div>
+    </div>
+    <div class="arc-total">${c.max.toLocaleString()} target</div>
+    <div class="label">${c.label}</div>
+  `
+  document.getElementById('optD').appendChild(card)
+  new Chart(document.getElementById(`d-${c.key}`), {
+    type: 'doughnut',
+    data: { datasets: [{ data: [c.count, Math.max(0, c.max - c.count)], backgroundColor: [c.color, 'rgba(255,255,255,0.04)'], borderWidth: 0, borderRadius: 4 }] },
+    options: { circumference: 180, rotation: -90, cutout: '78%', responsive: false, animation: { duration: 1200, easing: 'easeOutQuart' }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+  })
+})
+</script>
+</body>
+</html>
