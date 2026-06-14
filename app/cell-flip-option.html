@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cell Flip Transition</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', sans-serif;
+    background: #f0eef8;
+    color: #3a3d52;
+    padding: 40px 20px 80px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 300;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #8890aa;
+    margin-bottom: 48px;
+  }
+
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    justify-content: center;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .option-card {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 4px 24px rgba(80,100,160,0.10);
+    width: 260px;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .tag-a { background: #e8eaf6; color: #6678b0; }
+  .tag-b { background: #e6f4ec; color: #4a9a6a; }
+  .tag-c { background: #fef3e2; color: #c07020; }
+
+  .option-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .option-desc  { font-size: 12px; color: #8890aa; line-height: 1.5; margin-bottom: 18px; }
+
+  /* ---- phone shell ---- */
+  .phone {
+    width: 210px;
+    height: 370px;
+    background: linear-gradient(135deg, #f2f1fc, #e5edf9);
+    border-radius: 32px;
+    border: 2.5px solid #c8cfe8;
+    margin: 0 auto 16px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 20px;
+  }
+
+  /* ---- puzzle grid ---- */
+  .puzzle-grid {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -58%);
+    width: 150px;
+    height: 150px;
+    display: grid;
+    gap: 0;
+    border-radius: 10px;
+    overflow: hidden; /* clip the cells so rounded corners hold */
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  }
+
+  /* ---- individual flip cell ---- */
+  /*
+    Each cell is a 3-D card:
+      .flip-cell          — outer container, sets perspective
+        .flip-inner       — the thing that rotates
+          .flip-front     — current colour
+          .flip-back      — next colour (starts rotated 90° away)
+  */
+  .flip-cell {
+    perspective: 200px;
+    position: relative;
+  }
+
+  .flip-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+  }
+
+  .flip-front,
+  .flip-back {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border: 0.5px solid rgba(50,55,70,0.15);
+  }
+
+  /* back face starts hidden behind */
+  .flip-back {
+    transform: rotateY(90deg);   /* will be overridden per variant */
+  }
+
+  .try-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #6e82c0, #7a90cc);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .try-btn:hover  { opacity: 0.88; }
+  .try-btn:active { opacity: 0.75; }
+
+  .new-puzzle-btn {
+    width: 120px;
+    padding: 8px 0;
+    border-radius: 10px;
+    border: 2px solid #6678b0;
+    background: rgba(255,255,255,0.3);
+    color: #6678b0;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<h1>Cell Flip Transition</h1>
+<p class="subtitle">Each cell flips over to reveal the new puzzle. Three stagger patterns — click to preview.</p>
+
+<div class="cards">
+
+  <!-- VARIANT A: wave left-to-right -->
+  <div class="option-card">
+    <span class="tag tag-a">Variant A</span>
+    <div class="option-title">Wave — left to right</div>
+    <p class="option-desc">Cells flip in columns, left to right. Clean, readable direction.</p>
+    <div class="phone" id="phoneA">
+      <div class="puzzle-grid" id="gridA" style="grid-template-columns: repeat(6,1fr); grid-template-rows: repeat(6,1fr);"></div>
+      <button class="new-puzzle-btn" onclick="triggerFlip('A')">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerFlip('A')">Try it</button>
+  </div>
+
+  <!-- VARIANT B: diagonal ripple top-left → bottom-right -->
+  <div class="option-card">
+    <span class="tag tag-b">Variant B</span>
+    <div class="option-title">Diagonal ripple</div>
+    <p class="option-desc">Cells flip in a diagonal wave from top-left to bottom-right. Feels organic.</p>
+    <div class="phone" id="phoneB">
+      <div class="puzzle-grid" id="gridB" style="grid-template-columns: repeat(6,1fr); grid-template-rows: repeat(6,1fr);"></div>
+      <button class="new-puzzle-btn" onclick="triggerFlip('B')">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerFlip('B')">Try it</button>
+  </div>
+
+  <!-- VARIANT C: from centre outward -->
+  <div class="option-card">
+    <span class="tag tag-c">Variant C</span>
+    <div class="option-title">Centre outward</div>
+    <p class="option-desc">Cells closest to the centre flip first, rippling out to the edges.</p>
+    <div class="phone" id="phoneC">
+      <div class="puzzle-grid" id="gridC" style="grid-template-columns: repeat(6,1fr); grid-template-rows: repeat(6,1fr);"></div>
+      <button class="new-puzzle-btn" onclick="triggerFlip('C')">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerFlip('C')">Try it</button>
+  </div>
+
+</div>
+
+<script>
+const SIZE = 6;
+const FLIP_DURATION = 160;   // ms for one cell's full flip
+const MAX_STAGGER   = 350;   // ms — last cell starts this far after first
+
+const palette1 = [
+  '#c5d4f0','#c5d4f0','#c8e8d4','#c8e8d4','#f5e0c0','#f5e0c0',
+  '#c5d4f0','#e0c8f0','#c8e8d4','#c8e8d4','#f5e0c0','#f5e0c0',
+  '#e0c8f0','#e0c8f0','#e0c8f0','#c8eef0','#f0d0d8','#f0d0d8',
+  '#e0c8f0','#c8eef0','#c8eef0','#c8eef0','#f0d0d8','#f0d0d8',
+  '#c5d4f0','#c5d4f0','#c8eef0','#c8eef0','#c8eef0','#f5e0c0',
+  '#c5d4f0','#c5d4f0','#f5e0c0','#f5e0c0','#f5e0c0','#f5e0c0',
+];
+const palette2 = [
+  '#f0d0d8','#f5e0c0','#f5e0c0','#c5d4f0','#c5d4f0','#c5d4f0',
+  '#f0d0d8','#f5e0c0','#c8e8d4','#c5d4f0','#c5d4f0','#c8eef0',
+  '#f0d0d8','#c8e8d4','#c8e8d4','#c8e8d4','#e0c8f0','#c8eef0',
+  '#f0d0d8','#c8e8d4','#e0c8f0','#e0c8f0','#e0c8f0','#c8eef0',
+  '#f0d0d8','#f0d0d8','#e0c8f0','#c8eef0','#c8eef0','#c8eef0',
+  '#f5e0c0','#f0d0d8','#e0c8f0','#c8eef0','#c5d4f0','#c5d4f0',
+];
+
+// track which palette is currently shown
+const currentPalette = { A: palette1, B: palette1, C: palette1 };
+const busy = { A: false, B: false, C: false };
+
+// ---- stagger functions: return normalised delay 0..1 for cell (row, col) ----
+const stagger = {
+  A: (r, c) => c / (SIZE - 1),                                       // left → right
+  B: (r, c) => (r + c) / (2 * (SIZE - 1)),                           // diagonal
+  C: (r, c) => {                                                       // centre outward
+    const dr = r - (SIZE - 1) / 2;
+    const dc = c - (SIZE - 1) / 2;
+    const maxDist = Math.sqrt(2) * (SIZE - 1) / 2;
+    return Math.sqrt(dr*dr + dc*dc) / maxDist;
+  },
+};
+
+function buildGrid(el, palette) {
+  el.innerHTML = '';
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const idx = r * SIZE + c;
+
+      const cell = document.createElement('div');
+      cell.className = 'flip-cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      const inner = document.createElement('div');
+      inner.className = 'flip-inner';
+
+      const front = document.createElement('div');
+      front.className = 'flip-front';
+      front.style.background = palette[idx];
+
+      const back = document.createElement('div');
+      back.className = 'flip-back';
+      back.style.background = palette[idx]; // placeholder, overwritten on flip
+
+      inner.appendChild(front);
+      inner.appendChild(back);
+      cell.appendChild(inner);
+      el.appendChild(cell);
+    }
+  }
+}
+
+// Initialise
+['A','B','C'].forEach(id => {
+  buildGrid(document.getElementById('grid' + id), palette1);
+});
+
+function triggerFlip(id) {
+  if (busy[id]) return;
+  busy[id] = true;
+
+  const grid = document.getElementById('grid' + id);
+  const nextPalette = currentPalette[id] === palette1 ? palette2 : palette1;
+  const cells = grid.querySelectorAll('.flip-cell');
+  const staggerFn = stagger[id];
+
+  cells.forEach(cell => {
+    const r = +cell.dataset.row;
+    const c = +cell.dataset.col;
+    const idx = r * SIZE + c;
+    const delay = staggerFn(r, c) * MAX_STAGGER;
+
+    const inner = cell.querySelector('.flip-inner');
+    const front = cell.querySelector('.flip-front');
+    const back  = cell.querySelector('.flip-back');
+
+    // Set next colour on the back face
+    back.style.background = nextPalette[idx];
+
+    // Phase 1: rotate inner 90° (front disappears)
+    setTimeout(() => {
+      inner.style.transition = `transform ${FLIP_DURATION}ms cubic-bezier(0.4,0,1,1)`;
+      inner.style.transform = 'rotateY(90deg)';
+    }, delay);
+
+    // Phase 2: instantly swap colours, then rotate the remaining 90° from -90→0
+    setTimeout(() => {
+      inner.style.transition = 'none';
+      inner.style.transform = 'rotateY(-90deg)';
+      front.style.background = nextPalette[idx];
+
+      // Force reflow so the transition fires
+      inner.getBoundingClientRect();
+
+      inner.style.transition = `transform ${FLIP_DURATION}ms cubic-bezier(0,0,0.2,1)`;
+      inner.style.transform = 'rotateY(0deg)';
+    }, delay + FLIP_DURATION);
+  });
+
+  // Total duration = last cell starts + its flip duration
+  const totalDuration = MAX_STAGGER + FLIP_DURATION * 2;
+  setTimeout(() => {
+    // Clean up inline styles
+    cells.forEach(cell => {
+      const inner = cell.querySelector('.flip-inner');
+      inner.style.transition = '';
+      inner.style.transform = '';
+    });
+    currentPalette[id] = nextPalette;
+    busy[id] = false;
+  }, totalDuration + 50);
+}
+</script>
+</body>
+</html>

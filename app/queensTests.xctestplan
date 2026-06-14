@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "2E4E0E55-A616-4B3B-B189-70470F13E08A",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:queens.xcodeproj",
+        "identifier" : "AA100006000000000000AA06",
+        "name" : "queensTests"
+      }
+    }
+  ],
+  "version" : 1
+}

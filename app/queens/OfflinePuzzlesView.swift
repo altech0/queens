@@ -11,6 +11,7 @@ import os.log
 struct OfflinePuzzlesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(PuzzleCache.self) private var cache
+    @Environment(\.colorScheme) private var colorScheme
     
     @State private var selectedSize = 6
     @State private var selectedStars = 1
@@ -42,16 +43,8 @@ struct OfflinePuzzlesView: View {
     
     var body: some View {
         ZStack {
-            // Same relaxing background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.94, blue: 0.98),
-                    Color(red: 0.89, green: 0.93, blue: 0.97)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppColors.backgroundGradient(colorScheme)
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header
@@ -61,7 +54,7 @@ struct OfflinePuzzlesView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .frame(width: 44, height: 44)
                     }
                     
@@ -69,7 +62,7 @@ struct OfflinePuzzlesView: View {
                     
                     Text("Offline Play")
                         .font(.system(size: 24, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                        .foregroundColor(AppColors.textPrimary(colorScheme))
                     
                     Spacer()
                     
@@ -95,33 +88,19 @@ struct OfflinePuzzlesView: View {
                                 }) {
                                     Text("\(stars) Star\(stars > 1 ? "s" : "")")
                                         .font(.system(size: 16, weight: .medium, design: .rounded))
-                                        .foregroundColor(isAvailable ? (selectedStars == stars ? .white : Color(red: 0.45, green: 0.55, blue: 0.75)) : Color(red: 0.6, green: 0.62, blue: 0.68))
+                                        .foregroundColor(isAvailable ? (selectedStars == stars ? .white : AppColors.primary(colorScheme)) : AppColors.textDisabled(colorScheme))
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 12)
                                         .background(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .fill(selectedStars == stars && isAvailable ?
-                                                    LinearGradient(
-                                                        colors: [
-                                                            Color(red: 0.45, green: 0.55, blue: 0.75),
-                                                            Color(red: 0.5, green: 0.6, blue: 0.8)
-                                                        ],
-                                                        startPoint: .leading,
-                                                        endPoint: .trailing
-                                                    ) :
-                                                    LinearGradient(
-                                                        colors: [
-                                                            Color(red: 0.92, green: 0.92, blue: 0.95),
-                                                            Color(red: 0.92, green: 0.92, blue: 0.95)
-                                                        ],
-                                                        startPoint: .leading,
-                                                        endPoint: .trailing
-                                                    )
+                                                .fill(selectedStars == stars && isAvailable
+                                                    ? AppColors.primaryGradient(colorScheme)
+                                                    : LinearGradient(colors: [AppColors.surface(colorScheme), AppColors.surface(colorScheme)], startPoint: .leading, endPoint: .trailing)
                                                 )
                                         )
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .stroke(selectedStars == stars ? Color(red: 0.45, green: 0.55, blue: 0.75) : Color.clear, lineWidth: 2)
+                                                .stroke(selectedStars == stars ? AppColors.primary(colorScheme) : Color.clear, lineWidth: 2)
                                         )
                                         .opacity(isAvailable ? 1.0 : 0.5)
                                 }
@@ -144,33 +123,19 @@ struct OfflinePuzzlesView: View {
                                 }) {
                                     Text("\(size)×\(size)")
                                         .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                        .foregroundColor(selectedSize == size ? .white : Color(red: 0.45, green: 0.55, blue: 0.75))
+                                        .foregroundColor(selectedSize == size ? .white : AppColors.primary(colorScheme))
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 12)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .fill(selectedSize == size ?
-                                                LinearGradient(
-                                                    colors: [
-                                                        Color(red: 0.45, green: 0.55, blue: 0.75),
-                                                        Color(red: 0.5, green: 0.6, blue: 0.8)
-                                                    ],
-                                                    startPoint: .leading,
-                                                    endPoint: .trailing
-                                                ) :
-                                                LinearGradient(
-                                                    colors: [
-                                                        Color(red: 0.92, green: 0.92, blue: 0.95),
-                                                        Color(red: 0.92, green: 0.92, blue: 0.95)
-                                                    ],
-                                                    startPoint: .leading,
-                                                    endPoint: .trailing
-                                                )
+                                            .fill(selectedSize == size
+                                                ? AppColors.primaryGradient(colorScheme)
+                                                : LinearGradient(colors: [AppColors.surface(colorScheme), AppColors.surface(colorScheme)], startPoint: .leading, endPoint: .trailing)
                                             )
                                     )
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(selectedSize == size ? Color(red: 0.45, green: 0.55, blue: 0.75) : Color.clear, lineWidth: 2)
+                                            .stroke(selectedSize == size ? AppColors.primary(colorScheme) : Color.clear, lineWidth: 2)
                                     )
                                 }
                             }
@@ -199,21 +164,9 @@ struct OfflinePuzzlesView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: isAddDisabled ? [
-                                    Color(red: 0.7, green: 0.72, blue: 0.76),
-                                    Color(red: 0.65, green: 0.67, blue: 0.71)
-                                ] : [
-                                    Color(red: 0.45, green: 0.55, blue: 0.75),
-                                    Color(red: 0.5, green: 0.6, blue: 0.8)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .background(isAddDisabled ? LinearGradient(colors: [AppColors.textDisabled(colorScheme), AppColors.textDisabled(colorScheme)], startPoint: .leading, endPoint: .trailing) : AppColors.primaryGradient(colorScheme))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(color: Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.3), radius: 10, x: 0, y: 5)
+                        .shadow(color: AppColors.primary(colorScheme).opacity(0.3), radius: 10, x: 0, y: 5)
                     }
                     .disabled(isAddDisabled || isLoading)
                     .opacity(isAddDisabled ? 0.6 : 1.0)
@@ -222,7 +175,7 @@ struct OfflinePuzzlesView: View {
                     if let error = loadError {
                         Text(error)
                             .font(.system(size: 14, weight: .regular, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 20)
                     }
@@ -230,7 +183,7 @@ struct OfflinePuzzlesView: View {
                 .padding(.top, 20)
                 
                 Divider()
-                    .background(Color(red: 0.5, green: 0.55, blue: 0.65).opacity(0.3))
+                    .background(AppColors.textSecondary(colorScheme).opacity(0.3))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
                 
@@ -238,17 +191,17 @@ struct OfflinePuzzlesView: View {
                 VStack(spacing: 12) {
                     Text("Cached Puzzles")
                         .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                        .foregroundColor(AppColors.textPrimary(colorScheme))
                     
                     if cache.puzzles.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "tray")
                                 .font(.system(size: 50))
-                                .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65).opacity(0.5))
+                                .foregroundColor(AppColors.textSecondary(colorScheme).opacity(0.5))
                             
                             Text("No cached puzzles")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
-                                .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                .foregroundColor(AppColors.textSecondary(colorScheme))
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.top, 40)
@@ -299,21 +252,9 @@ struct OfflinePuzzlesView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: selectedPuzzle == nil ? [
-                                    Color(red: 0.7, green: 0.72, blue: 0.76),
-                                    Color(red: 0.65, green: 0.67, blue: 0.71)
-                                ] : [
-                                    Color(red: 0.45, green: 0.55, blue: 0.75),
-                                    Color(red: 0.5, green: 0.6, blue: 0.8)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .background(selectedPuzzle == nil ? LinearGradient(colors: [AppColors.textDisabled(colorScheme), AppColors.textDisabled(colorScheme)], startPoint: .leading, endPoint: .trailing) : AppColors.primaryGradient(colorScheme))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(color: Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.3), radius: 10, x: 0, y: 5)
+                        .shadow(color: AppColors.primary(colorScheme).opacity(0.3), radius: 10, x: 0, y: 5)
                     }
                     .disabled(selectedPuzzle == nil)
                     .opacity(selectedPuzzle == nil ? 0.6 : 1.0)
@@ -327,15 +268,15 @@ struct OfflinePuzzlesView: View {
                             Text("Remove All")
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
                         }
-                        .foregroundColor(cache.puzzles.isEmpty ? Color(red: 0.6, green: 0.62, blue: 0.68) : Color(red: 0.8, green: 0.4, blue: 0.4))
+                        .foregroundColor(cache.puzzles.isEmpty ? AppColors.textDisabled(colorScheme) : Color(red: 0.8, green: 0.4, blue: 0.4))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(cache.puzzles.isEmpty ? Color(red: 0.6, green: 0.62, blue: 0.68) : Color(red: 0.8, green: 0.4, blue: 0.4), lineWidth: 2)
+                                .stroke(cache.puzzles.isEmpty ? AppColors.textDisabled(colorScheme) : Color(red: 0.8, green: 0.4, blue: 0.4), lineWidth: 2)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.3))
+                                        .fill(AppColors.surfaceLow(colorScheme))
                                 )
                         )
                     }
@@ -410,19 +351,20 @@ struct OfflinePuzzlesView: View {
 struct CachedPuzzleRow: View {
     let puzzle: CachedPuzzle
     let isSelected: Bool
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 // Puzzle name
                 Text(puzzle.displayName)
                     .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                    .foregroundColor(AppColors.textPrimary(colorScheme))
 
                 // Puzzle ID
                 Text("ID: \(puzzle.id)")
                     .font(.system(size: 13, weight: .regular, design: .monospaced))
-                    .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                    .foregroundColor(AppColors.textSecondary(colorScheme))
                     .opacity(0.8)
             }
 
@@ -436,18 +378,18 @@ struct CachedPuzzleRow: View {
                         .foregroundColor(Color(red: 0.4, green: 0.7, blue: 0.4))
                     Text(formatTime(time))
                         .font(.system(size: 13, weight: .regular, design: .monospaced))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                        .foregroundColor(AppColors.textSecondary(colorScheme))
                 }
             }
         }
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.1) : Color.white.opacity(0.4))
+                .fill(isSelected ? AppColors.primary(colorScheme).opacity(0.1) : AppColors.surface(colorScheme))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? Color(red: 0.4, green: 0.5, blue: 0.7) : Color.clear, lineWidth: 2)
+                .stroke(isSelected ? AppColors.primary(colorScheme) : Color.clear, lineWidth: 2)
         )
     }
     

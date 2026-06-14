@@ -10,6 +10,7 @@ import os.log
 
 struct SpecificPuzzleView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var puzzleCode = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -24,16 +25,8 @@ struct SpecificPuzzleView: View {
             let maxContentWidth: CGFloat = isIPad ? 500 : geometry.size.width
             
             ZStack {
-                // Same relaxing background
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.95, green: 0.94, blue: 0.98),
-                        Color(red: 0.89, green: 0.93, blue: 0.97)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                AppColors.backgroundGradient(colorScheme)
+                    .ignoresSafeArea()
                 
                 HStack(spacing: 0) {
                     if isIPad {
@@ -48,7 +41,7 @@ struct SpecificPuzzleView: View {
                             }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 20, weight: .medium))
-                                    .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                    .foregroundColor(AppColors.primary(colorScheme))
                                     .frame(width: 44, height: 44)
                             }
                             
@@ -63,11 +56,11 @@ struct SpecificPuzzleView: View {
                         VStack(spacing: 12) {
                             Text("Enter Puzzle Code")
                                 .font(.system(size: isIPad ? 28 : 32, weight: .medium, design: .rounded))
-                                .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
                             
                             Text("Type the puzzle number to load")
                                 .font(.system(size: isIPad ? 15 : 16, weight: .regular, design: .rounded))
-                                .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                .foregroundColor(AppColors.textSecondary(colorScheme))
                                 .opacity(0.8)
                         }
                         
@@ -76,13 +69,13 @@ struct SpecificPuzzleView: View {
                             TextField("12345", text: $puzzleCode)
                                 .keyboardType(.numberPad)
                                 .font(.system(size: isIPad ? 24 : 28, weight: .medium, design: .monospaced))
-                                .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .padding(.vertical, isIPad ? 16 : 20)
                                 .padding(.horizontal, isIPad ? 24 : 30)
                                 .background(
                                     RoundedRectangle(cornerRadius: 16)
-                                        .fill(Color.white.opacity(0.7))
+                                        .fill(AppColors.surfaceCard(colorScheme))
                                         .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
                                 )
                                 .frame(maxWidth: isIPad ? 320 : 280)
@@ -116,18 +109,9 @@ struct SpecificPuzzleView: View {
                                     .padding(.vertical, isIPad ? 16 : 18)
                             }
                         }
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.45, green: 0.55, blue: 0.75),
-                                    Color(red: 0.5, green: 0.6, blue: 0.8)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .background(AppColors.primaryGradient(colorScheme))
                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: Color(red: 0.4, green: 0.5, blue: 0.7).opacity(0.3), radius: 12, x: 0, y: 6)
+                        .shadow(color: AppColors.primary(colorScheme).opacity(0.3), radius: 12, x: 0, y: 6)
                         .disabled(isLoading || puzzleCode.isEmpty)
                         .opacity((isLoading || puzzleCode.isEmpty) ? 0.5 : 1.0)
                         

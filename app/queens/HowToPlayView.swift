@@ -9,19 +9,12 @@ import SwiftUI
 
 struct HowToPlayView: View {
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
-            // Matching gradient background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.94, blue: 0.98),
-                    Color(red: 0.89, green: 0.93, blue: 0.97)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppColors.backgroundGradient(colorScheme)
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header with back button
@@ -31,7 +24,7 @@ struct HowToPlayView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .frame(width: 44, height: 44)
                     }
                     
@@ -39,7 +32,7 @@ struct HowToPlayView: View {
                     
                     Text("How to Play")
                         .font(.system(size: 24, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                        .foregroundColor(AppColors.textPrimary(colorScheme))
                     
                     Spacer()
                     
@@ -94,17 +87,17 @@ struct HowToPlayView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: "hand.tap")
                                     .font(.system(size: 28))
-                                    .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                    .foregroundColor(AppColors.primary(colorScheme))
                                     .frame(width: 44)
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Controls")
                                         .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
                                     
                                     Text("Tap a cell once for an X mark\nTap again to place a star\nTap again to clear")
                                         .font(.system(size: 15, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                                 
@@ -113,7 +106,7 @@ struct HowToPlayView: View {
                             .padding(20)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.white.opacity(0.6))
+                                    .fill(AppColors.surface(colorScheme))
                                     .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
                             )
                         }
@@ -122,14 +115,14 @@ struct HowToPlayView: View {
                         VStack(spacing: 16) {
                             Text("Example")
                                 .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
                             
                             // Mini grid example
                             MiniGridExample()
                             
                             Text("The X marks show where you cannot place another star: adjacent cells, same row/column, and same region.")
                                 .font(.system(size: 14, weight: .regular, design: .rounded))
-                                .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                .foregroundColor(AppColors.textSecondary(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 20)
                         }
@@ -137,7 +130,7 @@ struct HowToPlayView: View {
                         .padding(.horizontal, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.6))
+                                .fill(AppColors.surface(colorScheme))
                                 .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
                         )
                         
@@ -161,37 +154,39 @@ struct InstructionCard: View {
     let icon: String
     let title: String
     let description: String
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: icon)
                 .font(.system(size: 28))
-                .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                .foregroundColor(AppColors.primary(colorScheme))
                 .frame(width: 44)
-            
+
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
-                
+                    .foregroundColor(AppColors.textPrimary(colorScheme))
+
                 Text(description)
                     .font(.system(size: 15, weight: .regular, design: .rounded))
-                    .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                    .foregroundColor(AppColors.textSecondary(colorScheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            
+
             Spacer()
         }
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.6))
+                .fill(AppColors.surface(colorScheme))
                 .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
         )
     }
 }
 
 struct MiniGridExample: View {
+    @Environment(\.colorScheme) private var colorScheme
     let gridSize = 6
     
     // Real puzzle from API
@@ -270,17 +265,17 @@ struct MiniGridExample: View {
                                 
                                 // Thin inner grid lines (like in the game)
                                 Rectangle()
-                                    .stroke(Color(red: 0.8, green: 0.82, blue: 0.86), lineWidth: 0.5)
+                                    .stroke(AppColors.cellMinorLine(colorScheme), lineWidth: 1)
                                     .frame(width: 33, height: 33)
-                                
+
                                 if hasStar {
                                     Image(systemName: "star.fill")
                                         .font(.system(size: 14))
-                                        .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                        .foregroundColor(AppColors.primary(colorScheme))
                                 } else if isForbidden {
                                     Image(systemName: "xmark")
                                         .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(Color(red: 0.6, green: 0.62, blue: 0.68))
+                                        .foregroundColor(AppColors.textDisabled(colorScheme))
                                 }
                             }
                         }
@@ -290,7 +285,7 @@ struct MiniGridExample: View {
             
             // Draw thick region borders on top (like in the game)
             Canvas { context, size in
-                let borderColor = Color(red: 0.5, green: 0.55, blue: 0.65)
+                let borderColor = AppColors.regionBorder(colorScheme)
                 let borderWidth: CGFloat = 3
                 let cellSize: CGFloat = 33
                 
@@ -347,14 +342,14 @@ struct MiniGridExample: View {
             .frame(width: 198, height: 198)
         }
         .frame(width: 198, height: 198)
-        .background(Color.white.opacity(0.5))
+        .background(AppColors.gridBackground(colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
     }
-    
+
     func regionColor(_ id: Int) -> Color {
-        // Use the actual game colors
-        return RegionColorPalette.allStandardColors[id % RegionColorPalette.allStandardColors.count]
+        let palette = AppColors.regionColors(enhancedContrast: false, scheme: colorScheme)
+        return palette[id % palette.count]
     }
 }
 

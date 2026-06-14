@@ -8,10 +8,7 @@ enum AuthState {
 
 @Observable
 class AuthManager {
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens",
-        category: "AuthManager"
-    )
+    private static let logger = Logger(subsystem: "com.app.queens", category: "AuthManager")
 
     var state: AuthState = .loading
 

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 @main
 struct queensApp: App {
@@ -24,6 +25,7 @@ struct queensApp: App {
                 .environment(settings)
                 .environment(puzzleCache)
                 .environment(authManager)
+                .preferredColorScheme(settings.darkMode ? .dark : .light)
                 .onOpenURL { url in handleDeepLink(url) }
                 .onReceive(NotificationCenter.default.publisher(for: .authenticationExpired)) { _ in
                     Task { await authManager.register() }
@@ -48,6 +50,27 @@ struct queensApp: App {
            code != "/" {
             NotificationCenter.default.post(name: .openPuzzle, object: nil, userInfo: ["code": code])
         }
+    }
+}
+
+/// Snapshot the current window, flip the colour scheme underneath, then fade the snapshot out.
+func crossfadeColorScheme(duration: TimeInterval = 0.4, action: @escaping () -> Void) {
+    guard let window = UIApplication.shared.connectedScenes
+        .compactMap({ $0 as? UIWindowScene })
+        .first?.windows.first else {
+        action()
+        return
+    }
+    guard let snapshot = window.snapshotView(afterScreenUpdates: false) else {
+        action()
+        return
+    }
+    window.addSubview(snapshot)
+    action()
+    UIView.animate(withDuration: duration, delay: 0, options: .curveEaseInOut) {
+        snapshot.alpha = 0
+    } completion: { _ in
+        snapshot.removeFromSuperview()
     }
 }
 

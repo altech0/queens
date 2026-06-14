@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Puzzle — Transition Options</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', sans-serif;
+    background: #f0eef8;
+    color: #3a3d52;
+    padding: 32px 20px 60px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 300;
+    text-align: center;
+    margin-bottom: 6px;
+    color: #3a3d52;
+  }
+
+  .subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #8890aa;
+    margin-bottom: 48px;
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .option-card {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 4px 24px rgba(80,100,160,0.10);
+  }
+
+  .option-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #2a2f48;
+  }
+
+  .option-desc {
+    font-size: 13px;
+    color: #8890aa;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  /* ---- shared phone chrome ---- */
+  .phone {
+    width: 200px;
+    height: 360px;
+    background: linear-gradient(135deg, #f2f1fc, #e5edf9);
+    border-radius: 32px;
+    border: 2.5px solid #c8cfe8;
+    margin: 0 auto 20px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 20px;
+    gap: 8px;
+  }
+
+  .grid-block {
+    width: 140px;
+    height: 140px;
+    border-radius: 10px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -58%);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 0;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  }
+
+  .grid-block .cell {
+    border: 0.5px solid rgba(50,55,70,0.15);
+  }
+
+  .btn {
+    width: 120px;
+    padding: 8px 0;
+    border-radius: 10px;
+    border: 2px solid #6678b0;
+    background: rgba(255,255,255,0.3);
+    color: #6678b0;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+    z-index: 10;
+  }
+
+  .btn:hover { background: rgba(102,120,176,0.08); }
+  .btn:active { background: rgba(102,120,176,0.18); }
+
+  /* ---- region colours ---- */
+  :root {
+    --c0: #c5d4f0; --c1: #c8e8d4; --c2: #f5e0c0;
+    --c3: #e0c8f0; --c4: #f0d0d8; --c5: #c8eef0;
+  }
+
+  /* ======================================================
+     OPTION A — Fade through white (clean wipe)
+  ====================================================== */
+  #optA .grid-block { transition: none; }
+  #optA .overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #f2f1fc, #e5edf9);
+    opacity: 0;
+    border-radius: 30px;
+    transition: none;
+    pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #optA .spinner {
+    width: 24px; height: 24px;
+    border: 2.5px solid rgba(100,120,180,0.2);
+    border-top-color: #6678b0;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    opacity: 0;
+    transition: none;
+  }
+  #optA.animating .overlay { opacity: 1; transition: opacity 0.25s ease; }
+  #optA.animating .spinner { opacity: 1; transition: opacity 0.25s ease 0.15s; }
+  #optA.incoming .overlay { opacity: 0; transition: opacity 0.35s ease; }
+  #optA.incoming .spinner { opacity: 0; transition: none; }
+  #optA.incoming .grid-block { animation: fadeIn 0.4s ease forwards; }
+
+  /* ======================================================
+     OPTION B — Grid dissolves cell by cell, new one assembles
+  ====================================================== */
+  #optB .grid-block .cell {
+    opacity: 1;
+    transition: none;
+  }
+  #optB.animating .grid-block .cell {
+    animation: cellFadeOut 0.35s ease forwards;
+  }
+  #optB.incoming .grid-block .cell {
+    animation: cellFadeIn 0.35s ease forwards;
+  }
+
+  /* ======================================================
+     OPTION C — Grid scales down + blurs out, new scales up
+  ====================================================== */
+  #optC .grid-block {
+    transition: none;
+    transform-origin: center;
+  }
+  #optC.animating .grid-block {
+    animation: scaleOut 0.3s cubic-bezier(0.4,0,1,1) forwards;
+  }
+  #optC.incoming .grid-block {
+    animation: scaleIn 0.4s cubic-bezier(0,0,0.2,1.4) forwards;
+  }
+  #optC .spinner {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) translateY(-20px);
+    width: 24px; height: 24px;
+    border: 2.5px solid rgba(100,120,180,0.2);
+    border-top-color: #6678b0;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    opacity: 0;
+    transition: none;
+  }
+  #optC.animating .spinner { opacity: 1; transition: opacity 0.15s ease 0.2s; }
+  #optC.incoming .spinner { opacity: 0; transition: none; }
+
+  /* ======================================================
+     OPTION D — Slide up (new puzzle slides in from bottom)
+  ====================================================== */
+  #optD .scene {
+    position: absolute; inset: 0;
+    overflow: hidden;
+    border-radius: 30px;
+  }
+  #optD .grid-block {
+    transition: none;
+  }
+  #optD .grid-block-new {
+    width: 140px;
+    height: 140px;
+    border-radius: 10px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 120%);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 0;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    opacity: 0;
+  }
+  #optD.animating .grid-block {
+    animation: slideUp 0.4s cubic-bezier(0.4,0,0.6,1) forwards;
+  }
+  #optD.incoming .grid-block-new {
+    animation: slideIn 0.45s cubic-bezier(0.2,0,0.2,1.2) forwards;
+  }
+  #optD.incoming .grid-block {
+    animation: none;
+    opacity: 0;
+  }
+
+  /* ======================================================
+     OPTION E — Stars sweep off (stars fly away, new puzzle fades in)
+  ====================================================== */
+  #optE .grid-block { transition: none; }
+  #optE.animating .grid-block {
+    animation: starSweep 0.45s cubic-bezier(0.4,0,1,0.8) forwards;
+  }
+  #optE.incoming .grid-block {
+    animation: dropIn 0.5s cubic-bezier(0,0,0.2,1.3) forwards;
+  }
+
+  /* ======================================================
+     Keyframes
+  ====================================================== */
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes cellFadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.7); }
+  }
+
+  @keyframes cellFadeIn {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes scaleOut {
+    from { opacity: 1; transform: translate(-50%, -58%) scale(1); filter: blur(0px); }
+    to   { opacity: 0; transform: translate(-50%, -58%) scale(0.82); filter: blur(4px); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: translate(-50%, -58%) scale(0.82); filter: blur(4px); }
+    to   { opacity: 1; transform: translate(-50%, -58%) scale(1); filter: blur(0px); }
+  }
+
+  @keyframes slideUp {
+    from { transform: translate(-50%, -58%); opacity: 1; }
+    to   { transform: translate(-50%, -160%); opacity: 0; }
+  }
+
+  @keyframes slideIn {
+    from { transform: translate(-50%, 40%); opacity: 0; }
+    to   { transform: translate(-50%, -58%); opacity: 1; }
+  }
+
+  @keyframes starSweep {
+    0%   { transform: translate(-50%, -58%) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -58%) rotate(8deg) scale(0.9) translateY(-30px); opacity: 0; }
+  }
+
+  @keyframes dropIn {
+    from { transform: translate(-50%, -38%); opacity: 0; filter: blur(2px); }
+    to   { transform: translate(-50%, -58%); opacity: 1; filter: blur(0px); }
+  }
+
+  /* cell stagger helpers */
+  #optB.animating .cell:nth-child(1)  { animation-delay: 0.00s; }
+  #optB.animating .cell:nth-child(2)  { animation-delay: 0.02s; }
+  #optB.animating .cell:nth-child(3)  { animation-delay: 0.04s; }
+  #optB.animating .cell:nth-child(4)  { animation-delay: 0.01s; }
+  #optB.animating .cell:nth-child(5)  { animation-delay: 0.03s; }
+  #optB.animating .cell:nth-child(6)  { animation-delay: 0.05s; }
+  #optB.animating .cell:nth-child(7)  { animation-delay: 0.03s; }
+  #optB.animating .cell:nth-child(8)  { animation-delay: 0.05s; }
+  #optB.animating .cell:nth-child(9)  { animation-delay: 0.07s; }
+  #optB.animating .cell:nth-child(10) { animation-delay: 0.04s; }
+  #optB.animating .cell:nth-child(11) { animation-delay: 0.06s; }
+  #optB.animating .cell:nth-child(12) { animation-delay: 0.08s; }
+  #optB.animating .cell:nth-child(13) { animation-delay: 0.05s; }
+  #optB.animating .cell:nth-child(14) { animation-delay: 0.07s; }
+  #optB.animating .cell:nth-child(15) { animation-delay: 0.09s; }
+  #optB.animating .cell:nth-child(16) { animation-delay: 0.06s; }
+  #optB.animating .cell:nth-child(17) { animation-delay: 0.08s; }
+  #optB.animating .cell:nth-child(18) { animation-delay: 0.10s; }
+  #optB.animating .cell:nth-child(n+19) { animation-delay: 0.11s; }
+
+  #optB.incoming .cell:nth-child(1)  { animation-delay: 0.00s; }
+  #optB.incoming .cell:nth-child(2)  { animation-delay: 0.02s; }
+  #optB.incoming .cell:nth-child(3)  { animation-delay: 0.04s; }
+  #optB.incoming .cell:nth-child(4)  { animation-delay: 0.01s; }
+  #optB.incoming .cell:nth-child(5)  { animation-delay: 0.03s; }
+  #optB.incoming .cell:nth-child(6)  { animation-delay: 0.05s; }
+  #optB.incoming .cell:nth-child(7)  { animation-delay: 0.03s; }
+  #optB.incoming .cell:nth-child(8)  { animation-delay: 0.05s; }
+  #optB.incoming .cell:nth-child(9)  { animation-delay: 0.07s; }
+  #optB.incoming .cell:nth-child(10) { animation-delay: 0.04s; }
+  #optB.incoming .cell:nth-child(11) { animation-delay: 0.06s; }
+  #optB.incoming .cell:nth-child(12) { animation-delay: 0.08s; }
+  #optB.incoming .cell:nth-child(n+13) { animation-delay: 0.10s; }
+
+  .try-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #6e82c0, #7a90cc);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .try-btn:hover { opacity: 0.88; }
+  .try-btn:active { opacity: 0.75; }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .tag-subtle  { background: #e8eaf6; color: #6678b0; }
+  .tag-smooth  { background: #e6f4ec; color: #4a9a6a; }
+  .tag-snappy  { background: #fef3e2; color: #c07020; }
+  .tag-playful { background: #fce8f0; color: #b84070; }
+</style>
+</head>
+<body>
+
+<h1>New Puzzle — Transition Ideas</h1>
+<p class="subtitle">Click "Try it" on each card to preview. Pick whichever feels right.</p>
+
+<div class="options-grid">
+
+  <!-- OPTION A -->
+  <div class="option-card">
+    <span class="tag tag-subtle">A — Fade to background</span>
+    <div class="option-title">Dissolve through background</div>
+    <p class="option-desc">The grid fades out into the app background colour, spinner appears briefly, new grid fades in. Minimal, calm — similar to Safari tab switching.</p>
+    <div class="phone" id="optA">
+      <div class="overlay"><div class="spinner"></div></div>
+      <div class="grid-block" id="gridA"></div>
+      <button class="btn" onclick="triggerA()">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerA()">Try it</button>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="option-card">
+    <span class="tag tag-smooth">B — Cell scatter</span>
+    <div class="option-title">Cells dissolve out, then assemble</div>
+    <p class="option-desc">Each cell fades and shrinks out in a fast stagger wave. The new puzzle's cells assemble back in. Subtle — you feel the puzzle being replaced without a hard cut.</p>
+    <div class="phone" id="optB">
+      <div class="grid-block" id="gridB"></div>
+      <button class="btn" onclick="triggerB()">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerB()">Try it</button>
+  </div>
+
+  <!-- OPTION C -->
+  <div class="option-card">
+    <span class="tag tag-snappy">C — Scale + blur out/in</span>
+    <div class="option-title">Shrink away, bloom back in</div>
+    <p class="option-desc">Grid scales down and blurs out (like pressing an app icon), spinner shows, new puzzle blooms back up slightly overshooting for a springy feel.</p>
+    <div class="phone" id="optC">
+      <div class="grid-block" id="gridC"></div>
+      <div class="spinner"></div>
+      <button class="btn" onclick="triggerC()">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerC()">Try it</button>
+  </div>
+
+  <!-- OPTION D -->
+  <div class="option-card">
+    <span class="tag tag-smooth">D — Slide transition</span>
+    <div class="option-title">Old slides up, new slides in</div>
+    <p class="option-desc">Current grid slides up and off-screen while the new one slides in from below. Clear sense of forward momentum. Feels like turning a page.</p>
+    <div class="phone" id="optD">
+      <div class="scene">
+        <div class="grid-block" id="gridD"></div>
+        <div class="grid-block-new" id="gridDNew"></div>
+      </div>
+      <button class="btn" onclick="triggerD()">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerD()">Try it</button>
+  </div>
+
+  <!-- OPTION E -->
+  <div class="option-card">
+    <span class="tag tag-playful">E — Drop in</span>
+    <div class="option-title">Old sweeps away, new drops down</div>
+    <p class="option-desc">The old grid rotates slightly and fades up as if whisked away, then the new one drops in with a soft blur. More playful — suits a puzzle game aesthetic.</p>
+    <div class="phone" id="optE">
+      <div class="grid-block" id="gridE"></div>
+      <button class="btn" onclick="triggerE()">New Puzzle</button>
+    </div>
+    <button class="try-btn" onclick="triggerE()">Try it</button>
+  </div>
+
+</div>
+
+<script>
+// ---- colour palettes for two "different" puzzles ----
+const palette1 = [
+  '#c5d4f0','#c5d4f0','#c8e8d4','#c8e8d4','#f5e0c0','#f5e0c0',
+  '#c5d4f0','#e0c8f0','#c8e8d4','#c8e8d4','#f5e0c0','#f5e0c0',
+  '#e0c8f0','#e0c8f0','#e0c8f0','#c8eef0','#f0d0d8','#f0d0d8',
+  '#e0c8f0','#c8eef0','#c8eef0','#c8eef0','#f0d0d8','#f0d0d8',
+  '#c5d4f0','#c5d4f0','#c8eef0','#c8eef0','#c8eef0','#f5e0c0',
+  '#c5d4f0','#c5d4f0','#f5e0c0','#f5e0c0','#f5e0c0','#f5e0c0',
+];
+const palette2 = [
+  '#f0d0d8','#f5e0c0','#f5e0c0','#c5d4f0','#c5d4f0','#c5d4f0',
+  '#f0d0d8','#f5e0c0','#c8e8d4','#c5d4f0','#c5d4f0','#c8eef0',
+  '#f0d0d8','#c8e8d4','#c8e8d4','#c8e8d4','#e0c8f0','#c8eef0',
+  '#f0d0d8','#c8e8d4','#e0c8f0','#e0c8f0','#e0c8f0','#c8eef0',
+  '#f0d0d8','#f0d0d8','#e0c8f0','#c8eef0','#c8eef0','#c8eef0',
+  '#f5e0c0','#f0d0d8','#e0c8f0','#c8eef0','#c5d4f0','#c5d4f0',
+];
+
+function buildGrid(el, palette) {
+  el.innerHTML = '';
+  palette.forEach(c => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.background = c;
+    el.appendChild(cell);
+  });
+}
+
+// Initialise all grids with palette1
+['A','B','C','D','E'].forEach(id => {
+  const g = document.getElementById('grid' + id);
+  if (g) buildGrid(g, palette1);
+});
+// optD new grid (palette2, hidden initially)
+buildGrid(document.getElementById('gridDNew'), palette2);
+
+// track which palette each demo is on
+const state = { A: 1, B: 1, C: 1, D: 1, E: 1 };
+function nextPalette(id) {
+  state[id] = state[id] === 1 ? 2 : 1;
+  return state[id] === 1 ? palette1 : palette2;
+}
+
+// ---- Option A ----
+function triggerA() {
+  const phone = document.getElementById('optA');
+  if (phone.classList.contains('animating') || phone.classList.contains('incoming')) return;
+  const pal = nextPalette('A');
+  phone.classList.add('animating');
+  setTimeout(() => {
+    buildGrid(document.getElementById('gridA'), pal);
+    phone.classList.remove('animating');
+    phone.classList.add('incoming');
+    setTimeout(() => phone.classList.remove('incoming'), 500);
+  }, 500);
+}
+
+// ---- Option B ----
+function triggerB() {
+  const phone = document.getElementById('optB');
+  if (phone.classList.contains('animating') || phone.classList.contains('incoming')) return;
+  const pal = nextPalette('B');
+  phone.classList.add('animating');
+  setTimeout(() => {
+    buildGrid(document.getElementById('gridB'), pal);
+    phone.classList.remove('animating');
+    phone.classList.add('incoming');
+    setTimeout(() => phone.classList.remove('incoming'), 500);
+  }, 300);
+}
+
+// ---- Option C ----
+function triggerC() {
+  const phone = document.getElementById('optC');
+  if (phone.classList.contains('animating') || phone.classList.contains('incoming')) return;
+  const pal = nextPalette('C');
+  phone.classList.add('animating');
+  setTimeout(() => {
+    buildGrid(document.getElementById('gridC'), pal);
+    phone.classList.remove('animating');
+    phone.classList.add('incoming');
+    setTimeout(() => phone.classList.remove('incoming'), 600);
+  }, 350);
+}
+
+// ---- Option D ----
+function triggerD() {
+  const phone = document.getElementById('optD');
+  if (phone.classList.contains('animating') || phone.classList.contains('incoming')) return;
+  const pal = nextPalette('D');
+  buildGrid(document.getElementById('gridDNew'), pal);
+  phone.classList.add('animating');
+  setTimeout(() => {
+    phone.classList.remove('animating');
+    phone.classList.add('incoming');
+    setTimeout(() => {
+      // reset: copy new grid to main grid, hide new
+      buildGrid(document.getElementById('gridD'), pal);
+      document.getElementById('gridD').style.opacity = '1';
+      document.getElementById('gridDNew').style.animation = 'none';
+      document.getElementById('gridDNew').style.transform = 'translate(-50%, 120%)';
+      document.getElementById('gridDNew').style.opacity = '0';
+      phone.classList.remove('incoming');
+    }, 600);
+  }, 450);
+}
+
+// ---- Option E ----
+function triggerE() {
+  const phone = document.getElementById('optE');
+  if (phone.classList.contains('animating') || phone.classList.contains('incoming')) return;
+  const pal = nextPalette('E');
+  phone.classList.add('animating');
+  setTimeout(() => {
+    buildGrid(document.getElementById('gridE'), pal);
+    phone.classList.remove('animating');
+    phone.classList.add('incoming');
+    setTimeout(() => phone.classList.remove('incoming'), 600);
+  }, 450);
+}
+</script>
+</body>
+</html>

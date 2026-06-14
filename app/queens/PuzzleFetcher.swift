@@ -445,11 +445,9 @@ class PuzzleFetcher {
             throw error
         }
 
-        guard var urlComponents = URLComponents(string: apiURLString) else {
+        guard var urlComponents = URLComponents(string: apiURLString + "/\(code)") else {
             throw PuzzleFetchError.invalidURL
         }
-
-        urlComponents.queryItems = [URLQueryItem(name: "code", value: code)]
 
         guard let url = urlComponents.url else {
             throw PuzzleFetchError.invalidURL
