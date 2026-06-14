@@ -15,7 +15,7 @@ struct GridPosition: Hashable, Codable {
 }
 
 /// Represents a Star Battle puzzle with its solution and regions
-struct StarBattlePuzzle: Codable {
+struct StarBattlePuzzle: Codable, Hashable {
     let size: Int
     let starsPerRegion: Int
     let regions: [[Int]] // Each cell contains a region ID (0-based)

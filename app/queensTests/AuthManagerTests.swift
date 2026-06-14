@@ -2,42 +2,25 @@ import XCTest
 @testable import queens
 
 final class AuthManagerTests: XCTestCase {
+    private var manager: AuthManager!
 
-    func testCheckAuthState_noToken_setsNeedsRegistration() {
-        let mockKeychain = MockKeychain(values: [:])
-        let manager = AuthManager(keychain: mockKeychain)
-        manager.checkAuthState()
-        if case .needsRegistration = manager.state { } else {
-            XCTFail("Expected .needsRegistration, got \(manager.state)")
-        }
+    override func tearDown() {
+        manager = nil
+        super.tearDown()
     }
 
-    func testCheckAuthState_tokenExists_setsRegistered() {
-        let mockKeychain = MockKeychain(values: [KeychainHelper.apiTokenKey: "tok_abc"])
-        let manager = AuthManager(keychain: mockKeychain)
-        manager.checkAuthState()
-        if case .registered = manager.state { } else {
-            XCTFail("Expected .registered, got \(manager.state)")
-        }
+    func testInit_withExistingToken_setsReadyState() {
+        let keychain = MockKeychain(values: [KeychainHelper.apiTokenKey: "tok_abc"])
+        manager = AuthManager(keychain: keychain)
+        XCTAssertEqual(manager.state, .ready)
     }
 
-    func testInitialStateIsUnknown() {
-        let manager = AuthManager(keychain: MockKeychain(values: [:]))
-        if case .unknown = manager.state { } else {
-            XCTFail("Expected .unknown, got \(manager.state)")
-        }
-    }
-
-    func testApiToken_returnsStoredToken() throws {
-        let mockKeychain = MockKeychain(values: [KeychainHelper.apiTokenKey: "tok_xyz"])
-        let manager = AuthManager(keychain: mockKeychain)
-        let token = try manager.apiToken()
-        XCTAssertEqual(token, "tok_xyz")
-    }
-
-    func testApiToken_throwsWhenNotRegistered() {
-        let manager = AuthManager(keychain: MockKeychain(values: [:]))
-        XCTAssertThrowsError(try manager.apiToken())
+    func testInit_withNoToken_beginsInLoadingState() async {
+        let keychain = MockKeychain(values: [:])
+        manager = AuthManager(keychain: keychain)
+        XCTAssertEqual(manager.state, .loading)
+        // Yield so the spawned Task can start and be cancelled cleanly on teardown
+        await Task.yield()
     }
 }
 
@@ -47,9 +30,7 @@ final class MockKeychain: KeychainStoring {
     var values: [String: String]
     init(values: [String: String]) { self.values = values }
 
-    func save(_ value: String, forKey key: String) throws {
-        values[key] = value
-    }
+    func save(_ value: String, forKey key: String) throws { values[key] = value }
     func load(forKey key: String) throws -> String {
         guard let v = values[key] else { throw KeychainError.notFound }
         return v

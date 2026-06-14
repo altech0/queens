@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timer Animation Options</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: #f0f2f7;
+    min-height: 100vh;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  h1 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #3a4060;
+    letter-spacing: -0.3px;
+  }
+
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    max-width: 1100px;
+    width: 100%;
+  }
+
+  .card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 240px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8a90a8;
+    text-align: center;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: #9098b0;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .timer-base {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    color: #667ab3;
+    letter-spacing: -0.5px;
+    text-align: center;
+  }
+
+  /* ── 1. Odometer ── */
+  .odometer {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    overflow: hidden;
+  }
+
+  .odo-digit {
+    width: 20px;
+    height: 44px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .odo-reel {
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.35s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  }
+
+  .odo-reel span {
+    height: 44px;
+    line-height: 44px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    color: #667ab3;
+    display: block;
+    text-align: center;
+  }
+
+  .odo-colon {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    color: #667ab3;
+    width: 16px;
+    height: 44px;
+    line-height: 44px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  /* ── 2. Blur morph ── */
+  @keyframes blur-morph {
+    0%   { filter: blur(0px);   opacity: 1; }
+    40%  { filter: blur(6px);   opacity: 0.4; }
+    100% { filter: blur(0px);   opacity: 1; }
+  }
+
+  .timer-blur.morphing {
+    animation: blur-morph 0.35s ease forwards;
+  }
+
+  /* ── 3. Scramble ── */
+  .scramble-wrap {
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── 4. Colour breathe ── */
+  @keyframes breathe {
+    0%   { color: #667ab3; }
+    33%  { color: #8b6ab3; }
+    66%  { color: #6a9db3; }
+    100% { color: #667ab3; }
+  }
+
+  .timer-breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+
+  /* ── OLD OPTIONS (kept for reference) ── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #aab0c8;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    width: 100%;
+    max-width: 1100px;
+    text-align: left;
+    padding-left: 4px;
+    margin-top: 8px;
+  }
+
+  .divider {
+    width: 100%;
+    max-width: 1100px;
+    height: 1px;
+    background: #dde0ec;
+  }
+
+  /* ── Pulse (old) ── */
+  @keyframes pulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .timer-pulse.pulsing { animation: pulse 0.35s ease-out forwards; }
+
+  /* ── Fade (old) ── */
+  @keyframes fade-tick {
+    0%   { opacity: 1; }
+    30%  { opacity: 0.35; }
+    100% { opacity: 1; }
+  }
+  .timer-fade.fading { animation: fade-tick 0.4s ease forwards; }
+
+  /* ── Flip (old) ── */
+  .flip-wrap { display: flex; align-items: center; }
+  .flip-digit {
+    display: inline-block; width: 22px; text-align: center;
+    overflow: hidden; position: relative; height: 44px; line-height: 44px;
+  }
+  .flip-digit span { display: block; transition: transform 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease; }
+  .flip-digit.flipping span { transform: translateY(-100%); opacity: 0; }
+  .flip-colon {
+    font-family: 'SF Mono','Menlo',monospace; font-size: 32px; font-weight: 600;
+    color: #667ab3; width: 14px; text-align: center; line-height: 44px; height: 44px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Timer Animation Options</h1>
+
+<div class="section-title">New options</div>
+<div class="cards">
+
+  <!-- 1. Odometer -->
+  <div class="card">
+    <div class="card-label">Odometer</div>
+    <div class="odometer" id="odo">
+      <div class="odo-digit"><div class="odo-reel" id="odo-m1"></div></div>
+      <div class="odo-digit"><div class="odo-reel" id="odo-m0"></div></div>
+      <div class="odo-colon">:</div>
+      <div class="odo-digit"><div class="odo-reel" id="odo-s1"></div></div>
+      <div class="odo-digit"><div class="odo-reel" id="odo-s0"></div></div>
+    </div>
+    <div class="card-desc">Digits roll on their own reels like a mechanical counter. Continuous, satisfying.</div>
+  </div>
+
+  <!-- 2. Blur morph -->
+  <div class="card">
+    <div class="card-label">Blur Morph</div>
+    <div class="timer-base timer-blur" id="blur-timer">00:00</div>
+    <div class="card-desc">On each second the timer briefly blurs and sharpens into the new value.</div>
+  </div>
+
+  <!-- 3. Scramble -->
+  <div class="card">
+    <div class="card-label">Scramble</div>
+    <div class="timer-base" id="scramble-timer">00:00</div>
+    <div class="card-desc">Changing digits flicker through random numbers before landing. Techy, Matrix-y feel.</div>
+  </div>
+
+  <!-- 4. Colour breathe -->
+  <div class="card">
+    <div class="card-label">Colour Breathe</div>
+    <div class="timer-base timer-breathe" id="breathe-timer">00:00</div>
+    <div class="card-desc">No movement — the colour slowly cycles through a narrow hue range. Calm and alive.</div>
+  </div>
+
+</div>
+
+<div class="divider"></div>
+<div class="section-title">Previous options</div>
+<div class="cards">
+
+  <!-- Old: Digit flip -->
+  <div class="card">
+    <div class="card-label">Digit Flip</div>
+    <div class="flip-wrap">
+      <div class="flip-digit" id="fd-m1"><span>0</span></div>
+      <div class="flip-digit" id="fd-m0"><span>0</span></div>
+      <div class="flip-colon">:</div>
+      <div class="flip-digit" id="fd-s1"><span>0</span></div>
+      <div class="flip-digit" id="fd-s0"><span>0</span></div>
+    </div>
+    <div class="card-desc">Each digit slides up and fades out as it changes.</div>
+  </div>
+
+  <!-- Old: Pulse -->
+  <div class="card">
+    <div class="card-label">Pulse</div>
+    <div class="timer-base timer-pulse" id="pulse-timer">00:00</div>
+    <div class="card-desc">The whole timer scales up subtly on each second tick.</div>
+  </div>
+
+  <!-- Old: Fade -->
+  <div class="card">
+    <div class="card-label">Fade</div>
+    <div class="timer-base timer-fade" id="fade-timer">00:00</div>
+    <div class="card-desc">The timer briefly fades on each second change.</div>
+  </div>
+
+</div>
+
+<script>
+  let elapsed = 0
+
+  function pad(n, w=2) { return String(n).padStart(w,'0') }
+  function formatLive(cs) {
+    const s = Math.floor(cs / 100)
+    return pad(Math.floor(s/60)) + ':' + pad(s%60)
+  }
+
+  // ── 1. Odometer ──────────────────────────────────────────────
+  const odoReelIds = ['odo-m1','odo-m0','odo-s1','odo-s0']
+  const DIGITS = 10
+
+  // Build reels: 0–9 repeated twice so we can always scroll down
+  odoReelIds.forEach(id => {
+    const reel = document.getElementById(id)
+    for (let i = 0; i < DIGITS * 2; i++) {
+      const span = document.createElement('span')
+      span.textContent = i % DIGITS
+      reel.appendChild(span)
+    }
+    // Start at digit 0, row 0
+    reel.style.transform = 'translateY(0)'
+  })
+
+  let odoCurrentDigits = [0,0,0,0]
+
+  function updateOdo(cs) {
+    const totalSecs = Math.floor(cs / 100)
+    const mm = pad(Math.floor(totalSecs/60))
+    const ss = pad(totalSecs%60)
+    const digits = [+mm[0], +mm[1], +ss[0], +ss[1]]
+
+    digits.forEach((d, i) => {
+      if (d !== odoCurrentDigits[i]) {
+        const reel = document.getElementById(odoReelIds[i])
+        // Scroll to row `d` in the second set (rows DIGITS+d)
+        const targetRow = DIGITS + d
+        reel.style.transform = `translateY(-${targetRow * 44}px)`
+
+        // Once animation completes, silently reset to first set same digit (no visual jump)
+        setTimeout(() => {
+          reel.style.transition = 'none'
+          reel.style.transform = `translateY(-${d * 44}px)`
+          setTimeout(() => {
+            reel.style.transition = 'transform 0.35s cubic-bezier(0.45, 0.05, 0.55, 0.95)'
+          }, 20)
+        }, 380)
+      }
+    })
+    odoCurrentDigits = digits
+  }
+
+  // ── 2. Blur morph ────────────────────────────────────────────
+  const blurEl = document.getElementById('blur-timer')
+  let lastBlurSec = -1
+
+  function updateBlur(cs) {
+    const s = Math.floor(cs/100)
+    blurEl.textContent = formatLive(cs)
+    if (s !== lastBlurSec) {
+      blurEl.classList.remove('morphing')
+      void blurEl.offsetWidth
+      blurEl.classList.add('morphing')
+      lastBlurSec = s
+    }
+  }
+
+  // ── 3. Scramble ──────────────────────────────────────────────
+  const scrambleEl = document.getElementById('scramble-timer')
+  let lastScrambleSec = -1
+  let scrambleFrame = null
+
+  function updateScramble(cs) {
+    const s = Math.floor(cs/100)
+    if (s !== lastScrambleSec) {
+      lastScrambleSec = s
+      if (scrambleFrame) clearTimeout(scrambleFrame)
+      const target = formatLive(cs)
+      let iterations = 0
+      const maxIterations = 6
+
+      function tick() {
+        const chars = target.split('').map((c, i) => {
+          if (c === ':') return ':'
+          // Only scramble digits that changed
+          if (iterations >= maxIterations) return c
+          return Math.random() < (iterations / maxIterations) ? c : Math.floor(Math.random()*10)
+        })
+        scrambleEl.textContent = chars.join('')
+        iterations++
+        if (iterations <= maxIterations) {
+          scrambleFrame = setTimeout(tick, 40)
+        } else {
+          scrambleEl.textContent = target
+        }
+      }
+      tick()
+    } else if (lastScrambleSec === -1) {
+      scrambleEl.textContent = formatLive(cs)
+    }
+  }
+
+  // ── 4. Colour breathe ────────────────────────────────────────
+  const breatheEl = document.getElementById('breathe-timer')
+  function updateBreathe(cs) { breatheEl.textContent = formatLive(cs) }
+
+  // ── Old: Pulse ───────────────────────────────────────────────
+  const pulseEl = document.getElementById('pulse-timer')
+  let lastPulseSec = -1
+  function updatePulse(cs) {
+    const s = Math.floor(cs/100)
+    pulseEl.textContent = formatLive(cs)
+    if (s !== lastPulseSec) {
+      pulseEl.classList.remove('pulsing'); void pulseEl.offsetWidth
+      pulseEl.classList.add('pulsing'); lastPulseSec = s
+    }
+  }
+
+  // ── Old: Fade ────────────────────────────────────────────────
+  const fadeEl = document.getElementById('fade-timer')
+  let lastFadeSec = -1
+  function updateFade(cs) {
+    const s = Math.floor(cs/100)
+    fadeEl.textContent = formatLive(cs)
+    if (s !== lastFadeSec) {
+      fadeEl.classList.remove('fading'); void fadeEl.offsetWidth
+      fadeEl.classList.add('fading'); lastFadeSec = s
+    }
+  }
+
+  // ── Old: Flip ────────────────────────────────────────────────
+  const flipIds = ['fd-m1','fd-m0','fd-s1','fd-s0']
+  let lastFlipDigits = ['0','0','0','0']
+  function updateFlip(cs) {
+    const s = Math.floor(cs/100)
+    const mm = pad(Math.floor(s/60)), ss = pad(s%60)
+    const digits = [mm[0],mm[1],ss[0],ss[1]]
+    digits.forEach((d,i) => {
+      if (d !== lastFlipDigits[i]) {
+        const el = document.getElementById(flipIds[i])
+        const span = el.querySelector('span')
+        el.classList.add('flipping')
+        setTimeout(() => { span.textContent = d; el.classList.remove('flipping') }, 220)
+      }
+    })
+    lastFlipDigits = digits
+  }
+
+  // ── Tick ─────────────────────────────────────────────────────
+  setInterval(() => {
+    elapsed++
+    updateOdo(elapsed)
+    updateBlur(elapsed)
+    updateScramble(elapsed)
+    updateBreathe(elapsed)
+    updatePulse(elapsed)
+    updateFade(elapsed)
+    updateFlip(elapsed)
+  }, 10)
+</script>
+</body>
+</html>

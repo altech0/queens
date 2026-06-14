@@ -9,19 +9,12 @@ import SwiftUI
 
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
-            // Matching gradient background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.94, blue: 0.98),
-                    Color(red: 0.89, green: 0.93, blue: 0.97)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppColors.backgroundGradient(colorScheme)
+                .ignoresSafeArea()
             
             VStack(spacing: 40) {
                 // Header with back button
@@ -31,7 +24,7 @@ struct AboutView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .foregroundColor(AppColors.primary(colorScheme))
                             .frame(width: 44, height: 44)
                     }
                     
@@ -39,7 +32,7 @@ struct AboutView: View {
                     
                     Text("About")
                         .font(.system(size: 24, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                        .foregroundColor(AppColors.textPrimary(colorScheme))
                     
                     Spacer()
                     
@@ -56,46 +49,56 @@ struct AboutView: View {
                         VStack(spacing: 16) {
                             Image(systemName: "star.fill")
                                 .font(.system(size: 80))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 0.4, green: 0.5, blue: 0.7),
-                                            Color(red: 0.5, green: 0.6, blue: 0.8)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .foregroundStyle(AppColors.primaryGradient(colorScheme))
                                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
 
                             Text("Queens")
                                 .font(.system(size: 40, weight: .light, design: .rounded))
-                                .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
 
                             Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
                                 .font(.system(size: 14, weight: .regular, design: .rounded))
-                                .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                .foregroundColor(AppColors.textSecondary(colorScheme))
                                 .opacity(0.7)
                         }
                         .padding(.top, 8)
 
                         // About text
                         VStack(spacing: 16) {
-                            Text("Thanks for downloading! I built this app simply because I love these puzzles and couldn't find a clean, ad-free version.")
+                            Text("Thanks for downloading! I built this to keep me occupied on the train to and from work and also couldn't stand the paid ones out there.")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
-                                .foregroundColor(Color(red: 0.35, green: 0.4, blue: 0.55))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(4)
 
-                            Text("There is zero data collection and no annoying ads here — just pure puzzles. This project is a true labor of love, so please enjoy it for free!")
+                            Text("Zero data collection. Zero ads. Zero bloat (1.1Mb last time I checked)")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
-                                .foregroundColor(Color(red: 0.35, green: 0.4, blue: 0.55))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(4)
 
-                            Text("If you'd like to show your appreciation, you can buy me a decaf oat latte below. No reciprocation expected — it's purely a tip jar and won't unlock any extra features.")
+                            Text("If you notice something not working, have a feature suggestion, or just want to chat:")
                                 .font(.system(size: 16, weight: .regular, design: .rounded))
-                                .foregroundColor(Color(red: 0.35, green: 0.4, blue: 0.55))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+
+                            Link(destination: URL(string: "https://knittedmice.com")!) {
+                                Text("knittedmice.com")
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    .foregroundColor(AppColors.primary(colorScheme))
+                                    .underline()
+                            }
+
+                            Text("This project is a labour of love — please enjoy it for free")
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+
+                            Text("If you really want to make my day, you can buy me a decaf oat latte below. No reciprocation expected — it's purely a tip jar.")
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary(colorScheme))
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(4)
                         }
@@ -112,7 +115,7 @@ struct AboutView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 28)
                             .padding(.vertical, 14)
-                            .background(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .background(AppColors.primary(colorScheme))
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                         }
 

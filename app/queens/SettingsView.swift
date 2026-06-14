@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppSettings.self) private var settings
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     
@@ -19,16 +20,8 @@ struct SettingsView: View {
     
     var body: some View {
         ZStack {
-            // Matching gradient background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.94, blue: 0.98),
-                    Color(red: 0.89, green: 0.93, blue: 0.97)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppColors.backgroundGradient(colorScheme)
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header - hide on iPad landscape
@@ -39,7 +32,7 @@ struct SettingsView: View {
                         }) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.7))
+                                .foregroundColor(AppColors.primary(colorScheme))
                                 .frame(width: 44, height: 44)
                         }
                         
@@ -47,7 +40,7 @@ struct SettingsView: View {
                         
                         Text("Settings")
                             .font(.system(size: 24, weight: .medium, design: .rounded))
-                            .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                            .foregroundColor(AppColors.textPrimary(colorScheme))
                         
                         Spacer()
                         
@@ -62,16 +55,39 @@ struct SettingsView: View {
                 
                 // Settings content
                 VStack(spacing: 0) {
-                    // Accessibility section
+                    // Appearance section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Accessibility")
+                        Text("Appearance")
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
                             .textCase(.uppercase)
                             .padding(.horizontal, 20)
                             .padding(.top, isIPadLandscape ? 10 : 20)
-                        
+
                         VStack(spacing: 0) {
+                            Toggle(isOn: Binding(
+                                get: { settings.darkMode },
+                                set: { newValue in crossfadeColorScheme { settings.darkMode = newValue } }
+                            )) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Dark Mode")
+                                        .font(.system(size: 17, weight: .regular, design: .rounded))
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
+
+                                    Text("Switch to a dark colour scheme")
+                                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
+                                        .opacity(0.8)
+                                }
+                            }
+                            .tint(AppColors.primary(colorScheme))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .background(AppColors.surface(colorScheme))
+
+                            Divider()
+                                .padding(.leading, 20)
+
                             Toggle(isOn: Binding(
                                 get: { settings.enhancedContrastMode },
                                 set: { settings.enhancedContrastMode = $0 }
@@ -79,18 +95,18 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Enhanced Contrast")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
-                                    
-                                    Text("Use high-contrast colors for better region differentiation")
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
+
+                                    Text("Use high-contrast colours for better region differentiation")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
                                 }
                             }
-                            .tint(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .tint(AppColors.primary(colorScheme))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 16)
-                            .background(Color.white.opacity(0.5))
+                            .background(AppColors.surface(colorScheme))
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .frame(maxWidth: isIPadLandscape ? 600 : .infinity)
@@ -102,7 +118,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Gameplay")
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
                             .textCase(.uppercase)
                             .padding(.horizontal, 20)
                             .padding(.top, 32)
@@ -115,18 +131,18 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Hide Timer")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
                                     
                                     Text("Hide the timer during gameplay for a more relaxed experience")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
                                 }
                             }
-                            .tint(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .tint(AppColors.primary(colorScheme))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 16)
-                            .background(Color.white.opacity(0.5))
+                            .background(AppColors.surface(colorScheme))
                             
                             Divider()
                                 .padding(.leading, 20)
@@ -138,18 +154,18 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Single Tap Mode")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
                                     
                                     Text("Tap once to place star, tap again to remove (no X marks)")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
                                 }
                             }
-                            .tint(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .tint(AppColors.primary(colorScheme))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 16)
-                            .background(Color.white.opacity(0.5))
+                            .background(AppColors.surface(colorScheme))
                             
                             Divider()
                                 .padding(.leading, 20)
@@ -161,18 +177,18 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Show Completion Hints")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
 
                                     Text("Show a reminder to check your progress when the grid appears complete")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
                                 }
                             }
-                            .tint(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .tint(AppColors.primary(colorScheme))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 16)
-                            .background(Color.white.opacity(0.5))
+                            .background(AppColors.surface(colorScheme))
 
                             Divider()
                                 .padding(.leading, 20)
@@ -184,18 +200,18 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Highlight Conflicts")
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.3, green: 0.35, blue: 0.5))
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
 
                                     Text("Highlight stars that share a row, column, or are touching each other")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
-                                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
                                 }
                             }
-                            .tint(Color(red: 0.4, green: 0.5, blue: 0.7))
+                            .tint(AppColors.primary(colorScheme))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 16)
-                            .background(Color.white.opacity(0.5))
+                            .background(AppColors.surface(colorScheme))
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .frame(maxWidth: isIPadLandscape ? 600 : .infinity)
