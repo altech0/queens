@@ -27,108 +27,98 @@ struct SpecificPuzzleView: View {
             ZStack {
                 AppColors.backgroundGradient(colorScheme)
                     .ignoresSafeArea()
-                
-                HStack(spacing: 0) {
-                    if isIPad {
-                        Spacer()
-                    }
-                    
-                    VStack(spacing: isIPad ? 24 : 30) {
-                        // Header
-                        HStack {
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 20, weight: .medium))
-                                    .foregroundColor(AppColors.primary(colorScheme))
-                                    .frame(width: 44, height: 44)
+
+                ScrollView {
+                    HStack(spacing: 0) {
+                        if isIPad { Spacer() }
+
+                        VStack(spacing: isIPad ? 24 : 30) {
+                            HStack {
+                                Button(action: { dismiss() }) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 20, weight: .medium))
+                                        .foregroundColor(AppColors.primary(colorScheme))
+                                        .frame(width: 44, height: 44)
+                                }
+                                Spacer()
                             }
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 10)
-                        
-                        Spacer()
-                        
-                        // Title and description
-                        VStack(spacing: 12) {
-                            Text("Enter Puzzle Code")
-                                .font(.system(size: isIPad ? 28 : 32, weight: .medium, design: .rounded))
-                                .foregroundColor(AppColors.textPrimary(colorScheme))
-                            
-                            Text("Type the puzzle number to load")
-                                .font(.system(size: isIPad ? 15 : 16, weight: .regular, design: .rounded))
-                                .foregroundColor(AppColors.textSecondary(colorScheme))
-                                .opacity(0.8)
-                        }
-                        
-                        // Puzzle code input
-                        VStack(spacing: 16) {
-                            TextField("12345", text: $puzzleCode)
-                                .keyboardType(.numberPad)
-                                .font(.system(size: isIPad ? 24 : 28, weight: .medium, design: .monospaced))
-                                .foregroundColor(AppColors.textPrimary(colorScheme))
-                                .multilineTextAlignment(.center)
-                                .padding(.vertical, isIPad ? 16 : 20)
-                                .padding(.horizontal, isIPad ? 24 : 30)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(AppColors.surfaceCard(colorScheme))
-                                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-                                )
-                                .frame(maxWidth: isIPad ? 320 : 280)
-                            
-                            // Error message
-                            if let error = errorMessage {
-                                Text(error)
-                                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                                    .foregroundColor(Color(red: 0.8, green: 0.4, blue: 0.4))
+                            .padding(.horizontal)
+                            .padding(.top, 10)
+
+                            VStack(spacing: 12) {
+                                Text("Enter Puzzle Code")
+                                    .font(.system(size: isIPad ? 28 : 32, weight: .medium, design: .rounded))
+                                    .foregroundColor(AppColors.textPrimary(colorScheme))
+
+                                Text("Type the puzzle number to load")
+                                    .font(.system(size: isIPad ? 15 : 16, weight: .regular, design: .rounded))
+                                    .foregroundColor(AppColors.textSecondary(colorScheme))
+                                    .opacity(0.8)
+                            }
+                            .padding(.top, isIPad ? 60 : 80)
+
+                            VStack(spacing: 16) {
+                                TextField("12345", text: $puzzleCode)
+                                    .keyboardType(.numberPad)
+                                    .font(.system(size: isIPad ? 24 : 28, weight: .medium, design: .monospaced))
+                                    .foregroundColor(AppColors.textPrimary(colorScheme))
                                     .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 40)
-                            }
-                        }
-                        
-                        // Go button
-                        Button(action: {
-                            Task {
-                                await loadPuzzle()
-                            }
-                        }) {
-                            if isLoading {
-                                ProgressView()
-                                    .tint(.white)
+                                    .padding(.vertical, isIPad ? 16 : 20)
+                                    .padding(.horizontal, isIPad ? 24 : 30)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(AppColors.surfaceCard(colorScheme))
+                                            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                                    )
                                     .frame(maxWidth: isIPad ? 320 : 280)
-                                    .padding(.vertical, isIPad ? 16 : 18)
-                            } else {
-                                Text("Go")
-                                    .font(.system(size: isIPad ? 18 : 20, weight: .medium, design: .rounded))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: isIPad ? 320 : 280)
-                                    .padding(.vertical, isIPad ? 16 : 18)
+
+                                if let error = errorMessage {
+                                    Text(error)
+                                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                                        .foregroundColor(Color(red: 0.8, green: 0.4, blue: 0.4))
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 40)
+                                }
                             }
+
+                            Button(action: {
+                                Task { await loadPuzzle() }
+                            }) {
+                                if isLoading {
+                                    ProgressView()
+                                        .tint(.white)
+                                        .frame(maxWidth: isIPad ? 320 : 280)
+                                        .padding(.vertical, isIPad ? 16 : 18)
+                                } else {
+                                    Text("Go")
+                                        .font(.system(size: isIPad ? 18 : 20, weight: .medium, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: isIPad ? 320 : 280)
+                                        .padding(.vertical, isIPad ? 16 : 18)
+                                }
+                            }
+                            .background(AppColors.primaryGradient(colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .shadow(color: AppColors.primary(colorScheme).opacity(0.3), radius: 12, x: 0, y: 6)
+                            .disabled(isLoading || puzzleCode.isEmpty)
+                            .opacity((isLoading || puzzleCode.isEmpty) ? 0.5 : 1.0)
+                            .padding(.bottom, 40)
                         }
-                        .background(AppColors.primaryGradient(colorScheme))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: AppColors.primary(colorScheme).opacity(0.3), radius: 12, x: 0, y: 6)
-                        .disabled(isLoading || puzzleCode.isEmpty)
-                        .opacity((isLoading || puzzleCode.isEmpty) ? 0.5 : 1.0)
-                        
-                        Spacer()
-                    }
-                    .frame(maxWidth: maxContentWidth)
-                    
-                    if isIPad {
-                        Spacer()
+                        .frame(maxWidth: maxContentWidth)
+
+                        if isIPad { Spacer() }
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationBarHidden(true)
             .navigationDestination(isPresented: $navigateToGame) {
                 if let puzzle = loadedPuzzle {
                     GameView(puzzle: puzzle, puzzleID: puzzleCode)
                 }
+            }
+            .onAppear {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
             }
         }
     }
