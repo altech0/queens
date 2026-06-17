@@ -1,0 +1,79 @@
+SLIDE 1 | htp_s1
+Title: Slide 1
+Body: The goal of Queens is simple — place one star in every row, column, and coloured region.
+
+SLIDE 2 | htp_s2
+Title: Slide 2
+Body: See the highlighted row? It has exactly one star — that's the rule!
+
+SLIDE 3 | htp_s3
+Title: Slide 3
+Body: Same goes for every column...
+
+SLIDE 4 | htp_s4
+Title: Slide 4
+Body: ...and every coloured region. One star each, no exceptions. (In two-star puzzles it's two — but let's not get ahead of ourselves.)
+
+SLIDE 5 | htp_s5
+Title: Slide 5
+Body: Stars can't touch each other, even diagonally. Place a star and every crossed cell is off-limits for another one.
+
+SLIDE 6 | htp_s6
+Title: Slide 6
+Body: In a one-star puzzle that wipes out the entire row and column too. Crosses are your best friend — use them to eliminate where stars can't go!
+
+SLIDE 7 | htp_s7
+Title: Slide 7
+Body: Ready to solve one? The red region only appears in the first column — that's your starting point.
+
+SLIDE 8 | htp_s8
+Title: Slide 8
+Body: That means everything else in column one is out, and so are the two cells sitting right next to the red region — a star there would block it completely.
+
+SLIDE 9 | htp_s9
+Title: Slide 9
+Body: With all that crossed out, only one cell in the upper-left region is still free. A star has to go there!
+
+SLIDE 10 | htp_s10
+Title: Slide 10
+Body: Cross out its row, column, and neighbours — the usual drill.
+
+SLIDE 11 | htp_s11
+Title: Slide 11
+Body: And just like that, only one cell is left open in the blue region. Easy!
+
+SLIDE 12 | htp_s12
+Title: Slide 12
+Body: Mark the forbidden cells and keep going.
+
+SLIDE 13 | htp_s13
+Title: Slide 13
+Body: Here's where it gets fun. All the valid cells in the purple region fall on the same row — which means the yellow cell in that row definitely can't be a star. Cross it out!
+
+SLIDE 14 | htp_s14
+Title: Slide 14
+Body: Look at the row below — only the yellow region can put a star there. So the bottom three yellow cells can go, since a star there would leave that row starless.
+
+SLIDE 15 | htp_s15
+Title: Slide 15
+Body: All that thinking pays off — there's only one place in that column a star can go.
+
+SLIDE 16 | htp_s16
+Title: Slide 16
+Body: Cross out the neighbours...
+
+SLIDE 17 | htp_s17
+Title: Slide 17
+Body: ...and the purple region has only one free cell left. Ta-da!
+
+SLIDE 18 | htp_s18
+Title: Slide 18
+Body: Keep filling in the crosses and the last star falls right into place.
+
+SLIDE 19 | htp_s19
+Title: Slide 19
+Body: Place the green star...
+
+SLIDE 20 | htp_s20
+Title: Slide 20
+Body: Solved! You're ready to play.
