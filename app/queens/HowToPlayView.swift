@@ -7,354 +7,159 @@
 
 import SwiftUI
 
+private struct Slide: Identifiable {
+    let id: Int
+    var image: String? = nil
+    let title: String
+    let body: String
+}
+
+// ─── Add / remove slides here ────────────────────────────────────────────────
+private let slides: [Slide] = [
+    Slide(id: 0,  image: "htp_s1",  title: "Slide 1",  body: "The goal of Queens is simple — place one star in every row, column, and coloured region."),
+    Slide(id: 1,  image: "htp_s2",  title: "Slide 2",  body: "See the highlighted row? It has exactly one star — that's the rule!"),
+    Slide(id: 2,  image: "htp_s3",  title: "Slide 3",  body: "Same goes for every column..."),
+    Slide(id: 3,  image: "htp_s4",  title: "Slide 4",  body: "...and every coloured region. One star each, no exceptions. (In two-star puzzles it's two — but let's not get ahead of ourselves.)"),
+    Slide(id: 4,  image: "htp_s5",  title: "Slide 5",  body: "Stars can't touch each other, even diagonally. Place a star and every crossed cell is off-limits for another one."),
+    Slide(id: 5,  image: "htp_s6",  title: "Slide 6",  body: "In a one-star puzzle that wipes out the entire row and column too. Crosses are your best friend — use them to eliminate where stars can't go!"),
+    Slide(id: 6,  image: "htp_s7",  title: "Slide 7",  body: "Ready to solve one? The red region only appears in the first column — that's your starting point."),
+    Slide(id: 7,  image: "htp_s8",  title: "Slide 8",  body: "That means everything else in column one is out, and so are the two cells sitting right next to the red region — a star there would block it completely."),
+    Slide(id: 8,  image: "htp_s9",  title: "Slide 9",  body: "With all that crossed out, only one cell in the upper-left region is still free. A star has to go there!"),
+    Slide(id: 9,  image: "htp_s10", title: "Slide 10", body: "Cross out its row, column, and neighbours — the usual drill."),
+    Slide(id: 10, image: "htp_s11", title: "Slide 11", body: "And just like that, only one cell is left open in the blue region. Easy!"),
+    Slide(id: 11, image: "htp_s12", title: "Slide 12", body: "Mark the forbidden cells and keep going."),
+    Slide(id: 12, image: "htp_s13", title: "Slide 13", body: "Here's where it gets fun. All the valid cells in the purple region fall on the same row — which means the yellow cell in that row definitely can't be a star. Cross it out!"),
+    Slide(id: 13, image: "htp_s14", title: "Slide 14", body: "Look at the row below — only the yellow region can put a star there. So the bottom three yellow cells can go, since a star there would leave that row starless."),
+    Slide(id: 14, image: "htp_s15", title: "Slide 15", body: "All that thinking pays off — there's only one place in that column a star can go."),
+    Slide(id: 15, image: "htp_s16", title: "Slide 16", body: "Cross out the neighbours..."),
+    Slide(id: 16, image: "htp_s17", title: "Slide 17", body: "...and the purple region has only one free cell left. Ta-da!"),
+    Slide(id: 17, image: "htp_s18", title: "Slide 18", body: "Keep filling in the crosses and the last star falls right into place."),
+    Slide(id: 18, image: "htp_s19", title: "Slide 19", body: "Place the green star..."),
+    Slide(id: 19, image: "htp_s20", title: "Slide 20", body: "Solved! You're ready to play."),
+]
+// ─────────────────────────────────────────────────────────────────────────────
+
 struct HowToPlayView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @State private var currentIndex = 0
+
+    private var dotIndices: [Int] {
+        let last = slides.count - 1
+        let lo = max(0, min(currentIndex - 1, last - 2))
+        return [lo, lo + 1, lo + 2]
+    }
 
     var body: some View {
-        ZStack {
-            AppColors.backgroundGradient(colorScheme)
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Header with back button
+        VStack(spacing: 0) {
+            // Header
+            ZStack {
                 HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
+                    Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(AppColors.primary(colorScheme))
                             .frame(width: 44, height: 44)
                     }
-                    
                     Spacer()
-                    
-                    Text("How to Play")
-                        .font(.system(size: 24, weight: .medium, design: .rounded))
-                        .foregroundColor(AppColors.textPrimary(colorScheme))
-                    
-                    Spacer()
-                    
-                    // Invisible spacer for symmetry
-                    Color.clear
-                        .frame(width: 44, height: 44)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 20)
-                
-                // Scrollable content
-                ScrollView {
-                    VStack(spacing: 32) {
-                        // Puzzle Variations Section
-                        InstructionCard(
-                            icon: "star.circle",
-                            title: "Puzzle Variations",
-                            description: "Puzzles come in different difficulties. A 1-star puzzle requires 1 star per row, column, and region. A 2-star puzzle requires 2 stars per row, column, and region. The puzzle setup screen will tell you how many stars are needed."
-                        )
-                        
-                        // Objective Section
-                        InstructionCard(
-                            icon: "target",
-                            title: "Objective",
-                            description: "Place stars in the grid so that each row, column, and region contains exactly the required number of stars."
-                        )
-                        
-                        // Rule 1: Stars per region
-                        InstructionCard(
-                            icon: "square.grid.3x3",
-                            title: "Stars Per Region",
-                            description: "Each colored region must contain exactly the required number of stars. Regions are shown in different colors."
-                        )
-                        
-                        // Rule 2: Stars per row/column
-                        InstructionCard(
-                            icon: "tablecells",
-                            title: "Stars Per Row & Column",
-                            description: "Each row and each column must have exactly the required number of stars. This applies across the entire grid."
-                        )
-                        
-                        // Rule 3: No adjacent stars
-                        InstructionCard(
-                            icon: "arrow.up.left.and.arrow.down.right",
-                            title: "No Touching Stars",
-                            description: "Stars cannot touch each other, not even diagonally. Keep them separated!"
-                        )
-                        
-                        // How to play
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "hand.tap")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(AppColors.primary(colorScheme))
-                                    .frame(width: 44)
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Controls")
-                                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                        .foregroundColor(AppColors.textPrimary(colorScheme))
-                                    
-                                    Text("Tap a cell once for an X mark\nTap again to place a star\nTap again to clear")
-                                        .font(.system(size: 15, weight: .regular, design: .rounded))
-                                        .foregroundColor(AppColors.textSecondary(colorScheme))
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(20)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(AppColors.surface(colorScheme))
-                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
-                            )
-                        }
-                        
-                        // Visual example
-                        VStack(spacing: 16) {
-                            Text("Example")
-                                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                .foregroundColor(AppColors.textPrimary(colorScheme))
-                            
-                            // Mini grid example
-                            MiniGridExample()
-                            
-                            Text("The X marks show where you cannot place another star: adjacent cells, same row/column, and same region.")
-                                .font(.system(size: 14, weight: .regular, design: .rounded))
-                                .foregroundColor(AppColors.textSecondary(colorScheme))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 20)
-                        }
-                        .padding(.vertical, 20)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(AppColors.surface(colorScheme))
-                                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
-                        )
-                        
-                        // Tips
-                        InstructionCard(
-                            icon: "lightbulb",
-                            title: "Tips",
-                            description: "• Start with regions that have limited placement options\n• Use X marks to eliminate impossible cells\n• Look for rows or columns that are almost full"
-                        )
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 40)
-                }
-            }
-        }
-        .navigationBarBackButtonHidden(true)
-    }
-}
-
-struct InstructionCard: View {
-    let icon: String
-    let title: String
-    let description: String
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 28))
-                .foregroundColor(AppColors.primary(colorScheme))
-                .frame(width: 44)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                Text("How to play")
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
                     .foregroundColor(AppColors.textPrimary(colorScheme))
-
-                Text(description)
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary(colorScheme))
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
 
-            Spacer()
+            Divider()
+
+            // Carousel
+            TabView(selection: $currentIndex) {
+                ForEach(slides) { slide in
+                    SlideView(slide: slide)
+                        .tag(slide.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            Divider()
+
+            // Dot indicators — sliding window of 3 around current
+            HStack(spacing: 6) {
+                ForEach(dotIndices, id: \.self) { index in
+                    Capsule()
+                        .fill(index == currentIndex
+                              ? AppColors.primary(colorScheme)
+                              : Color(white: 0.75))
+                        .frame(width: index == currentIndex ? 20 : 6, height: 6)
+                        .animation(.easeInOut(duration: 0.2), value: currentIndex)
+                }
+            }
+            .padding(.vertical, 14)
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(AppColors.surface(colorScheme))
-                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
-        )
+        .background(AppColors.backgroundGradient(colorScheme).ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
-struct MiniGridExample: View {
+private struct SlideView: View {
+    let slide: Slide
     @Environment(\.colorScheme) private var colorScheme
-    let gridSize = 6
-    
-    // Real puzzle from API
-    let regions: [[Int]] = [
-        [4, 0, 1, 1, 1, 1],
-        [4, 4, 4, 1, 1, 2],
-        [4, 4, 4, 4, 2, 2],
-        [3, 3, 3, 4, 4, 4],
-        [3, 3, 3, 4, 4, 4],
-        [5, 5, 3, 4, 4, 4]
-    ]
-    
-    // Show just the first star from solution (row 0, column 1)
-    let starPosition = (0, 1)
-    
-    // X marks for cells that can't have stars (adjacent to star, same row/col/region)
-    var forbiddenCells: [(Int, Int)] {
-        var cells: [(Int, Int)] = []
-        let (starRow, starCol) = starPosition
-        
-        // Add all adjacent cells (including diagonals)
-        for rowOffset in -1...1 {
-            for colOffset in -1...1 {
-                if rowOffset == 0 && colOffset == 0 { continue }
-                let adjRow = starRow + rowOffset
-                let adjCol = starCol + colOffset
-                if adjRow >= 0 && adjRow < gridSize && adjCol >= 0 && adjCol < gridSize {
-                    cells.append((adjRow, adjCol))
-                }
-            }
-        }
-        
-        // Add all cells in the same row (not already added)
-        for col in 0..<gridSize {
-            if col != starCol && !cells.contains(where: { $0.0 == starRow && $0.1 == col }) {
-                cells.append((starRow, col))
-            }
-        }
-        
-        // Add all cells in the same column (not already added)
-        for row in 0..<gridSize {
-            if row != starRow && !cells.contains(where: { $0.0 == row && $0.1 == starCol }) {
-                cells.append((row, starCol))
-            }
-        }
-        
-        // Add all cells in the same region (not already added)
-        let starRegion = regions[starRow][starCol]
-        for row in 0..<gridSize {
-            for col in 0..<gridSize {
-                if regions[row][col] == starRegion && (row != starRow || col != starCol) {
-                    if !cells.contains(where: { $0.0 == row && $0.1 == col }) {
-                        cells.append((row, col))
-                    }
-                }
-            }
-        }
-        
-        return cells
-    }
-    
+
     var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                ForEach(0..<gridSize, id: \.self) { row in
-                    HStack(spacing: 0) {
-                        ForEach(0..<gridSize, id: \.self) { col in
-                            let regionId = regions[row][col]
-                            let hasStar = (row == starPosition.0 && col == starPosition.1)
-                            let isForbidden = forbiddenCells.contains(where: { $0.0 == row && $0.1 == col })
-                            
-                            ZStack {
-                                Rectangle()
-                                    .fill(regionColor(regionId))
-                                    .frame(width: 33, height: 33)
-                                
-                                // Thin inner grid lines (like in the game)
-                                Rectangle()
-                                    .stroke(AppColors.cellMinorLine(colorScheme), lineWidth: 1)
-                                    .frame(width: 33, height: 33)
+        VStack(spacing: 0) {
+            // Image area
+            Group {
+                if let imageName = slide.image {
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.secondarySystemBackground))
+                        .overlay(
+                            Text("Image")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 28)
 
-                                if hasStar {
-                                    Image(systemName: "star.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(AppColors.primary(colorScheme))
-                                } else if isForbidden {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(AppColors.textDisabled(colorScheme))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Draw thick region borders on top (like in the game)
-            Canvas { context, size in
-                let borderColor = AppColors.regionBorder(colorScheme)
-                let borderWidth: CGFloat = 3
-                let cellSize: CGFloat = 33
-                
-                for row in 0..<gridSize {
-                    for col in 0..<gridSize {
-                        let currentRegion = regions[row][col]
-                        
-                        // Top border
-                        if row == 0 || regions[row - 1][col] != currentRegion {
-                            let x = CGFloat(col) * cellSize
-                            let y = CGFloat(row) * cellSize
-                            let path = Path { p in
-                                p.move(to: CGPoint(x: x, y: y))
-                                p.addLine(to: CGPoint(x: x + cellSize, y: y))
-                            }
-                            context.stroke(path, with: .color(borderColor), lineWidth: borderWidth)
-                        }
-                        
-                        // Bottom border
-                        if row == gridSize - 1 || regions[row + 1][col] != currentRegion {
-                            let x = CGFloat(col) * cellSize
-                            let y = CGFloat(row + 1) * cellSize
-                            let path = Path { p in
-                                p.move(to: CGPoint(x: x, y: y))
-                                p.addLine(to: CGPoint(x: x + cellSize, y: y))
-                            }
-                            context.stroke(path, with: .color(borderColor), lineWidth: borderWidth)
-                        }
-                        
-                        // Left border
-                        if col == 0 || regions[row][col - 1] != currentRegion {
-                            let x = CGFloat(col) * cellSize
-                            let y = CGFloat(row) * cellSize
-                            let path = Path { p in
-                                p.move(to: CGPoint(x: x, y: y))
-                                p.addLine(to: CGPoint(x: x, y: y + cellSize))
-                            }
-                            context.stroke(path, with: .color(borderColor), lineWidth: borderWidth)
-                        }
-                        
-                        // Right border
-                        if col == gridSize - 1 || regions[row][col + 1] != currentRegion {
-                            let x = CGFloat(col + 1) * cellSize
-                            let y = CGFloat(row) * cellSize
-                            let path = Path { p in
-                                p.move(to: CGPoint(x: x, y: y))
-                                p.addLine(to: CGPoint(x: x, y: y + cellSize))
-                            }
-                            context.stroke(path, with: .color(borderColor), lineWidth: borderWidth)
-                        }
-                    }
-                }
-            }
-            .frame(width: 198, height: 198)
+            // Text — split on sentence endings so each sentence is its own line
+            Text(slide.body.sentenceLines)
+                .font(.system(size: 17, weight: .medium, design: .rounded))
+                .foregroundColor(AppColors.textPrimary(colorScheme))
+                .lineSpacing(4)
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 20)
         }
-        .frame(width: 198, height: 198)
-        .background(AppColors.gridBackground(colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
     }
+}
 
-    func regionColor(_ id: Int) -> Color {
-        let palette = AppColors.regionColors(enhancedContrast: false, scheme: colorScheme)
-        return palette[id % palette.count]
+private extension String {
+    var sentenceLines: String {
+        // Split on sentence-ending punctuation followed by a space or end of string
+        let pattern = #"([.!?])(?=\s|$)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return self }
+        let range = NSRange(startIndex..., in: self)
+        let spaced = regex.stringByReplacingMatches(in: self, range: range, withTemplate: "$1\n")
+        return spaced
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
     }
 }
 
 #Preview {
     NavigationStack {
         HowToPlayView()
+            .environment(AppSettings())
     }
 }
