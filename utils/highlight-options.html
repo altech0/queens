@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Highlight Options</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f2f0fa;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 40px 20px;
+  }
+  h1 { font-size: 18px; font-weight: 600; color: #4d5980; margin-bottom: 8px; text-align: center; }
+  p.sub { font-size: 13px; color: #808899; text-align: center; margin-bottom: 36px; }
+
+  .section { margin-bottom: 48px; }
+  .section h2 { font-size: 13px; font-weight: 600; color: #808899; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px; padding-left: 4px; }
+
+  .options-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .option label {
+    font-size: 12px;
+    color: #4d5980;
+    font-weight: 500;
+    text-align: center;
+    max-width: 120px;
+  }
+
+  canvas { border-radius: 4px; display: block; }
+</style>
+</head>
+<body>
+
+<h1>Highlight options</h1>
+<p class="sub">Row 2 highlighted in each style. Click to see it applied to a column or region too.</p>
+
+<div class="section">
+  <h2>Row / column</h2>
+  <div class="options-row" id="row-options"></div>
+</div>
+
+<div class="section">
+  <h2>Region</h2>
+  <div class="options-row" id="region-options"></div>
+</div>
+
+<script>
+const PALETTE = [
+  '#c8b4e8','#b4d4f0','#b4e8c8','#f0e0b4',
+  '#f0b4c8','#b4c8f0','#e8c8b4','#c8e8b4',
+];
+const REGION_BORDER = 'rgba(100,110,140,0.6)';
+const BORDER_WIDTH  = 1.5;
+const N    = 5;
+const CELL = 52;
+
+// Simple 5×5 regions
+const REGIONS = [
+  [0,0,1,1,1],
+  [0,0,1,2,2],
+  [3,0,4,2,2],
+  [3,3,4,4,2],
+  [3,3,3,4,4],
+];
+
+function drawBase(ctx, highlightFn) {
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const x = c * CELL, y = r * CELL;
+      ctx.fillStyle = PALETTE[REGIONS[r][c] % PALETTE.length];
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.strokeStyle = 'rgba(180,185,200,0.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, CELL, CELL);
+    }
+  }
+  if (highlightFn) highlightFn(ctx);
+  drawBorders(ctx);
+}
+
+function drawBorders(ctx) {
+  ctx.strokeStyle = REGION_BORDER;
+  ctx.lineWidth   = BORDER_WIDTH;
+  ctx.lineCap     = 'square';
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const region = REGIONS[r][c];
+      const x = c*CELL, y = r*CELL;
+      if (r===0   || REGIONS[r-1][c]!==region){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+CELL,y);ctx.stroke();}
+      if (r===N-1 || REGIONS[r+1][c]!==region){ctx.beginPath();ctx.moveTo(x,y+CELL);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+      if (c===0   || REGIONS[r][c-1]!==region){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+CELL);ctx.stroke();}
+      if (c===N-1 || REGIONS[r][c+1]!==region){ctx.beginPath();ctx.moveTo(x+CELL,y);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+    }
+  }
+}
+
+function makeCanvas() {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = N * CELL;
+  cv.style.width = cv.style.height = N * CELL + 'px';
+  return cv;
+}
+
+function addOption(containerId, label, drawFn) {
+  const wrap = document.createElement('div');
+  wrap.className = 'option';
+  const cv = makeCanvas();
+  drawFn(cv.getContext('2d'));
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  wrap.appendChild(cv);
+  wrap.appendChild(lbl);
+  document.getElementById(containerId).appendChild(wrap);
+}
+
+// ── ROW OPTIONS ──────────────────────────────────────────────────────────────
+
+const HIGHLIGHT_ROW = 1; // 0-indexed
+
+// A: dim everything else (vignette/darken non-highlighted)
+addOption('row-options', 'Dim others', ctx => {
+  drawBase(ctx);
+  for (let r = 0; r < N; r++) {
+    if (r === HIGHLIGHT_ROW) continue;
+    ctx.fillStyle = 'rgba(242,240,250,0.55)';
+    ctx.fillRect(0, r * CELL, N * CELL, CELL);
+  }
+});
+
+// B: bright colour wash over highlighted row
+addOption('row-options', 'Colour wash', ctx => {
+  drawBase(ctx);
+  ctx.fillStyle = 'rgba(255,220,80,0.28)';
+  ctx.fillRect(0, HIGHLIGHT_ROW * CELL, N * CELL, CELL);
+});
+
+// C: thick outline around the row
+addOption('row-options', 'Outline', ctx => {
+  drawBase(ctx);
+  ctx.strokeStyle = '#f0a030';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.strokeRect(1.5, HIGHLIGHT_ROW * CELL + 1.5, N * CELL - 3, CELL - 3);
+});
+
+// D: dim others + outline combo
+addOption('row-options', 'Dim + outline', ctx => {
+  drawBase(ctx);
+  for (let r = 0; r < N; r++) {
+    if (r === HIGHLIGHT_ROW) continue;
+    ctx.fillStyle = 'rgba(242,240,250,0.55)';
+    ctx.fillRect(0, r * CELL, N * CELL, CELL);
+  }
+  ctx.strokeStyle = '#728bc0';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.strokeRect(1.5, HIGHLIGHT_ROW * CELL + 1.5, N * CELL - 3, CELL - 3);
+});
+
+// E: arrow / bracket in margin
+addOption('row-options', 'Side bracket', ctx => {
+  // shift grid right to make room
+  ctx.save();
+  ctx.translate(14, 0);
+  drawBase(ctx);
+  ctx.restore();
+  ctx.strokeStyle = '#728bc0';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const y1 = HIGHLIGHT_ROW * CELL + 4;
+  const y2 = (HIGHLIGHT_ROW + 1) * CELL - 4;
+  const xb = 9;
+  ctx.beginPath();
+  ctx.moveTo(xb + 5, y1);
+  ctx.lineTo(xb, y1);
+  ctx.lineTo(xb, y2);
+  ctx.lineTo(xb + 5, y2);
+  ctx.stroke();
+});
+
+// F: subtle left border stripe
+addOption('row-options', 'Left stripe', ctx => {
+  drawBase(ctx);
+  ctx.fillStyle = '#728bc0';
+  ctx.fillRect(0, HIGHLIGHT_ROW * CELL, 4, CELL);
+});
+
+// ── REGION OPTIONS ───────────────────────────────────────────────────────────
+
+const HIGHLIGHT_REGION = 0;
+
+function regionCells(rid) {
+  const cells = [];
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (REGIONS[r][c] === rid) cells.push([r, c]);
+  return cells;
+}
+
+// A: dim others
+addOption('region-options', 'Dim others', ctx => {
+  drawBase(ctx);
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (REGIONS[r][c] !== HIGHLIGHT_REGION) {
+        ctx.fillStyle = 'rgba(242,240,250,0.55)';
+        ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+      }
+    }
+  }
+});
+
+// B: colour wash
+addOption('region-options', 'Colour wash', ctx => {
+  drawBase(ctx);
+  ctx.fillStyle = 'rgba(255,220,80,0.32)';
+  for (const [r, c] of regionCells(HIGHLIGHT_REGION))
+    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+});
+
+// C: thick region outline (trace the border of the region)
+addOption('region-options', 'Thick border', ctx => {
+  drawBase(ctx);
+  ctx.strokeStyle = '#f0a030';
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'square';
+  for (const [r, c] of regionCells(HIGHLIGHT_REGION)) {
+    const x = c * CELL, y = r * CELL;
+    if (r===0   || REGIONS[r-1][c]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+CELL,y);ctx.stroke();}
+    if (r===N-1 || REGIONS[r+1][c]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y+CELL);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+    if (c===0   || REGIONS[r][c-1]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+CELL);ctx.stroke();}
+    if (c===N-1 || REGIONS[r][c+1]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x+CELL,y);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+  }
+});
+
+// D: dim others + thick border
+addOption('region-options', 'Dim + border', ctx => {
+  drawBase(ctx);
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (REGIONS[r][c] !== HIGHLIGHT_REGION) {
+        ctx.fillStyle = 'rgba(242,240,250,0.55)';
+        ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+      }
+    }
+  }
+  ctx.strokeStyle = '#728bc0';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'square';
+  for (const [r, c] of regionCells(HIGHLIGHT_REGION)) {
+    const x = c * CELL, y = r * CELL;
+    if (r===0   || REGIONS[r-1][c]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+CELL,y);ctx.stroke();}
+    if (r===N-1 || REGIONS[r+1][c]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y+CELL);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+    if (c===0   || REGIONS[r][c-1]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+CELL);ctx.stroke();}
+    if (c===N-1 || REGIONS[r][c+1]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x+CELL,y);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+  }
+});
+
+// E: glow / drop shadow behind region
+addOption('region-options', 'Glow', ctx => {
+  drawBase(ctx);
+  ctx.save();
+  ctx.shadowColor = '#728bc0';
+  ctx.shadowBlur  = 10;
+  ctx.strokeStyle = '#728bc0';
+  ctx.lineWidth   = 2;
+  ctx.lineCap     = 'square';
+  for (const [r, c] of regionCells(HIGHLIGHT_REGION)) {
+    const x = c * CELL, y = r * CELL;
+    if (r===0   || REGIONS[r-1][c]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+CELL,y);ctx.stroke();}
+    if (r===N-1 || REGIONS[r+1][c]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y+CELL);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+    if (c===0   || REGIONS[r][c-1]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+CELL);ctx.stroke();}
+    if (c===N-1 || REGIONS[r][c+1]!==HIGHLIGHT_REGION){ctx.beginPath();ctx.moveTo(x+CELL,y);ctx.lineTo(x+CELL,y+CELL);ctx.stroke();}
+  }
+  ctx.restore();
+});
+
+// F: hatching on non-highlighted cells
+addOption('region-options', 'Hatch others', ctx => {
+  drawBase(ctx);
+  ctx.strokeStyle = 'rgba(100,110,140,0.18)';
+  ctx.lineWidth = 1;
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (REGIONS[r][c] === HIGHLIGHT_REGION) continue;
+      const x = c * CELL, y = r * CELL;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, CELL, CELL);
+      ctx.clip();
+      for (let i = -CELL; i < CELL * 2; i += 7) {
+        ctx.beginPath();
+        ctx.moveTo(x + i, y);
+        ctx.lineTo(x + i + CELL, y + CELL);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  drawBorders(ctx);
+});
+</script>
+</body>
+</html>
