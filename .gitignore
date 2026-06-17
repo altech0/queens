@@ -1,6 +1,10 @@
+# Claude Code
+.claude/
+
 # API
 api/node_modules/
 api/.wrangler/
+.wrangler/
 api/.dev.vars
 api/prompts/
 

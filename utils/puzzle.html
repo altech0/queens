@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Queens Puzzle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #f2f0fa;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  #loader {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  #loader input {
+    border: 1.5px solid #728bc0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 15px;
+    outline: none;
+    width: 140px;
+    background: white;
+    color: #4d5980;
+  }
+  #loader button {
+    background: #728bc0;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  #loader button:hover { background: #5a73a8; }
+
+  #save-btn {
+    background: none;
+    border: 1.5px solid #728bc0;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 15px;
+    color: #728bc0;
+    cursor: pointer;
+    margin-bottom: 20px;
+    display: none;
+  }
+  #save-btn:hover { background: rgba(114,139,192,0.08); }
+
+  #error {
+    color: #d45b80;
+    font-size: 14px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  #puzzle-outer { display: none; }
+
+  #col-headers {
+    display: flex;
+    margin-left: 28px;
+  }
+
+  .col-header, .row-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #728bc0;
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+  }
+  .col-header { height: 24px; }
+  .col-header:hover, .row-header:hover { background: rgba(114,139,192,0.15); }
+  .col-header.active, .row-header.active { color: #4d5980; font-weight: 700; }
+
+  #grid-row {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  #row-headers {
+    display: flex;
+    flex-direction: column;
+    width: 28px;
+  }
+
+  #grid-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  #grid {
+    display: grid;
+    border: 2px solid rgba(100,110,140,0.5);
+    border-radius: 4px;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid rgba(180,185,200,0.4);
+  }
+  .cell:hover { filter: brightness(0.95); }
+
+  .cell .mark {
+    font-size: 38%;
+    color: rgba(80, 90, 120, 0.55);
+    font-weight: 500;
+    pointer-events: none;
+    line-height: 1;
+  }
+  .cell .star {
+    color: rgba(60, 75, 110, 0.85);
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  /* Highlight canvas sits above cells, below border canvas */
+  #highlight-canvas, #border-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  /* Region labels below grid */
+  #region-headers {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 600px;
+  }
+  .region-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+    user-select: none;
+    color: #4d5980;
+    transition: border-color 0.15s;
+  }
+  .region-label .swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .region-label.active {
+    border-color: #728bc0;
+  }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <input type="number" id="puzzle-id" placeholder="Puzzle ID" value="10442">
+  <button onclick="load()">Load</button>
+</div>
+<div id="error"></div>
+<button id="save-btn" onclick="saveImage()">Save image</button>
+
+<div id="puzzle-outer">
+  <div id="col-headers"></div>
+  <div id="grid-row">
+    <div id="row-headers"></div>
+    <div id="grid-wrap">
+      <div id="grid"></div>
+      <canvas id="highlight-canvas"></canvas>
+      <canvas id="border-canvas"></canvas>
+    </div>
+  </div>
+  <div id="region-headers"></div>
+</div>
+
+<script>
+const TOKEN = 'ce1536ac-f688-4977-b58c-05e2e0b427bf';
+const API   = 'https://api.queens.knittedmice.com';
+
+const PALETTE = [
+  '#c8b4e8','#b4d4f0','#b4e8c8','#f0e0b4',
+  '#f0b4c8','#b4c8f0','#e8c8b4','#c8e8b4',
+  '#d4b4f0','#b4f0e8',
+];
+
+const REGION_BORDER  = 'rgba(100,110,140,0.6)';
+const BORDER_WIDTH   = 1.5;
+const HIGHLIGHT_LINE = '#728bc0';
+const DIM_FILL       = 'rgba(242,240,250,0.58)';
+const CELL_PX        = 72;
+
+let puzzle         = null;
+let saveCounter    = 1;
+let states         = [];
+let highlightRows  = new Set();
+let highlightCols  = new Set();
+let highlightRegs  = new Set();
+
+async function load() {
+  const id    = document.getElementById('puzzle-id').value.trim();
+  const errEl = document.getElementById('error');
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/puzzle/${id}`, { headers: { 'X-API-Token': TOKEN } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    puzzle = await res.json();
+  } catch (e) {
+    errEl.textContent = `Failed to load: ${e.message}`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  states        = Array(puzzle.gridSize * puzzle.gridSize).fill(0);
+  highlightRows = new Set();
+  highlightCols = new Set();
+  highlightRegs = new Set();
+
+  document.getElementById('save-btn').style.display    = 'inline-block';
+  document.getElementById('puzzle-outer').style.display = 'block';
+
+  buildHeaders();
+  render();
+}
+
+function buildHeaders() {
+  const n = puzzle.gridSize;
+
+  // Col headers
+  const colEl = document.getElementById('col-headers');
+  colEl.innerHTML = '';
+  for (let c = 0; c < n; c++) {
+    const h = document.createElement('div');
+    h.className = 'col-header';
+    h.id = `ch-${c}`;
+    h.style.width = CELL_PX + 'px';
+    h.textContent = c + 1;
+    h.addEventListener('click', () => toggle(highlightCols, c, `ch-${c}`, drawHighlights));
+    colEl.appendChild(h);
+  }
+
+  // Row headers
+  const rowEl = document.getElementById('row-headers');
+  rowEl.innerHTML = '';
+  for (let r = 0; r < n; r++) {
+    const h = document.createElement('div');
+    h.className = 'row-header';
+    h.id = `rh-${r}`;
+    h.style.width  = '28px';
+    h.style.height = CELL_PX + 'px';
+    h.textContent  = r + 1;
+    h.addEventListener('click', () => toggle(highlightRows, r, `rh-${r}`, drawHighlights));
+    rowEl.appendChild(h);
+  }
+
+  // Region labels — one per unique region id
+  const regEl = document.getElementById('region-headers');
+  regEl.innerHTML = '';
+  const regionIds = [...new Set(puzzle.regions.flat())].sort((a, b) => a - b);
+  for (const rid of regionIds) {
+    const lbl = document.createElement('div');
+    lbl.className = 'region-label';
+    lbl.id = `reg-${rid}`;
+
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = PALETTE[rid % PALETTE.length];
+
+    lbl.appendChild(sw);
+    lbl.appendChild(document.createTextNode(`Region ${rid + 1}`));
+    lbl.addEventListener('click', () => toggle(highlightRegs, rid, `reg-${rid}`, drawHighlights));
+    regEl.appendChild(lbl);
+  }
+}
+
+function toggle(set, key, elId, callback) {
+  set.has(key) ? set.delete(key) : set.add(key);
+  document.getElementById(elId).classList.toggle('active', set.has(key));
+  callback();
+}
+
+function isHighlighted(r, c) {
+  return highlightRows.has(r) || highlightCols.has(c) || highlightRegs.has(puzzle.regions[r][c]);
+}
+
+function anyHighlight() {
+  return highlightRows.size > 0 || highlightCols.size > 0 || highlightRegs.size > 0;
+}
+
+function render() {
+  const n    = puzzle.gridSize;
+  const size = n * CELL_PX;
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  grid.style.width        = size + 'px';
+  grid.style.height       = size + 'px';
+  grid.style.gridTemplate = `repeat(${n}, ${CELL_PX}px) / repeat(${n}, ${CELL_PX}px)`;
+
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const idx      = r * n + c;
+      const regionId = puzzle.regions[r][c];
+      const state    = states[idx];
+
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.id = `cell-${r}-${c}`;
+      cell.style.background = PALETTE[regionId % PALETTE.length];
+      cell.style.width      = CELL_PX + 'px';
+      cell.style.height     = CELL_PX + 'px';
+      cell.style.fontSize   = CELL_PX + 'px';
+
+      if (state === 1) {
+        const m = document.createElement('span');
+        m.className = 'mark';
+        m.textContent = '✕';
+        cell.appendChild(m);
+      } else if (state === 2) {
+        const s = document.createElement('span');
+        s.className = 'star';
+        s.style.fontSize = (CELL_PX * 0.42) + 'px';
+        s.textContent = '★';
+        cell.appendChild(s);
+      }
+
+      cell.addEventListener('click', () => {
+        states[idx] = (states[idx] + 1) % 3;
+        render();
+      });
+
+      grid.appendChild(cell);
+    }
+  }
+
+  drawHighlights();
+  drawBorders();
+}
+
+function drawHighlights() {
+  if (!puzzle) return;
+  const n    = puzzle.gridSize;
+  const size = n * CELL_PX;
+
+  const canvas = document.getElementById('highlight-canvas');
+  canvas.width  = size;
+  canvas.height = size;
+  canvas.style.width  = size + 'px';
+  canvas.style.height = size + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+
+  if (!anyHighlight()) return;
+
+  // Dim pass — all non-highlighted cells get an overlay
+  ctx.fillStyle = DIM_FILL;
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (!isHighlighted(r, c)) {
+        ctx.fillRect(c * CELL_PX, r * CELL_PX, CELL_PX, CELL_PX);
+      }
+    }
+  }
+
+  // Outline pass — draw accent border around each contiguous highlighted zone
+  ctx.strokeStyle = HIGHLIGHT_LINE;
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'square';
+
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (!isHighlighted(r, c)) continue;
+      const x = c * CELL_PX, y = r * CELL_PX;
+      // Draw an edge wherever the neighbour is NOT highlighted (or is grid boundary)
+      if (r === 0   || !isHighlighted(r-1, c)) { ctx.beginPath(); ctx.moveTo(x, y+1.25);           ctx.lineTo(x+CELL_PX, y+1.25);           ctx.stroke(); }
+      if (r === n-1 || !isHighlighted(r+1, c)) { ctx.beginPath(); ctx.moveTo(x, y+CELL_PX-1.25);   ctx.lineTo(x+CELL_PX, y+CELL_PX-1.25);   ctx.stroke(); }
+      if (c === 0   || !isHighlighted(r, c-1)) { ctx.beginPath(); ctx.moveTo(x+1.25, y);           ctx.lineTo(x+1.25, y+CELL_PX);           ctx.stroke(); }
+      if (c === n-1 || !isHighlighted(r, c+1)) { ctx.beginPath(); ctx.moveTo(x+CELL_PX-1.25, y);   ctx.lineTo(x+CELL_PX-1.25, y+CELL_PX);   ctx.stroke(); }
+    }
+  }
+}
+
+function drawBorders() {
+  if (!puzzle) return;
+  const n    = puzzle.gridSize;
+  const size = n * CELL_PX;
+
+  const canvas = document.getElementById('border-canvas');
+  canvas.width  = size;
+  canvas.height = size;
+  canvas.style.width  = size + 'px';
+  canvas.style.height = size + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.strokeStyle = REGION_BORDER;
+  ctx.lineWidth   = BORDER_WIDTH;
+  ctx.lineCap     = 'square';
+
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const region = puzzle.regions[r][c];
+      const x = c * CELL_PX, y = r * CELL_PX;
+      if (r===0   || puzzle.regions[r-1][c]!==region){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+CELL_PX,y);ctx.stroke();}
+      if (r===n-1 || puzzle.regions[r+1][c]!==region){ctx.beginPath();ctx.moveTo(x,y+CELL_PX);ctx.lineTo(x+CELL_PX,y+CELL_PX);ctx.stroke();}
+      if (c===0   || puzzle.regions[r][c-1]!==region){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+CELL_PX);ctx.stroke();}
+      if (c===n-1 || puzzle.regions[r][c+1]!==region){ctx.beginPath();ctx.moveTo(x+CELL_PX,y);ctx.lineTo(x+CELL_PX,y+CELL_PX);ctx.stroke();}
+    }
+  }
+}
+
+async function saveImage() {
+  const n    = puzzle.gridSize;
+  const size = n * CELL_PX;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Cells
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const idx      = r * n + c;
+      const regionId = puzzle.regions[r][c];
+      const state    = states[idx];
+      const x = c * CELL_PX, y = r * CELL_PX;
+
+      ctx.fillStyle = PALETTE[regionId % PALETTE.length];
+      ctx.fillRect(x, y, CELL_PX, CELL_PX);
+      ctx.strokeStyle = 'rgba(180,185,200,0.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, CELL_PX, CELL_PX);
+
+      if (state === 1) {
+        ctx.fillStyle = 'rgba(80,90,120,0.55)';
+        ctx.font = `${CELL_PX * 0.38}px -apple-system, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('✕', x + CELL_PX/2, y + CELL_PX/2);
+      } else if (state === 2) {
+        ctx.fillStyle = 'rgba(60,75,110,0.85)';
+        ctx.font = `${CELL_PX * 0.42}px -apple-system, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('★', x + CELL_PX/2, y + CELL_PX/2);
+      }
+    }
+  }
+
+  // Dim overlay
+  if (anyHighlight()) {
+    ctx.fillStyle = DIM_FILL;
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c < n; c++)
+        if (!isHighlighted(r, c)) ctx.fillRect(c*CELL_PX, r*CELL_PX, CELL_PX, CELL_PX);
+
+    // Highlight outline
+    ctx.strokeStyle = HIGHLIGHT_LINE;
+    ctx.lineWidth   = 2.5;
+    ctx.lineCap     = 'square';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (!isHighlighted(r, c)) continue;
+        const x = c*CELL_PX, y = r*CELL_PX;
+        if (r===0   || !isHighlighted(r-1,c)){ctx.beginPath();ctx.moveTo(x,y+1.25);ctx.lineTo(x+CELL_PX,y+1.25);ctx.stroke();}
+        if (r===n-1 || !isHighlighted(r+1,c)){ctx.beginPath();ctx.moveTo(x,y+CELL_PX-1.25);ctx.lineTo(x+CELL_PX,y+CELL_PX-1.25);ctx.stroke();}
+        if (c===0   || !isHighlighted(r,c-1)){ctx.beginPath();ctx.moveTo(x+1.25,y);ctx.lineTo(x+1.25,y+CELL_PX);ctx.stroke();}
+        if (c===n-1 || !isHighlighted(r,c+1)){ctx.beginPath();ctx.moveTo(x+CELL_PX-1.25,y);ctx.lineTo(x+CELL_PX-1.25,y+CELL_PX);ctx.stroke();}
+      }
+    }
+  }
+
+  // Region borders
+  ctx.strokeStyle = REGION_BORDER;
+  ctx.lineWidth   = BORDER_WIDTH;
+  ctx.lineCap     = 'square';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const region = puzzle.regions[r][c];
+      const x = c*CELL_PX, y = r*CELL_PX;
+      if (r===0   || puzzle.regions[r-1][c]!==region){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+CELL_PX,y);ctx.stroke();}
+      if (r===n-1 || puzzle.regions[r+1][c]!==region){ctx.beginPath();ctx.moveTo(x,y+CELL_PX);ctx.lineTo(x+CELL_PX,y+CELL_PX);ctx.stroke();}
+      if (c===0   || puzzle.regions[r][c-1]!==region){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+CELL_PX);ctx.stroke();}
+      if (c===n-1 || puzzle.regions[r][c+1]!==region){ctx.beginPath();ctx.moveTo(x+CELL_PX,y);ctx.lineTo(x+CELL_PX,y+CELL_PX);ctx.stroke();}
+    }
+  }
+
+  const jpeg = canvas.toDataURL('image/jpeg', 0.95);
+  const a    = document.createElement('a');
+  a.href     = jpeg;
+  a.download = `${saveCounter++}.jpg`;
+  a.click();
+
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Saved!';
+  setTimeout(() => btn.textContent = 'Save image', 1500);
+}
+
+load();
+</script>
+</body>
+</html>
