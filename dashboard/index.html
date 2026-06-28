@@ -391,14 +391,8 @@ async function load() {
   document.getElementById('last-updated').style.display = 'none'
 
   try {
-    const [puzzles, seedRuns, users, puzzleServes, userSource, retention] = await Promise.all([
-      fetchJSON('/dashboard/puzzles'),
-      fetchJSON('/dashboard/seed-runs?limit=200'),
-      fetchJSON('/dashboard/users?days=90').catch(() => ({ registrations: [], active: null })),
-      fetchJSON('/dashboard/puzzle-serves').catch(() => null),
-      fetchJSON('/dashboard/user-source').catch(() => []),
-      fetchJSON('/dashboard/retention').catch(() => null),
-    ])
+    const data = await fetchJSON('/dashboard?days=90&limit=200')
+    const { puzzles, seedRuns, users, puzzleServes, userSource, retention } = data
     render(puzzles, seedRuns, users, puzzleServes, userSource, retention)
   } catch (err) {
     main.innerHTML = `<div class="state"><span style="color:#f38ba8">Failed to load: ${err.message}</span></div>`
@@ -547,8 +541,8 @@ function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
 
     <!-- One-and-done trend -->
     <div class="chart-card anim" id="oad-trend-card" style="animation-delay:0.20s">
-      <h3>One-and-Done Rate</h3>
-      <p>% of new users who never returned, by registration week</p>
+      <h3>Retention Over Time</h3>
+      <p>% of users per registration week by engagement depth</p>
       <div class="chart-wrap"><canvas id="chart-oad"></canvas></div>
     </div>
 
@@ -769,26 +763,35 @@ function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
       })
     }, 50))
 
-    // One-and-done trend line
+    // Retention trend lines
     const weekly = retention.weekly ?? []
     if (weekly.length > 1) {
-      const oadLabels = weekly.map(r => r.week)
-      const oadData   = weekly.map(r => r.total > 0 ? Math.round(r.one_and_done / r.total * 100) : 0)
+      const weekLabels = weekly.map(r => r.week)
+      const pctSeries = (key) => weekly.map(r => r.total > 0 ? Math.round(r[key] / r.total * 100) : 0)
       const existingOad = Chart.getChart('chart-oad')
       if (existingOad) existingOad.destroy()
       new Chart(document.getElementById('chart-oad'), {
         type: 'line',
-        data: { labels: oadLabels, datasets: [{
-          data: oadData, borderColor: '#f38ba8', backgroundColor: '#f38ba818',
-          borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: 0.4, fill: true,
-        }] },
+        data: {
+          labels: weekLabels,
+          datasets: [
+            { label: 'One-and-done', data: pctSeries('one_and_done'), borderColor: '#f38ba8', backgroundColor: '#f38ba812', borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.4, fill: false },
+            { label: 'Returned 1d+', data: pctSeries('returned_1d'),  borderColor: '#fab387', backgroundColor: '#fab38712', borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.4, fill: false },
+            { label: 'Returned 7d+', data: pctSeries('returned_7d'),  borderColor: '#a6e3a1', backgroundColor: '#a6e3a112', borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.4, fill: false },
+            { label: 'Returned 30d+',data: pctSeries('returned_30d'), borderColor: '#89b4fa', backgroundColor: '#89b4fa12', borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.4, fill: false },
+          ]
+        },
         options: {
           ...chartOpts,
+          plugins: {
+            ...chartOpts.plugins,
+            legend: { labels: { color: '#8c9abf', font: { size: 11 }, boxWidth: 10, padding: 14 } },
+            tooltip: { ...chartOpts.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}%` } }
+          },
           scales: {
             x: { ...chartOpts.scales.x },
             y: { ...chartOpts.scales.y, min: 0, max: 100, ticks: { ...chartOpts.scales.y.ticks, callback: v => v + '%' } }
           },
-          plugins: { ...chartOpts.plugins, tooltip: { ...chartOpts.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.y}% one-and-done` } } }
         }
       })
     } else {
