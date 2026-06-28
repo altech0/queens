@@ -8,6 +8,23 @@
 
 import Foundation
 
+/// Canonical puzzle size/stars combinations, mirroring the API's ALLOWED_COMBOS.
+enum PuzzleConfig {
+    static let sizeOptions: [Int] = [5, 6, 8, 10]
+    static let starOptions: [Int] = [1, 2]
+
+    static func starsForSize(_ size: Int) -> Int {
+        switch size {
+        case 10: return 2
+        default: return 1
+        }
+    }
+
+    static func availableStars(for size: Int) -> [Int] {
+        [starsForSize(size)]
+    }
+}
+
 /// Represents a position in the grid
 struct GridPosition: Hashable, Codable {
     let row: Int
