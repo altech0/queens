@@ -39,6 +39,17 @@ export const dashboardUsersHandler = async (c: Context<{ Bindings: Bindings }>) 
   return c.json({ registrations: registrations.results, active })
 }
 
+export const dashboardUserSourceHandler = async (c: Context<{ Bindings: Bindings }>) => {
+  const rows = await c.env.DB.prepare(`
+    SELECT
+      COALESCE(source, 'unknown') as source,
+      COUNT(*) as count
+    FROM users
+    GROUP BY source
+  `).all()
+  return c.json(rows.results)
+}
+
 export const dashboardPuzzleServesHandler = async (c: Context<{ Bindings: Bindings }>) => {
   const row = await c.env.DB.prepare(`
     SELECT
