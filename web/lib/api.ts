@@ -17,7 +17,10 @@ async function getToken(): Promise<string> {
 }
 
 async function register(): Promise<string> {
-  const res = await fetch(`${API}/auth/register`, { method: 'POST' })
+  const res = await fetch(`${API}/auth/register`, {
+    method: 'POST',
+    headers: { 'X-Client-Source': 'web' },
+  })
   if (!res.ok) throw new Error(`Registration failed: ${res.status}`)
   const data = await res.json() as { api_token: string }
   localStorage.setItem('queens_token', data.api_token)

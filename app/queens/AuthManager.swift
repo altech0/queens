@@ -48,6 +48,7 @@ class AuthManager {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("ios", forHTTPHeaderField: "X-Client-Source")
         request.timeoutInterval = 30
         request.httpBody = Data("{}".utf8)
 
