@@ -17,7 +17,7 @@ app.use('*', async (c, next) => {
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'X-API-Token'],
+  allowHeaders: ['Content-Type', 'X-API-Token', 'X-Client-Source'],
 }))
 
 app.use('*', async (c, next) => {
