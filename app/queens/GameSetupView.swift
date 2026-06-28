@@ -16,20 +16,15 @@ struct GameSetupView: View {
     @State private var selectedSize: Int = 6
     @State private var navigateToGame = false
 
-    let starOptions = [1, 2]
-    let sizeOptions = [6, 8, 10]
+    let starOptions = PuzzleConfig.starOptions
+    let sizeOptions = PuzzleConfig.sizeOptions
 
     private var isIPadLandscape: Bool {
         horizontalSizeClass == .regular && verticalSizeClass == .regular
     }
 
     private var availableStarOptions: [Int] {
-        switch selectedSize {
-        case 6:  return [1]
-        case 8:  return [1]
-        case 10: return [2]
-        default: return [1]
-        }
+        PuzzleConfig.availableStars(for: selectedSize)
     }
 
     var body: some View {

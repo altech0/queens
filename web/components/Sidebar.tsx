@@ -33,8 +33,8 @@ interface SidebarProps {
   onRemoveCached: (id: string) => void
 }
 
-const VALID_STARS: Record<number, number[]> = { 6: [1], 8: [1], 10: [2] }
-const DEFAULT_STARS: Record<number, number> = { 6: 1, 8: 1, 10: 2 }
+const VALID_STARS: Record<number, number[]> = { 5: [1], 6: [1], 8: [1], 10: [2] }
+const DEFAULT_STARS: Record<number, number> = { 5: 1, 6: 1, 8: 1, 10: 2 }
 
 
 function Section({ title, open, onToggle, children }: {
@@ -132,7 +132,7 @@ export default function Sidebar({
         {/* Grid size */}
         <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-mid)' }}>Size</p>
         <div className="flex gap-2 mb-5">
-          {[6, 8, 10].map(s => (
+          {[5, 6, 8, 10].map(s => (
             <button
               key={s}
               onClick={() => onSizeChange(s)}
@@ -193,7 +193,7 @@ export default function Sidebar({
 
         {/* Size picker + download */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-          {[6, 8, 10].map(s => (
+          {[5, 6, 8, 10].map(s => (
             <button key={s} onClick={() => onPendingSizeChange(s)}
               className="flex-1 py-2 rounded-xl text-xs font-semibold"
               style={{

@@ -23,22 +23,11 @@ struct OfflinePuzzlesView: View {
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "OfflinePuzzlesView")
     
-    // Available puzzle sizes and stars (matching GameSetupView)
-    private let sizeOptions = [6, 8, 10]
-    private let starOptions = [1, 2]
-    
-    // Valid combinations: 6×6 (1 star), 8×8 (1 star), 10×10 (2 stars)
+    private let sizeOptions = PuzzleConfig.sizeOptions
+    private let starOptions = PuzzleConfig.starOptions
+
     private var availableStarOptions: [Int] {
-        switch selectedSize {
-        case 6:
-            return [1]
-        case 8:
-            return [1]
-        case 10:
-            return [2]
-        default:
-            return [1]
-        }
+        PuzzleConfig.availableStars(for: selectedSize)
     }
     
     var body: some View {

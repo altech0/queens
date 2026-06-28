@@ -12,7 +12,7 @@ import {
 } from '@/lib/puzzleCache'
 import { validate } from '@/lib/validator'
 
-const CONFIGS: Record<number, number> = { 6: 1, 8: 1, 10: 2 }
+const CONFIGS: Record<number, number> = { 5: 1, 6: 1, 8: 1, 10: 2 }
 const HOW_TO_PLAY = [
   { title: 'Objective', text: 'Place stars so each row, column and region contains exactly the required number of stars.' },
   { title: 'Stars Per Region', text: 'Each coloured region must contain exactly the required number of stars.' },
@@ -471,17 +471,16 @@ export default function Home() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     pointerEvents: 'none',
                   }}>
-                    {completionPhase === 'text' && (
-                      <span style={{
-                        fontSize: 34, fontWeight: 300, letterSpacing: '0.5px', color: 'var(--primary)',
-                        background: darkMode ? 'rgba(26,32,50,0.85)' : 'var(--surface-mid)',
-                        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-                        border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
-                        borderRadius: 20, padding: '20px 40px',
-                        boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
-                        animation: 'fadeScaleIn 0.5s ease forwards',
-                      }}>Solved ★</span>
-                    )}
+                    <span style={{
+                      position: 'absolute',
+                      fontSize: 34, fontWeight: 700, color: 'var(--primary)',
+                      background: darkMode ? 'rgba(26,32,50,0.85)' : 'var(--surface-mid)',
+                      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                      border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                      borderRadius: 20, padding: '20px 40px',
+                      boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
+                      animation: completionPhase === 'text' ? 'fadeScaleIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards' : 'fadeScaleOut 0.5s cubic-bezier(0.36,0,0.66,0) forwards',
+                    }}>Congratulations!</span>
                     {completionPhase === 'time' && (
                       <div style={{
                         background: darkMode ? 'rgba(26,32,50,0.85)' : 'var(--surface-mid)',
@@ -490,9 +489,8 @@ export default function Home() {
                         borderRadius: 20, padding: '24px 44px',
                         boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                        animation: 'fadeScaleIn 0.5s ease forwards',
+                        animation: 'fadeScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards',
                       }}>
-                        <span style={{ fontSize: 18, fontWeight: 400, letterSpacing: '0.3px', color: 'var(--primary)' }}>Solved ★</span>
                         <span style={{ fontSize: 42, fontWeight: 600, letterSpacing: '-1.5px', color: darkMode ? 'white' : 'var(--text-dark)', fontVariantNumeric: 'tabular-nums' }}>
                           {formatTime(completionTimeRef.current)}
                         </span>
@@ -578,7 +576,7 @@ export default function Home() {
         <div>
           <div className="mobile-setup-section-label">Size</div>
           <div className="mobile-setup-btn-row">
-            {[6, 8, 10].map(s => (
+            {[5, 6, 8, 10].map(s => (
               <button key={s} onClick={() => setPendingSize(s)}
                 className={`mobile-setup-btn ${pendingSize === s ? 'mobile-setup-btn-active' : 'mobile-setup-btn-inactive'}`}>
                 {s}×{s}
@@ -658,27 +656,25 @@ export default function Home() {
             <PuzzleGrid puzzle={puzzle} cells={cells} conflicts={conflicts} flashCells={flashCells} highlightConflicts={highlightConflicts} enhancedContrast={enhancedContrast} darkMode={darkMode} onCellClick={handleCellClick} completed={completed} />
             {completionPhase !== 'hidden' && (
               <div className="mobile-completion">
-                {completionPhase === 'text' && (
-                  <div className="mobile-completion-congrats" style={{
-                    animation: 'fadeScaleIn 0.5s ease forwards',
-                    background: darkMode ? 'rgba(26,32,50,0.85)' : undefined,
-                    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-                    border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
-                    boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
-                    color: 'var(--primary)',
-                  }}>
-                    Solved ★
-                  </div>
-                )}
+                <div className="mobile-completion-congrats" style={{
+                  animation: completionPhase === 'text' ? 'fadeScaleIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards' : 'fadeScaleOut 0.5s cubic-bezier(0.36,0,0.66,0) forwards',
+                  background: darkMode ? 'rgba(26,32,50,0.85)' : undefined,
+                  backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                  border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                  boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
+                  color: 'var(--primary)',
+                  position: 'absolute',
+                }}>
+                  Congratulations!
+                </div>
                 {completionPhase === 'time' && (
                   <div className="mobile-completion-inner" style={{
-                    animation: 'fadeScaleIn 0.5s ease forwards',
+                    animation: 'fadeScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards',
                     background: darkMode ? 'rgba(26,32,50,0.85)' : undefined,
                     backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
                     border: darkMode ? '1px solid rgba(255,255,255,0.12)' : 'none',
                     boxShadow: darkMode ? '0 12px 40px rgba(0,0,0,0.5)' : 'none',
                   }}>
-                    <span style={{ fontSize: 16, fontWeight: 400, color: 'var(--primary)' }}>Solved ★</span>
                     <div className="mobile-completion-time" style={{ color: darkMode ? 'white' : undefined }}>{formatTime(completionTimeRef.current)}</div>
                     {typeof navigator !== 'undefined' && 'share' in navigator && (
                       <button
@@ -812,7 +808,7 @@ export default function Home() {
         {/* Add controls */}
         <div className="mobile-offline-controls">
           <div className="mobile-setup-btn-row">
-            {[6, 8, 10].map(s => (
+            {[5, 6, 8, 10].map(s => (
               <button key={s} onClick={() => setPendingSize(s)}
                 className={`mobile-setup-btn ${pendingSize === s ? 'mobile-setup-btn-active' : 'mobile-setup-btn-inactive'}`}>
                 {s}×{s}
