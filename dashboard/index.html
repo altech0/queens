@@ -174,6 +174,44 @@
 
     .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
 
+    /* ── User source donut ── */
+    .source-inner { display: flex; align-items: center; gap: 40px; }
+    .source-donut-wrap { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+    .source-donut-centre {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .source-donut-num { font-size: 24px; font-weight: 900; letter-spacing: -1px; color: var(--text); }
+    .source-donut-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+    .source-legend { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+    .source-legend-row { display: flex; align-items: center; gap: 10px; }
+    .source-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .source-legend-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+    .source-legend-count { font-size: 20px; font-weight: 900; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; }
+    .source-legend-pct { font-size: 12px; color: var(--muted); margin-left: 4px; }
+
+    /* ── Retention ── */
+    .retention-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 12px; }
+    .bucket-rows { display: flex; flex-direction: column; }
+    .bucket-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .bucket-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .bucket-label { font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); width: 110px; flex-shrink: 0; }
+    .bucket-bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+    .bucket-bar-fill { height: 100%; border-radius: 99px; width: 0; transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+    .bucket-pct { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; width: 48px; text-align: right; flex-shrink: 0; }
+    .bucket-count { font-size: 11px; color: var(--muted); width: 36px; text-align: right; flex-shrink: 0; }
+
+    @media (max-width: 600px) {
+      .retention-grid { grid-template-columns: 1fr; }
+      .source-inner { flex-direction: column; align-items: center; gap: 24px; }
+      .source-donut-wrap { width: 160px; height: 160px; }
+      .source-legend { width: 100%; }
+    }
+
     /* ── Loading / error ── */
     .state {
       display: flex; flex-direction: column; align-items: center;
@@ -353,19 +391,21 @@ async function load() {
   document.getElementById('last-updated').style.display = 'none'
 
   try {
-    const [puzzles, seedRuns, users, puzzleServes] = await Promise.all([
+    const [puzzles, seedRuns, users, puzzleServes, userSource, retention] = await Promise.all([
       fetchJSON('/dashboard/puzzles'),
       fetchJSON('/dashboard/seed-runs?limit=200'),
       fetchJSON('/dashboard/users?days=90').catch(() => ({ registrations: [], active: null })),
       fetchJSON('/dashboard/puzzle-serves').catch(() => null),
+      fetchJSON('/dashboard/user-source').catch(() => []),
+      fetchJSON('/dashboard/retention').catch(() => null),
     ])
-    render(puzzles, seedRuns, users, puzzleServes)
+    render(puzzles, seedRuns, users, puzzleServes, userSource, retention)
   } catch (err) {
     main.innerHTML = `<div class="state"><span style="color:#f38ba8">Failed to load: ${err.message}</span></div>`
   }
 }
 
-function render(puzzles, seedRuns, users, puzzleServes) {
+function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
   const main = document.getElementById('main')
 
   const total = puzzles.reduce((s, r) => s + r.count, 0)
@@ -480,6 +520,36 @@ function render(puzzles, seedRuns, users, puzzleServes) {
         <div><div class="stat-tag">7d</div><div id="sc-serves-7d" class="active-stat-num" style="color:#cba6f7">0</div></div>
         <div><div class="stat-tag">30d</div><div id="sc-serves-30d" class="active-stat-num" style="color:#cba6f7">0</div></div>
       </div>
+    </div>
+
+    <!-- User Source + Retention row -->
+    <div class="retention-grid anim" style="animation-delay:0.18s">
+      <div class="chart-card" id="user-source-card">
+        <h3>User Source</h3>
+        <p>Where users are registering from</p>
+        <div class="source-inner">
+          <div class="source-donut-wrap">
+            <canvas id="chart-user-source"></canvas>
+            <div class="source-donut-centre">
+              <div class="source-donut-num" id="source-total">—</div>
+              <div class="source-donut-lbl">total</div>
+            </div>
+          </div>
+          <div class="source-legend" id="source-legend"></div>
+        </div>
+      </div>
+      <div class="chart-card" id="retention-card">
+        <h3>Retention Buckets</h3>
+        <p>Of users who fetched at least one puzzle</p>
+        <div class="bucket-rows" id="bucket-rows"></div>
+      </div>
+    </div>
+
+    <!-- One-and-done trend -->
+    <div class="chart-card anim" id="oad-trend-card" style="animation-delay:0.20s">
+      <h3>One-and-Done Rate</h3>
+      <p>% of new users who never returned, by registration week</p>
+      <div class="chart-wrap"><canvas id="chart-oad"></canvas></div>
     </div>
 
     <!-- Mid: wide chart + right column -->
@@ -639,6 +709,95 @@ function render(puzzles, seedRuns, users, puzzleServes) {
     `
     tbody.appendChild(tr)
   })
+
+  // User source donut
+  const SOURCE_COLORS = { ios: '#89b4fa', web: '#a6e3a1', unknown: '#45475a' }
+  const SOURCE_LABELS = { ios: 'iOS', web: 'Web', unknown: 'Unknown' }
+  const SOURCE_ORDER  = ['ios', 'web', 'unknown']
+  if (userSource && userSource.length > 0) {
+    const bySource = {}
+    userSource.forEach(r => { bySource[r.source] = r.count })
+    const sourceTotal = Object.values(bySource).reduce((a, b) => a + b, 0)
+    document.getElementById('source-total').textContent = sourceTotal.toLocaleString()
+    const legend = document.getElementById('source-legend')
+    legend.innerHTML = SOURCE_ORDER.filter(k => bySource[k] != null).map(k => {
+      const pct = sourceTotal > 0 ? Math.round(bySource[k] / sourceTotal * 100) : 0
+      return `<div class="source-legend-row">
+        <div class="source-legend-dot" style="background:${SOURCE_COLORS[k]}"></div>
+        <div class="source-legend-name">${SOURCE_LABELS[k]}</div>
+        <div class="source-legend-count" style="color:${SOURCE_COLORS[k]}">${bySource[k].toLocaleString()}</div>
+        <div class="source-legend-pct">${pct}%</div>
+      </div>`
+    }).join('')
+    const existingDonut = Chart.getChart('chart-user-source')
+    if (existingDonut) existingDonut.destroy()
+    new Chart(document.getElementById('chart-user-source'), {
+      type: 'doughnut',
+      data: { datasets: [{
+        data: SOURCE_ORDER.filter(k => bySource[k] != null).map(k => bySource[k]),
+        backgroundColor: SOURCE_ORDER.filter(k => bySource[k] != null).map(k => SOURCE_COLORS[k]),
+        borderColor: '#161b27', borderWidth: 3, hoverOffset: 6,
+      }] },
+      options: { cutout: '72%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { duration: 900, easing: 'easeOutQuart' } }
+    })
+  } else {
+    document.getElementById('user-source-card').style.display = 'none'
+  }
+
+  // Retention buckets + one-and-done trend
+  if (retention && retention.buckets) {
+    const b = retention.buckets
+    const total = b.total ?? 0
+    const pct = n => total > 0 ? Math.round(n / total * 100) : 0
+    const buckets = [
+      { label: 'One-and-done', n: b.one_and_done, color: '#f38ba8' },
+      { label: 'Returned 1d+', n: b.returned_1d,  color: '#fab387' },
+      { label: 'Returned 7d+', n: b.returned_7d,  color: '#a6e3a1' },
+      { label: 'Returned 30d+',n: b.returned_30d, color: '#89b4fa' },
+    ]
+    document.getElementById('bucket-rows').innerHTML = buckets.map((bk, i) => `
+      <div class="bucket-row">
+        <div class="bucket-label">${bk.label}</div>
+        <div class="bucket-bar-track"><div class="bucket-bar-fill" id="bfill-${i}" style="background:${bk.color}"></div></div>
+        <div class="bucket-pct" style="color:${bk.color}">${pct(bk.n)}%</div>
+        <div class="bucket-count">${bk.n}</div>
+      </div>`).join('')
+    requestAnimationFrame(() => setTimeout(() => {
+      buckets.forEach((bk, i) => {
+        const el = document.getElementById(`bfill-${i}`)
+        if (el) el.style.width = pct(bk.n) + '%'
+      })
+    }, 50))
+
+    // One-and-done trend line
+    const weekly = retention.weekly ?? []
+    if (weekly.length > 1) {
+      const oadLabels = weekly.map(r => r.week)
+      const oadData   = weekly.map(r => r.total > 0 ? Math.round(r.one_and_done / r.total * 100) : 0)
+      const existingOad = Chart.getChart('chart-oad')
+      if (existingOad) existingOad.destroy()
+      new Chart(document.getElementById('chart-oad'), {
+        type: 'line',
+        data: { labels: oadLabels, datasets: [{
+          data: oadData, borderColor: '#f38ba8', backgroundColor: '#f38ba818',
+          borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: 0.4, fill: true,
+        }] },
+        options: {
+          ...chartOpts,
+          scales: {
+            x: { ...chartOpts.scales.x },
+            y: { ...chartOpts.scales.y, min: 0, max: 100, ticks: { ...chartOpts.scales.y.ticks, callback: v => v + '%' } }
+          },
+          plugins: { ...chartOpts.plugins, tooltip: { ...chartOpts.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.y}% one-and-done` } } }
+        }
+      })
+    } else {
+      document.getElementById('oad-trend-card').style.display = 'none'
+    }
+  } else {
+    document.getElementById('retention-card').style.display = 'none'
+    document.getElementById('oad-trend-card').style.display = 'none'
+  }
 
   // Show last updated
   const lu = document.getElementById('last-updated')

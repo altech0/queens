@@ -39,6 +39,43 @@ export const dashboardUsersHandler = async (c: Context<{ Bindings: Bindings }>) 
   return c.json({ registrations: registrations.results, active })
 }
 
+export const dashboardUserSourceHandler = async (c: Context<{ Bindings: Bindings }>) => {
+  const rows = await c.env.DB.prepare(`
+    SELECT
+      COALESCE(source, 'unknown') as source,
+      COUNT(*) as count
+    FROM users
+    GROUP BY source
+  `).all()
+  return c.json(rows.results)
+}
+
+export const dashboardRetentionHandler = async (c: Context<{ Bindings: Bindings }>) => {
+  const [buckets, weekly] = await Promise.all([
+    c.env.DB.prepare(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(CASE WHEN (julianday(last_active_at) - julianday(created_at)) * 1440 < 5 THEN 1 END) as one_and_done,
+        COUNT(CASE WHEN (julianday(last_active_at) - julianday(created_at)) * 1440 >= 1440  THEN 1 END) as returned_1d,
+        COUNT(CASE WHEN (julianday(last_active_at) - julianday(created_at)) * 1440 >= 10080 THEN 1 END) as returned_7d,
+        COUNT(CASE WHEN (julianday(last_active_at) - julianday(created_at)) * 1440 >= 43200 THEN 1 END) as returned_30d
+      FROM users
+      WHERE last_active_at IS NOT NULL
+    `).first(),
+    c.env.DB.prepare(`
+      SELECT
+        strftime('%Y-W%W', created_at) as week,
+        COUNT(*) as total,
+        COUNT(CASE WHEN (julianday(last_active_at) - julianday(created_at)) * 1440 < 5 THEN 1 END) as one_and_done
+      FROM users
+      WHERE last_active_at IS NOT NULL
+      GROUP BY week
+      ORDER BY week ASC
+    `).all(),
+  ])
+  return c.json({ buckets, weekly: weekly.results })
+}
+
 export const dashboardPuzzleServesHandler = async (c: Context<{ Bindings: Bindings }>) => {
   const row = await c.env.DB.prepare(`
     SELECT
