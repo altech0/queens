@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: 'Queens',
   description: 'A clean, calming logic puzzle. No ads, no nonsense.',
   openGraph: {
-    images: [{ url: '/icon.svg', width: 32, height: 32 }],
+    images: [{ url: 'https://queens.knittedmice.com/og-image.svg', width: 256, height: 256 }],
   },
 }
 
