@@ -16,6 +16,7 @@
 
 import { createInterface } from 'readline'
 import { generatePuzzleV2 } from '../src/generator/v2'
+import { classifyDifficulty } from '../src/generator/v2/difficulty'
 import type { PuzzleConfig } from '../src/types/puzzleConfig'
 
 // ---------------------------------------------------------------------------
@@ -195,13 +196,15 @@ interface PuzzleRow {
   solution: string
   code: number
   createdAt: string
+  difficulty: string
+  difficultyScore: number
 }
 
 async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches: number, retries = 3): Promise<void> {
   const values = batch.map(r =>
-    `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}')`
+    `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}', '${r.difficulty}', ${r.difficultyScore})`
   ).join(',\n')
-  const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at) VALUES\n${values}`
+  const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at, difficulty, difficulty_score) VALUES\n${values}`
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -301,6 +304,10 @@ async function generateBatch(
     puzzleTimes.push(Date.now() - puzzleStart)
     existingSolutions.add(solutionKey)
 
+    // Classify difficulty only for puzzles we're keeping (post-dedup), not every
+    // generation attempt — the solver runs are relatively expensive.
+    const { difficulty, difficulty_score } = classifyDifficulty(puzzle.regions, puzzle.gridSize, puzzle.stars)
+
     rows.push({
       id: crypto.randomUUID(),
       gridSize: puzzle.gridSize,
@@ -309,6 +316,8 @@ async function generateBatch(
       solution: escape(solutionKey),
       code: nextCode.value++,
       createdAt: new Date().toISOString(),
+      difficulty,
+      difficultyScore: difficulty_score,
     })
 
     const remaining = Math.max(0, deadline - Date.now())

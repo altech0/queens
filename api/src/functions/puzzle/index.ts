@@ -21,8 +21,9 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
   const codeParam = c.req.param('puzzleId')
   const sizeParam = c.req.query('size')
   const starsParam = c.req.query('stars')
+  const difficultyParam = c.req.query('difficulty')
 
-  console.log(`[puzzle] GET /puzzle/${codeParam ?? ''} — code: ${codeParam ?? 'none'}, size: ${sizeParam ?? 'any'}, stars: ${starsParam ?? 'any'}`)
+  console.log(`[puzzle] GET /puzzle/${codeParam ?? ''} — code: ${codeParam ?? 'none'}, size: ${sizeParam ?? 'any'}, stars: ${starsParam ?? 'any'}, difficulty: ${difficultyParam ?? 'any'}`)
 
   if (codeParam && (sizeParam || starsParam)) {
     console.log('[puzzle] → 400 code combined with size/stars')
@@ -51,18 +52,34 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
     return c.json({ error: `Invalid combination: size=${size} stars=${stars}. Valid combos — ${comboDesc}` }, 400)
   }
 
+  // Parse & validate difficulty filter (ignored when fetching by code).
+  const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard', 'very_hard']
+  let difficulties: string[] = []
+  if (difficultyParam) {
+    difficulties = difficultyParam.split(',').map(d => d.trim()).filter(Boolean)
+    const invalid = difficulties.filter(d => !ALLOWED_DIFFICULTIES.includes(d))
+    if (invalid.length) {
+      console.log(`[puzzle] → 400 invalid difficulty: ${invalid.join(', ')}`)
+      return c.json({ error: `Invalid difficulty. Allowed: ${ALLOWED_DIFFICULTIES.join(', ')}` }, 400)
+    }
+  }
+
   let row: Record<string, unknown> | null = null
 
   if (code !== null) {
     row = await c.env.DB.prepare('SELECT * FROM puzzles WHERE code = ?').bind(code).first() ?? null
-  } else if (size !== null && stars !== null) {
-    row = await c.env.DB.prepare('SELECT * FROM puzzles WHERE grid_size = ? AND stars = ? ORDER BY RANDOM() LIMIT 1').bind(size, stars).first() ?? null
-  } else if (size !== null) {
-    row = await c.env.DB.prepare('SELECT * FROM puzzles WHERE grid_size = ? ORDER BY RANDOM() LIMIT 1').bind(size).first() ?? null
-  } else if (stars !== null) {
-    row = await c.env.DB.prepare('SELECT * FROM puzzles WHERE stars = ? ORDER BY RANDOM() LIMIT 1').bind(stars).first() ?? null
   } else {
-    row = await c.env.DB.prepare('SELECT * FROM puzzles ORDER BY RANDOM() LIMIT 1').first() ?? null
+    // Build a dynamic WHERE from the provided filters.
+    const clauses: string[] = []
+    const binds: unknown[] = []
+    if (size !== null)  { clauses.push('grid_size = ?'); binds.push(size) }
+    if (stars !== null) { clauses.push('stars = ?');     binds.push(stars) }
+    if (difficulties.length) {
+      clauses.push(`difficulty IN (${difficulties.map(() => '?').join(',')})`)
+      binds.push(...difficulties)
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')} ` : ''
+    row = await c.env.DB.prepare(`SELECT * FROM puzzles ${where}ORDER BY RANDOM() LIMIT 1`).bind(...binds).first() ?? null
   }
 
   if (!row) {
@@ -86,6 +103,7 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
     stars: row.stars,
     regions: JSON.parse(row.regions as string),
     solution: JSON.parse(row.solution as string),
+    difficulty: row.difficulty,
     createdAt: row.created_at,
   })
 }
