@@ -5,6 +5,7 @@ import { healthHandler }     from './functions/health'
 import { puzzleV2Handler }   from './functions/puzzle'
 import { registerHandler, deleteUserHandler } from './functions/auth'
 import { dashboardHandler } from './functions/dashboard'
+import { cleanupStaleUsers } from './functions/cleanup'
 import { tokenAuth }         from './middleware/auth'
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -41,4 +42,15 @@ app.get('/puzzle/:puzzleId?', tokenAuth, puzzleV2Handler)
 // Dashboard
 app.get('/dashboard', dashboardHandler)
 
-export default app
+export default {
+  fetch: app.fetch,
+
+  // Cron: "0 6 1-7 * 1" fires the only Monday that lands in days 1–7 of the
+  // month — i.e. the first Monday. Soft-deletes stale non-iOS users.
+  async scheduled(_event: ScheduledController, env: Bindings, ctx: ExecutionContext) {
+    ctx.waitUntil((async () => {
+      const reaped = await cleanupStaleUsers(env.DB)
+      console.log(`[cleanup] soft-deleted ${reaped} stale non-iOS users`)
+    })())
+  },
+}

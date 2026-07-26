@@ -150,7 +150,8 @@ struct PuzzleAPIResponse: Codable {
             starsPerRegion: starsCount,
             regions: regions,
             solution: solutionSet,
-            code: code.map { String($0) }  // Convert Int to String
+            code: code.map { String($0) },  // Convert Int to String
+            difficulty: difficulty
         )
     }
 }
@@ -160,7 +161,7 @@ class PuzzleFetcher {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "PuzzleFetcher")
     
     /// Fetch a puzzle from the API using configuration
-    static func fetchPuzzle(size: Int = 6, starsPerUnit: Int = 1) async throws -> StarBattlePuzzle {
+    static func fetchPuzzle(size: Int = 6, starsPerUnit: Int = 1, difficulties: Set<String> = []) async throws -> StarBattlePuzzle {
         logger.info("🎯 Starting puzzle fetch process")
 
         // Get API configuration from Config.plist
@@ -184,10 +185,16 @@ class PuzzleFetcher {
         }
 
         // Add query parameters
-        urlComponents.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "size", value: "\(size)"),
             URLQueryItem(name: "stars", value: "\(starsPerUnit)")
         ]
+        // Only send difficulty when it's a real subset (all-selected = no filter).
+        if !difficulties.isEmpty && difficulties.count < PuzzleConfig.allDifficulties.count {
+            let ordered = PuzzleConfig.allDifficulties.filter { difficulties.contains($0) }
+            queryItems.append(URLQueryItem(name: "difficulty", value: ordered.joined(separator: ",")))
+        }
+        urlComponents.queryItems = queryItems
 
         guard let url = urlComponents.url else {
             logger.error("❌ Failed to construct URL with query parameters")

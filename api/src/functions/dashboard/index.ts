@@ -5,7 +5,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
   const days      = Math.min(Number(c.req.query('days')  ?? 90),  365)
   const seedLimit = Math.min(Number(c.req.query('limit') ?? 100), 500)
 
-  const [puzzles, seedRuns, registrations, active, puzzleServes, userSource, retentionBuckets, retentionWeekly] =
+  const [puzzles, seedRuns, registrations, active, puzzleServes, userSource, retentionBuckets, retentionWeekly, reaped] =
     await Promise.all([
       c.env.DB.prepare(
         'SELECT grid_size, stars, COUNT(*) as count FROM puzzles GROUP BY grid_size, stars ORDER BY grid_size, stars'
@@ -19,6 +19,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
         SELECT date(created_at) as date, COUNT(*) as count
         FROM users
         WHERE created_at >= date('now', ?)
+          AND deleted_at IS NULL
         GROUP BY date(created_at)
         ORDER BY date ASC
       `).bind(`-${days} days`).all(),
@@ -31,6 +32,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
           COUNT(CASE WHEN last_active_at >= datetime('now', '-7 days')   THEN 1 END) as active_7d,
           COUNT(CASE WHEN last_active_at >= datetime('now', '-30 days')  THEN 1 END) as active_30d
         FROM users
+        WHERE deleted_at IS NULL
       `).first(),
 
       c.env.DB.prepare(`
@@ -45,6 +47,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
       c.env.DB.prepare(`
         SELECT COALESCE(source, 'unknown') as source, COUNT(*) as count
         FROM users
+        WHERE deleted_at IS NULL
         GROUP BY source
       `).all(),
 
@@ -57,6 +60,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
           COUNT(CASE WHEN (julianday(last_active_at) - julianday(created_at)) * 1440 >= 43200 THEN 1 END) as returned_30d
         FROM users
         WHERE last_active_at IS NOT NULL
+          AND deleted_at IS NULL
       `).first(),
 
       c.env.DB.prepare(`
@@ -69,8 +73,16 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
           COUNT(CASE WHEN (julianday(last_active_at) - julianday(created_at)) * 1440 >= 43200 THEN 1 END) as returned_30d
         FROM users
         WHERE last_active_at IS NOT NULL
+          AND deleted_at IS NULL
         GROUP BY week
         ORDER BY week ASC
+      `).all(),
+
+      c.env.DB.prepare(`
+        SELECT COALESCE(source, 'unknown') as source, COUNT(*) as count
+        FROM users
+        WHERE deleted_at IS NOT NULL
+        GROUP BY source
       `).all(),
     ])
 
@@ -83,6 +95,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
     },
     puzzleServes,
     userSource:    userSource.results,
+    reaped:        reaped.results,
     retention: {
       buckets: retentionBuckets,
       weekly:  retentionWeekly.results,

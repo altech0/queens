@@ -6,6 +6,7 @@ function makeCtx(insertSucceeds = true) {
   return {
     req: {
       json: vi.fn().mockResolvedValue({}),
+      header: vi.fn().mockReturnValue(null),
     },
     env: {
       DB: {
@@ -42,7 +43,7 @@ describe('POST /auth/register', () => {
   it('retries on nickname collision and eventually succeeds', async () => {
     let attempts = 0
     const ctx = {
-      req: { json: vi.fn().mockResolvedValue({}) },
+      req: { json: vi.fn().mockResolvedValue({}), header: vi.fn().mockReturnValue(null) },
       env: {
         DB: {
           prepare: vi.fn().mockImplementation(() => ({
@@ -68,7 +69,7 @@ describe('POST /auth/register', () => {
 
   it('returns 500 if all attempts fail', async () => {
     const ctx = {
-      req: { json: vi.fn().mockResolvedValue({}) },
+      req: { json: vi.fn().mockResolvedValue({}), header: vi.fn().mockReturnValue(null) },
       env: {
         DB: {
           prepare: vi.fn().mockImplementation(() => ({

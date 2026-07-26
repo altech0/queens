@@ -9,10 +9,12 @@ function makeCtx(token: string | null, dbRow: object | null) {
         prepare: vi.fn().mockReturnValue({
           bind: vi.fn().mockReturnValue({
             first: vi.fn().mockResolvedValue(dbRow),
+            run: vi.fn().mockResolvedValue({ meta: { changes: 1 } }),
           }),
         }),
       },
     },
+    executionCtx: { waitUntil: vi.fn() },
     set: vi.fn(),
     json: vi.fn(),
   }

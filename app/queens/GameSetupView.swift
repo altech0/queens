@@ -12,8 +12,10 @@ struct GameSetupView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(AppSettings.self) private var settings
     @State private var selectedStars: Int = 1
     @State private var selectedSize: Int = 6
+    @State private var selectedDifficulties: Set<String> = []
     @State private var navigateToGame = false
 
     let starOptions = PuzzleConfig.starOptions
@@ -105,6 +107,7 @@ struct GameSetupView: View {
                                     if !availableStarOptions.contains(selectedStars) {
                                         selectedStars = availableStarOptions.first ?? 1
                                     }
+                                    pruneDifficulties()
                                 }) {
                                     Text("\(size)×\(size)")
                                         .font(.system(size: 20, weight: .semibold, design: .rounded))
@@ -123,6 +126,42 @@ struct GameSetupView: View {
                                                 .stroke(selectedSize == size ? AppColors.primary(colorScheme) : Color.clear, lineWidth: 2)
                                         )
                                 }
+                            }
+                        }
+                        .frame(maxWidth: isIPadLandscape ? 500 : .infinity)
+                    }
+
+                    // Difficulty multi-select
+                    VStack(spacing: 12) {
+                        Text("Difficulty")
+                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary(colorScheme))
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        HStack(spacing: 10) {
+                            ForEach(PuzzleConfig.allDifficulties, id: \.self) { diff in
+                                let isValid = PuzzleConfig.validDifficulties(for: selectedSize).contains(diff)
+                                let isSelected = selectedDifficulties.contains(diff)
+                                Button(action: { toggleDifficulty(diff) }) {
+                                    Text(PuzzleConfig.difficultyDisplayName(diff))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundColor(!isValid ? AppColors.textDisabled(colorScheme)
+                                                         : (isSelected ? .white : AppColors.primary(colorScheme)))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 11)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(isSelected && isValid
+                                                      ? AppColors.primaryGradient(colorScheme)
+                                                      : LinearGradient(colors: [AppColors.surface(colorScheme), AppColors.surface(colorScheme)], startPoint: .leading, endPoint: .trailing))
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(isSelected && isValid ? AppColors.primary(colorScheme) : Color.clear, lineWidth: 2)
+                                        )
+                                        .opacity(isValid ? 1.0 : 0.4)
+                                }
+                                .disabled(!isValid)
                             }
                         }
                         .frame(maxWidth: isIPadLandscape ? 500 : .infinity)
@@ -152,8 +191,38 @@ struct GameSetupView: View {
         .navigationBarBackButtonHidden(!isIPadLandscape)
         .navigationTitle(isIPadLandscape ? "New Game" : "")
         .navigationDestination(isPresented: $navigateToGame) {
-            GameView(puzzleSize: selectedSize, starsPerUnit: selectedStars)
+            GameView(puzzleSize: selectedSize, starsPerUnit: selectedStars,
+                     difficulties: selectedDifficulties)
         }
+        .onAppear {
+            selectedDifficulties = settings.selectedDifficulties
+            pruneDifficulties()
+        }
+    }
+
+    private func toggleDifficulty(_ diff: String) {
+        if selectedDifficulties.contains(diff) {
+            // Enforce at least one selected.
+            if selectedDifficulties.count > 1 {
+                selectedDifficulties.remove(diff)
+            }
+        } else {
+            selectedDifficulties.insert(diff)
+        }
+        settings.selectedDifficulties = selectedDifficulties
+    }
+
+    /// Drop any selected difficulties that aren't valid for the current size;
+    /// if that empties the set, fall back to the first valid bucket.
+    private func pruneDifficulties() {
+        let valid = PuzzleConfig.validDifficulties(for: selectedSize)
+        selectedDifficulties.formIntersection(valid)
+        if selectedDifficulties.isEmpty {
+            if let first = PuzzleConfig.allDifficulties.first(where: { valid.contains($0) }) {
+                selectedDifficulties = [first]
+            }
+        }
+        settings.selectedDifficulties = selectedDifficulties
     }
 }
 

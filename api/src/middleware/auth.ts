@@ -14,7 +14,7 @@ export const tokenAuth: MiddlewareHandler<{ Bindings: Bindings }> = async (c, ne
   if (!token) return c.json({ error: 'Unauthorized' }, 401)
 
   const user = await c.env.DB.prepare(
-    'SELECT id, nickname FROM users WHERE api_token = ?'
+    'SELECT id, nickname FROM users WHERE api_token = ? AND deleted_at IS NULL'
   ).bind(token).first<UserContext>()
 
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
@@ -24,7 +24,7 @@ export const tokenAuth: MiddlewareHandler<{ Bindings: Bindings }> = async (c, ne
 
   c.executionCtx.waitUntil(
     c.env.DB.prepare(
-      "UPDATE users SET last_active_at = datetime('now') WHERE api_token = ?"
+      "UPDATE users SET last_active_at = datetime('now') WHERE api_token = ? AND deleted_at IS NULL"
     ).bind(token).run()
   )
 }

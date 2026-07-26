@@ -57,6 +57,13 @@ struct GameView: View {
     // Completion hint support
     @State private var showCompletionHint = false
     @State private var hasShownHintThisSession = false
+    @State private var completionHintTask: Task<Void, Never>?
+
+    // Solver hint support
+    @State private var hintMessage: String?
+    @State private var hintCell: GridPosition?
+    @State private var hintFlashTask: Task<Void, Never>?
+    @State private var isComputingHint = false
 
     private var conflictCells: Set<GridPosition> {
         guard let puzzle = puzzle else { return [] }
@@ -104,6 +111,7 @@ struct GameView: View {
     // Puzzle generation parameters
     private let puzzleSize: Int
     private let starsPerUnit: Int
+    private let difficulties: Set<String>
 
     private let onDismiss: (() -> Void)?
 
@@ -114,16 +122,18 @@ struct GameView: View {
         self.deepLinkCode = nil
         self.puzzleSize = 6
         self.starsPerUnit = 1
+        self.difficulties = []
         self.onDismiss = nil
     }
 
     /// Initialize GameView with custom puzzle parameters
-    init(puzzleSize: Int, starsPerUnit: Int) {
+    init(puzzleSize: Int, starsPerUnit: Int, difficulties: Set<String> = []) {
         self.providedPuzzle = nil
         self.puzzleID = nil
         self.deepLinkCode = nil
         self.puzzleSize = puzzleSize
         self.starsPerUnit = starsPerUnit
+        self.difficulties = difficulties
         self.onDismiss = nil
     }
 
@@ -134,6 +144,7 @@ struct GameView: View {
         self.deepLinkCode = nil
         self.puzzleSize = puzzle.size
         self.starsPerUnit = puzzle.starsPerRegion
+        self.difficulties = []
         self.onDismiss = onDismiss
     }
 
@@ -144,6 +155,7 @@ struct GameView: View {
         self.deepLinkCode = deepLinkCode
         self.puzzleSize = 6
         self.starsPerUnit = 1
+        self.difficulties = []
         self.onDismiss = nil
     }
     
@@ -259,6 +271,7 @@ struct GameView: View {
         }
         .onDisappear {
             stopTimer()
+            completionHintTask?.cancel()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             handleScenePhaseChange(newPhase)
@@ -354,6 +367,7 @@ struct GameView: View {
                 enhancedContrast: settings.enhancedContrastMode,
                 regionColors: regionColors,
                 singleTapMode: settings.singleTapMode,
+                hintCell: hintCell,
                 onCellToggle: {
                     autoCheckSolution()
                 },
@@ -679,11 +693,29 @@ struct GameView: View {
                         .foregroundColor(AppColors.primary(colorScheme))
                         .frame(width: 44, height: 44)
                 }
-                
+
                 Spacer()
-                
+
+                // Hint button (centered) — custom lightbulb silhouette
+                Button(action: { requestHint() }) {
+                    Group {
+                        if isComputingHint {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(AppColors.primary(colorScheme))
+                        } else {
+                            LightbulbShape()
+                                .stroke(AppColors.primary(colorScheme), style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                                .frame(width: 17, height: 21)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                }
+                .disabled(isComputingHint)
+
                 Spacer()
-                
+
                 // Burger button
                 Button(action: {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
@@ -700,7 +732,8 @@ struct GameView: View {
             .padding(.horizontal)
             .padding(.top, 10)
 
-            // Game info
+            // Game info — the hint "garage door" folds down over it via an overlay,
+            // so showing/hiding it never changes this block's size (no layout shift).
             VStack(spacing: 8) {
                 Text("\(puzzle.size)×\(puzzle.size) Grid")
                     .font(.system(size: 16, weight: .regular, design: .rounded))
@@ -710,16 +743,28 @@ struct GameView: View {
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(AppColors.textSecondary(colorScheme))
                     .opacity(0.8)
-                
-                // Puzzle ID/Code
+
+                // Puzzle ID/Code + difficulty
                 if let code = puzzle.code {
-                    Text("Puzzle ID: \(code)")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundColor(AppColors.textSecondary(colorScheme))
-                        .opacity(0.7)
-                        .padding(.top, 2)
+                    HStack(spacing: 8) {
+                        Text("Puzzle ID: \(code)")
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .foregroundColor(AppColors.textSecondary(colorScheme))
+                            .opacity(0.7)
+                        if let label = difficultyLabel(puzzle.difficulty) {
+                            Text(label)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule().fill(difficultyColor(puzzle.difficulty))
+                                )
+                        }
+                    }
+                    .padding(.top, 2)
                 }
-                
+
                 // Timer display
                 if !settings.hideTimer {
                     Text(formatTimeLive(elapsedTime))
@@ -730,7 +775,34 @@ struct GameView: View {
                         .animation(.easeOut(duration: 0.25), value: timerPulse)
                 }
             }
-            
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .top) {
+                if let hintMessage {
+                    HStack(alignment: .top, spacing: 10) {
+                        LightbulbShape()
+                            .stroke(Color.white, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                            .frame(width: 15, height: 19)
+                        Text(hintMessage)
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundColor(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(AppColors.primary(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+                    .padding(.horizontal, 12)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+                    .onTapGesture { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { self.hintMessage = nil } }
+                }
+            }
+
             Spacer()
             
             // Game Grid with completion overlay
@@ -745,6 +817,7 @@ struct GameView: View {
                     enhancedContrast: settings.enhancedContrastMode,
                     regionColors: regionColors,
                     singleTapMode: settings.singleTapMode,
+                hintCell: hintCell,
                     onCellToggle: {
                         // Auto-check solution after each move
                         autoCheckSolution()
@@ -992,7 +1065,7 @@ struct GameView: View {
         // Otherwise, fetch from API (online mode)
         do {
             logger.debug("🎮 GameView: Calling PuzzleFetcher...")
-            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit)
+            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties)
             
             logger.info("🎮 GameView: Puzzle loaded successfully")
             self.puzzle = loadedPuzzle
@@ -1052,6 +1125,11 @@ struct GameView: View {
         undoStack.removeAll()
         redoStack.removeAll()
         hasShownHintThisSession = false
+        completionHintTask?.cancel()
+        hintMessage = nil
+        hintCell = nil
+        hintFlashTask?.cancel()
+        isComputingHint = false
         stopTimer()
         startTimer()
     }
@@ -1069,7 +1147,12 @@ struct GameView: View {
         undoStack.removeAll()
         redoStack.removeAll()
         hasShownHintThisSession = false
-        
+        completionHintTask?.cancel()
+        hintMessage = nil
+        hintCell = nil
+        hintFlashTask?.cancel()
+        isComputingHint = false
+
         // Reset and restart the timer
         elapsedTime = 0
         pausedTime = 0
@@ -1459,32 +1542,201 @@ struct GameView: View {
         }
     }
     
-    /// Check if we should show the completion hint
+    /// Check if we should show the completion hint.
+    /// Debounced: the check runs only after the user pauses tapping, so a normal
+    /// mid-interaction step (e.g. cycling a cell marked -> star) never triggers it.
     private func checkForCompletionHint() {
+        guard settings.showCompletionHints, !hasShownHintThisSession else { return }
+
+        completionHintTask?.cancel()
+        completionHintTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            await MainActor.run { evaluateCompletionHint() }
+        }
+    }
+
+    /// Evaluate the completion-hint conditions against the current, settled board.
+    private func evaluateCompletionHint() {
         guard let puzzle = puzzle,
               !isCompleted,
               settings.showCompletionHints,
               !hasShownHintThisSession else {
             return
         }
-        
+
         let starCount = cellStates.filter { $0.value == .star }.count
         let expectedStarCount = puzzle.size * puzzle.starsPerRegion
-        
+
         // Condition 1: User placed exactly the expected number of stars
         let hasExpectedStars = starCount == expectedStarCount
-        
-        // Condition 2: Grid is completely filled (every cell has star or mark)
+
+        // Condition 2: Grid is completely filled (every cell has a star or mark).
+        // Count only non-empty cells — cellStates retains keys with an .empty value.
         let totalCells = puzzle.size * puzzle.size
-        let filledCells = cellStates.count
+        let filledCells = cellStates.values.filter { $0 != .empty }.count
         let isGridFilled = filledCells == totalCells
-        
+
         if hasExpectedStars || isGridFilled {
             showCompletionHint = true
             hasShownHintThisSession = true
         }
     }
-    
+
+    // MARK: - Solver hint
+
+    /// Colour names matching AppColors region palette order (region id % 10).
+    private static let regionColorNames = [
+        "lavender", "blue", "mint", "sand", "rose",
+        "periwinkle", "peach", "green", "purple", "aqua"
+    ]
+
+    /// Give the next hint: first clear any cells that contradict the solution,
+    /// otherwise compute and apply the next forced move (teach-first).
+    /// The solve runs off the main thread so the UI never freezes; the button
+    /// is disabled (isComputingHint) until it returns.
+    private func requestHint() {
+        guard let puzzle = puzzle, !isCompleted, !isComputingHint else { return }
+
+        // Phase 1: remove any user-placed cells that contradict the true solution.
+        let wrong = cellStates.filter { pos, state in
+            (state == .star && !puzzle.solution.contains(pos)) ||
+            (state == .marked && puzzle.solution.contains(pos))
+        }.map { $0.key }
+        if !wrong.isEmpty {
+            saveStateForUndo()
+            for pos in wrong { cellStates[pos] = .empty }
+            hintCell = nil
+            setHint("Removed \(wrong.count) cell\(wrong.count > 1 ? "s" : "") that didn't match the solution. Tap Hint again for the next move.")
+            return
+        }
+
+        // Phase 2: build the board, then solve on a background thread.
+        var board = Array(repeating: Array(repeating: SolverCell.unknown, count: puzzle.size), count: puzzle.size)
+        for (pos, state) in cellStates {
+            switch state {
+            case .star:   board[pos.row][pos.column] = .star
+            case .marked: board[pos.row][pos.column] = .cross
+            case .empty:  break
+            }
+        }
+        let sp = SolverPuzzle(n: puzzle.size, stars: puzzle.starsPerRegion, regions: puzzle.regions)
+
+        isComputingHint = true
+        Task {
+            let move = await Task.detached(priority: .userInitiated) {
+                StarBattleSolver.nextMove(board: board, puzzle: sp)
+            }.value
+
+            await MainActor.run {
+                isComputingHint = false
+                guard let move = move else {
+                    setHint("No logical next move here — you're on your own with this one!")
+                    return
+                }
+                saveStateForUndo()
+                let pos = GridPosition(row: move.r, column: move.c)
+                cellStates[pos] = move.action == .star ? .star : .marked
+                flashHintCell(pos)
+                setHint(explainSentence(move))
+                autoCheckSolution()
+            }
+        }
+    }
+
+    /// Briefly highlight the cell a hint placed, then fade the highlight
+    /// (the star/cross itself stays).
+    private func flashHintCell(_ pos: GridPosition) {
+        hintFlashTask?.cancel()
+        withAnimation(.easeOut(duration: 0.2)) { hintCell = pos }
+        hintFlashTask = Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.5)) { hintCell = nil }
+            }
+        }
+    }
+
+    private func setHint(_ msg: String) {
+        // If a hint is already showing, briefly clear so the new one re-folds down.
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { hintMessage = msg }
+    }
+
+    private func regionColorName(_ id: Int) -> String {
+        Self.regionColorNames[id % Self.regionColorNames.count]
+    }
+
+    private func difficultyLabel(_ d: String?) -> String? {
+        switch d {
+        case "easy": return "Easy"
+        case "medium": return "Medium"
+        case "hard": return "Hard"
+        case "very_hard": return "Very Hard"
+        default: return nil
+        }
+    }
+
+    private func difficultyColor(_ d: String?) -> Color {
+        switch d {
+        case "easy": return Color(red: 0.30, green: 0.68, blue: 0.44)
+        case "medium": return Color(red: 0.85, green: 0.62, blue: 0.22)
+        case "hard": return Color(red: 0.82, green: 0.40, blue: 0.32)
+        case "very_hard": return Color(red: 0.72, green: 0.28, blue: 0.40)
+        default: return AppColors.textSecondary(colorScheme)
+        }
+    }
+
+    /// Turn a structured solver move into a teachable sentence. Refers to the
+    /// hinted cell as "this cell" (it's highlighted on the grid) — never coordinates.
+    private func explainSentence(_ move: SolverMove) -> String {
+        let size = puzzle?.size ?? 0
+        // Rows/columns read like grid coordinates: origin at bottom-left, starting at 1.
+        // Solver row 0 is the top row, so a row index r displays as (size - r);
+        // columns already read left→right, so c displays as (c + 1).
+        func rowLabel(_ r: Int) -> Int { size - r }
+        func colLabel(_ c: Int) -> Int { c + 1 }
+        func line(_ l: MoveExplain.LineRef) -> String {
+            let n = l.type == .row ? rowLabel(l.idx) : colLabel(l.idx)
+            return "\(l.type.rawValue) \(n)"
+        }
+        func group(_ g: MoveExplain.GroupRef) -> String {
+            if g.type == .region { return "the \(regionColorName(g.id)) region" }
+            let n = g.type == .row ? rowLabel(g.id) : colLabel(g.id)
+            return "\(g.type.rawValue) \(n)"
+        }
+        func regionsList(_ ids: [Int]) -> String {
+            let names = ids.map { "\(regionColorName($0))" }
+            if names.count == 1 { return "the \(names[0]) region" }
+            return "the " + names.dropLast().joined(separator: ", ") + " and \(names.last!) regions"
+        }
+
+        switch move.explain {
+        case .adjacency:
+            return "This cell touches a star, and stars can't touch — so it must be a cross."
+        case let .quotaMet(g):
+            return "\(group(g).capitalizedFirst) already has all its stars, so this cell must be a cross."
+        case let .forcedFill(g, need):
+            return "\(group(g).capitalizedFirst) needs \(need) more star\(need > 1 ? "s" : "") and has exactly \(need) space\(need > 1 ? "s" : "") left — so this cell must be a star."
+        case let .confinement(direction, region, l):
+            if direction == .regionInLine {
+                return "Every open cell of the \(regionColorName(region)) region lies in \(line(l)), so the rest of \(line(l)) must be crosses — including this cell."
+            }
+            return "Every open star spot in \(line(l)) lies in the \(regionColorName(region)) region, so that region's other cells — like this cell — must be crosses."
+        case let .setCounting(_, regions, lineType, lineIdxs):
+            let nums = lineIdxs.map { lineType == .row ? rowLabel($0) : colLabel($0) }.sorted()
+            let lines = "\(lineType.rawValue)s " + nums.map(String.init).joined(separator: ", ")
+            return "\(regionsList(regions).capitalizedFirst) all fit inside \(lines). Those regions use up every star there, so this cell can't be a star."
+        case let .placement(g, _, role):
+            if role == .neverUsed {
+                return "No valid arrangement of \(group(g))'s stars uses this cell, so it must be a cross."
+            }
+            return "Every valid arrangement of \(group(g))'s stars uses this cell, so it must be a star."
+        case let .hypothetical(g):
+            return "A star in this cell would leave \(group(g)) with nowhere for its stars — so it must be a cross."
+        }
+    }
+
     private func findErrorCells(puzzle: StarBattlePuzzle, selectedCells: Set<GridPosition>) -> Set<GridPosition> {
         var errorCells = Set<GridPosition>()
         
@@ -1572,6 +1824,7 @@ struct GameGridView: View {
     let enhancedContrast: Bool
     let regionColors: [Int: Color]
     let singleTapMode: Bool
+    let hintCell: GridPosition?
     let onCellToggle: () -> Void
     let onSaveUndo: () -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -1600,7 +1853,8 @@ struct GameGridView: View {
                                     showingErrors: showingErrors,
                                     isConflict: conflictCells.contains(position),
                                     showConflicts: showConflicts,
-                                    enhancedContrast: enhancedContrast
+                                    enhancedContrast: enhancedContrast,
+                                    isHinted: hintCell == position
                                 ) {
                                     toggleCell(position: position)
                                 }
@@ -1735,6 +1989,7 @@ struct GameCellView: View {
     let isConflict: Bool
     let showConflicts: Bool
     let enhancedContrast: Bool
+    var isHinted: Bool = false
     let action: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     
@@ -1764,7 +2019,17 @@ struct GameCellView: View {
                 Rectangle()
                     .stroke(AppColors.cellMinorLine(colorScheme), lineWidth: 1)
                     .frame(width: cellSize, height: cellSize)
-                
+
+                // Hint highlight — brief flash on the cell a hint just placed
+                if isHinted {
+                    Rectangle()
+                        .stroke(AppColors.primary(colorScheme), lineWidth: 3)
+                        .frame(width: cellSize - 2, height: cellSize - 2)
+                    Rectangle()
+                        .fill(AppColors.primary(colorScheme).opacity(0.18))
+                        .frame(width: cellSize, height: cellSize)
+                }
+
                 // Display content based on state
                 switch cellState {
                 case .empty:
@@ -1821,3 +2086,48 @@ struct GameCellView: View {
     }
 }
 
+
+private extension String {
+    /// Capitalize only the first character, leaving the rest unchanged.
+    var capitalizedFirst: String {
+        guard let first = first else { return self }
+        return first.uppercased() + dropFirst()
+    }
+}
+
+/// A simple lightbulb silhouette (bulb + screw base), drawn as an outline.
+struct LightbulbShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        var p = Path()
+        // Bulb: circle occupying the top ~68% of the height
+        let bulbD = w
+        let bulbRect = CGRect(x: rect.minX, y: rect.minY, width: bulbD, height: bulbD)
+        // Draw bulb as an arc that leaves a gap at the bottom for the neck
+        let c = CGPoint(x: bulbRect.midX, y: bulbRect.midY)
+        let r = bulbD / 2
+        p.addArc(center: c, radius: r,
+                 startAngle: .degrees(55), endAngle: .degrees(125), clockwise: true)
+        // Neck sides down to the base
+        let neckTopY = c.y + r * sin(.pi * 55 / 180)
+        let baseTopY = h * 0.74
+        let baseW = w * 0.5
+        let leftX = rect.midX - baseW / 2
+        let rightX = rect.midX + baseW / 2
+        // left neck
+        p.move(to: CGPoint(x: c.x - r * cos(.pi * 55 / 180), y: neckTopY))
+        p.addLine(to: CGPoint(x: leftX, y: baseTopY))
+        // right neck
+        p.move(to: CGPoint(x: c.x + r * cos(.pi * 55 / 180), y: neckTopY))
+        p.addLine(to: CGPoint(x: rightX, y: baseTopY))
+        // Screw base: three horizontal lines
+        let lines = 3
+        for i in 0..<lines {
+            let y = baseTopY + (h - baseTopY) * (CGFloat(i) / CGFloat(lines - 1)) * 0.85
+            let inset = baseW * 0.06 * CGFloat(i)
+            p.move(to: CGPoint(x: leftX + inset, y: y))
+            p.addLine(to: CGPoint(x: rightX - inset, y: y))
+        }
+        return p
+    }
+}
