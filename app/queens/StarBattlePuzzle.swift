@@ -23,6 +23,33 @@ enum PuzzleConfig {
     static func availableStars(for size: Int) -> [Int] {
         [starsForSize(size)]
     }
+
+    // MARK: - Difficulty
+
+    /// All difficulty buckets, in display order.
+    static let allDifficulties = ["easy", "medium", "hard", "very_hard"]
+
+    /// Which difficulty buckets actually exist for a given grid size (from the
+    /// puzzle DB distribution). Others are greyed out in the picker.
+    static func validDifficulties(for size: Int) -> Set<String> {
+        switch size {
+        case 5:  return ["easy", "hard"]
+        case 6:  return ["easy", "medium", "hard"]
+        case 8:  return ["easy", "medium", "hard"]
+        case 10: return ["easy", "medium", "hard", "very_hard"]
+        default: return ["easy", "medium", "hard"]
+        }
+    }
+
+    static func difficultyDisplayName(_ d: String) -> String {
+        switch d {
+        case "easy": return "Easy"
+        case "medium": return "Medium"
+        case "hard": return "Hard"
+        case "very_hard": return "Very Hard"
+        default: return d
+        }
+    }
 }
 
 /// Represents a position in the grid
@@ -38,6 +65,7 @@ struct StarBattlePuzzle: Codable, Hashable {
     let regions: [[Int]] // Each cell contains a region ID (0-based)
     let solution: Set<GridPosition> // The correct star positions
     let code: String? // Puzzle code/ID for display
+    var difficulty: String? = nil // easy | medium | hard | very_hard (nil for older API)
     
     /// Check if a position is valid within the grid
     func isValid(row: Int, column: Int) -> Bool {
