@@ -66,6 +66,20 @@ class AppSettings {
         }
     }
 
+    /// Selected difficulty filter for new games (raw values: easy/medium/hard/very_hard).
+    /// Defaults to all. Persisted as a comma-joined string.
+    var selectedDifficulties: Set<String> {
+        get {
+            guard let raw = UserDefaults.standard.string(forKey: "selectedDifficulties"), !raw.isEmpty else {
+                return Set(PuzzleConfig.allDifficulties)
+            }
+            return Set(raw.split(separator: ",").map(String.init))
+        }
+        set {
+            UserDefaults.standard.set(newValue.joined(separator: ","), forKey: "selectedDifficulties")
+        }
+    }
+
     var highlightConflicts: Bool {
         get {
             if UserDefaults.standard.object(forKey: "highlightConflicts") == nil {
