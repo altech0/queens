@@ -18,7 +18,7 @@
 
 /* Begin PBXFileReference section */
 		AA100001000000000000AA01 /* queensTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = queensTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-AEE7F4F12F702D5000EF9080 /* queens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = queens.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AEE7F4F12F702D5000EF9080 /* queens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = queens.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -504,7 +504,6 @@ AEE7F4F12F702D5000EF9080 /* queens.app */ = {isa = PBXFileReference; explicitFil
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
 	};
 	rootObject = AEE7F4E92F702D5000EF9080 /* Project object */;
 }
