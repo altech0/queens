@@ -79,7 +79,23 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
       binds.push(...difficulties)
     }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')} ` : ''
-    row = await c.env.DB.prepare(`SELECT * FROM puzzles ${where}ORDER BY RANDOM() LIMIT 1`).bind(...binds).first() ?? null
+
+    // Pick a random matching puzzle without an ORDER BY RANDOM() full scan.
+    // COUNT(*) is answered by the idx_puzzles_grid_stars index, and the
+    // LIMIT 1 OFFSET seek reads a single row — so a fetch costs ~1 row read
+    // instead of one read per matching puzzle.
+    const countRow = await c.env.DB
+      .prepare(`SELECT COUNT(*) AS n FROM puzzles ${where}`)
+      .bind(...binds)
+      .first<{ n: number }>()
+    const total = countRow?.n ?? 0
+    if (total > 0) {
+      const offset = Math.floor(Math.random() * total)
+      row = await c.env.DB
+        .prepare(`SELECT * FROM puzzles ${where}LIMIT 1 OFFSET ?`)
+        .bind(...binds, offset)
+        .first() ?? null
+    }
   }
 
   if (!row) {
