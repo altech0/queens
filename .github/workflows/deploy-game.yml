@@ -14,9 +14,10 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      api:       ${{ steps.filter.outputs.api }}
-      web:       ${{ steps.filter.outputs.web }}
-      dashboard: ${{ steps.filter.outputs.dashboard }}
+      api:        ${{ steps.filter.outputs.api }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      web:        ${{ steps.filter.outputs.web }}
+      dashboard:  ${{ steps.filter.outputs.dashboard }}
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: dorny/paths-filter@v3.0.2
@@ -26,6 +27,8 @@ jobs:
           filters: |
             api:
               - 'api/**'
+            migrations:
+              - 'api/migrations/**'
             web:
               - 'web/**'
             dashboard:
@@ -49,6 +52,7 @@ jobs:
         run: cd api && npm ci
 
       - name: Run migrations (prod)
+        if: needs.changes.outputs.migrations == 'true' || github.event_name == 'workflow_dispatch'
         uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
