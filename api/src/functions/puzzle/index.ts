@@ -80,20 +80,19 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
     }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')} ` : ''
 
-    // Pick a random matching puzzle without an ORDER BY RANDOM() full scan.
-    // COUNT(*) is answered by the idx_puzzles_grid_stars index, and the
-    // LIMIT 1 OFFSET seek reads a single row — so a fetch costs ~1 row read
-    // instead of one read per matching puzzle.
-    const countRow = await c.env.DB
-      .prepare(`SELECT COUNT(*) AS n FROM puzzles ${where}`)
-      .bind(...binds)
-      .first<{ n: number }>()
-    const total = countRow?.n ?? 0
-    if (total > 0) {
-      const offset = Math.floor(Math.random() * total)
+    // Pick a random matching puzzle with one index seek. Every puzzle has a
+    // fixed random `rand` in [0, 1) (migrations/0020_add_puzzle_rand.sql):
+    // take the first row at or after a random point, wrapping to the lowest
+    // `rand` if nothing follows. ORDER BY RANDOM() read every matching row.
+    const sep = clauses.length ? 'AND' : 'WHERE'
+    row = await c.env.DB
+      .prepare(`SELECT * FROM puzzles ${where}${sep} rand >= ? ORDER BY rand LIMIT 1`)
+      .bind(...binds, Math.random())
+      .first() ?? null
+    if (row === null) {
       row = await c.env.DB
-        .prepare(`SELECT * FROM puzzles ${where}LIMIT 1 OFFSET ?`)
-        .bind(...binds, offset)
+        .prepare(`SELECT * FROM puzzles ${where}ORDER BY rand LIMIT 1`)
+        .bind(...binds)
         .first() ?? null
     }
   }

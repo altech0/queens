@@ -42,6 +42,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
           COUNT(CASE WHEN served_at >= datetime('now', '-7 days')   THEN 1 END) as served_7d,
           COUNT(CASE WHEN served_at >= datetime('now', '-30 days')  THEN 1 END) as served_30d
         FROM puzzle_serves
+        WHERE served_at >= datetime('now', '-30 days')
       `).first(),
 
       c.env.DB.prepare(`
