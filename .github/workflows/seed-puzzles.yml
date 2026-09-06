@@ -1,8 +1,7 @@
 name: Seed Puzzles
 
 on:
-  schedule:
-    - cron: '0 3 * * 1-5'  # 3am UTC weekdays only
+  # Scheduled runs removed 2026-09-06 — seed manually via workflow_dispatch when needed.
   workflow_dispatch:
     inputs:
       env:
