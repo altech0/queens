@@ -16,7 +16,7 @@
 
 import { createInterface } from 'readline'
 import { generatePuzzleV2 } from '../src/generator/v2'
-import { classifyDifficulty } from '../src/generator/v2/difficulty'
+import { classifyDifficulty } from '@queens/solver'
 import type { PuzzleConfig } from '../src/types/puzzleConfig'
 
 // ---------------------------------------------------------------------------

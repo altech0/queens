@@ -24,7 +24,7 @@ export interface SolveResult {
   maxTier: number
 }
 
-type GroupType = 'row' | 'column' | 'region'
+export type GroupType = 'row' | 'column' | 'region'
 interface Group {
   type: GroupType
   idx: number
@@ -37,11 +37,66 @@ interface Context {
   groups: Group[]
   regionOrder: number[]
 }
-interface Move {
+
+export interface GroupRef {
+  type: GroupType
+  id: number
+}
+export interface LineRef {
+  type: 'row' | 'column'
+  idx: number
+}
+export type ConfinementDirection = 'region-in-line' | 'line-in-region'
+export type SetCountingDirection = 'regions-in-lines' | 'lines-in-regions'
+export type PlacementRole = 'never-used' | 'always-used'
+
+/**
+ * Structured, teachable explanation for a move. Mirrors the `MoveExplain` enum
+ * in StarBattleSolver.swift; uses 0-indexed ids/indices and never names colours
+ * (the UI translates region ids to colours).
+ */
+export type MoveExplain =
+  | { kind: 'adjacency'; star: [number, number] }
+  | { kind: 'quota-met'; group: GroupRef }
+  | { kind: 'forced-fill'; group: GroupRef; need: number }
+  | { kind: 'confinement'; direction: ConfinementDirection; region: number; line: LineRef }
+  | {
+      kind: 'set-counting'
+      direction: SetCountingDirection
+      regions: number[]
+      lineType: GroupType
+      lineIdxs: number[]
+    }
+  | { kind: 'placement'; group: GroupRef; need: number; role: PlacementRole }
+  | { kind: 'hypothetical'; group: GroupRef }
+
+export interface Move {
   r: number
   c: number
   action: 'star' | 'cross'
   tier: number
+  explain?: MoveExplain
+  /**
+   * Human-readable justification. Built lazily: the tier-4 look-ahead
+   * generates and discards huge numbers of candidate moves inside
+   * `cheapPropagate`, and eagerly interpolating this string there costs
+   * orders of magnitude more than the search itself.
+   */
+  readonly reason?: string
+}
+
+/**
+ * Attaches an explanation to a move, deferring the `reason` string until it is
+ * actually read. Callers that only inspect `r`/`c`/`action` pay nothing.
+ */
+function explained(
+  move: { r: number; c: number; action: 'star' | 'cross'; tier: number },
+  explain: MoveExplain,
+  reason: () => string,
+): Move {
+  return Object.defineProperties({ ...move, explain } as Move, {
+    reason: { get: reason, enumerable: true, configurable: true },
+  })
 }
 
 // Insertion-ordered set of ints (mirrors JS Set iteration order).
@@ -121,6 +176,29 @@ function lineNeed(board: Board, ctx: Context, type: 'row' | 'column', idx: numbe
   return ctx.stars - s
 }
 
+// ---- Explanation helpers (mirror StarBattleSolver.swift) ----
+
+function glabel(g: Group): string {
+  return `${g.type} ${g.idx + 1}`
+}
+function gref(g: Group): GroupRef {
+  return { type: g.type, id: g.idx }
+}
+function grefLabel(ref: GroupRef): string {
+  return `${ref.type} ${ref.id + 1}`
+}
+function capitalizeFirst(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1) : s
+}
+/** "s" when n is plural, matching the Swift string interpolation. */
+function plural(n: number): string {
+  return n > 1 ? 's' : ''
+}
+/** 1-indexed, comma-joined list of ids for reason strings. */
+function idList(xs: number[]): string {
+  return xs.map(x => String(x + 1)).join(', ')
+}
+
 // ---- Techniques ----
 
 function techAdjacency(board: Board, ctx: Context): Move[] {
@@ -130,7 +208,15 @@ function techAdjacency(board: Board, ctx: Context): Move[] {
     for (let c = 0; c < n; c++) {
       if (board[r][c] !== 'star') continue
       for (const [rr, cc] of neighbors8(r, c, n))
-        if (board[rr][cc] === 'unknown') moves.push({ r: rr, c: cc, action: 'cross', tier: 0 })
+        if (board[rr][cc] === 'unknown')
+          moves.push({
+            r: rr,
+            c: cc,
+            action: 'cross',
+            tier: 0,
+            explain: { kind: 'adjacency', star: [r, c] },
+            reason: `Adjacent to the star at R${r + 1}C${c + 1}, so it can't be a star.`,
+          })
     }
   return moves
 }
@@ -141,7 +227,15 @@ function techQuotaMet(board: Board, ctx: Context): Move[] {
   for (const g of groups) {
     const { stars: s, unknown } = groupStats(board, g.cells)
     if (s === stars && unknown.length)
-      for (const [r, c] of unknown) moves.push({ r, c, action: 'cross', tier: 1 })
+      for (const [r, c] of unknown)
+        moves.push({
+          r,
+          c,
+          action: 'cross',
+          tier: 1,
+          explain: { kind: 'quota-met', group: gref(g) },
+          reason: `${capitalizeFirst(glabel(g))} already has its ${stars} star${plural(stars)}, so this must be a cross.`,
+        })
   }
   return moves
 }
@@ -153,7 +247,15 @@ function techForcedFill(board: Board, ctx: Context): Move[] {
     const { stars: s, unknown } = groupStats(board, g.cells)
     const need = stars - s
     if (need > 0 && unknown.length === need)
-      for (const [r, c] of unknown) moves.push({ r, c, action: 'star', tier: 1 })
+      for (const [r, c] of unknown)
+        moves.push({
+          r,
+          c,
+          action: 'star',
+          tier: 1,
+          explain: { kind: 'forced-fill', group: gref(g), need },
+          reason: `${capitalizeFirst(glabel(g))} needs ${need} more star${plural(need)} and has exactly ${need} open cell${plural(need)} left.`,
+        })
   }
   return moves
 }
@@ -172,7 +274,19 @@ function techRegionConfinement(board: Board, ctx: Context): Move[] {
       if (lineNeed(board, ctx, 'row', r) === need)
         for (let c = 0; c < n; c++)
           if (board[r][c] === 'unknown' && regions[r][c] !== g.idx)
-            moves.push({ r, c, action: 'cross', tier: 2 })
+            moves.push(
+              explained(
+                { r, c, action: 'cross', tier: 2 },
+                {
+                  kind: 'confinement',
+                  direction: 'region-in-line',
+                  region: g.idx,
+                  line: { type: 'row', idx: r },
+                },
+                () =>
+                  `Region ${g.idx + 1}'s ${need} remaining star${plural(need)} must all lie in row ${r + 1}, filling that row's quota, so the rest of row ${r + 1} can't hold a star.`,
+              ),
+            )
     }
     const cs = colsOf(unknown)
     if (cs.size === 1) {
@@ -180,7 +294,19 @@ function techRegionConfinement(board: Board, ctx: Context): Move[] {
       if (lineNeed(board, ctx, 'column', c) === need)
         for (let r = 0; r < n; r++)
           if (board[r][c] === 'unknown' && regions[r][c] !== g.idx)
-            moves.push({ r, c, action: 'cross', tier: 2 })
+            moves.push(
+              explained(
+                { r, c, action: 'cross', tier: 2 },
+                {
+                  kind: 'confinement',
+                  direction: 'region-in-line',
+                  region: g.idx,
+                  line: { type: 'column', idx: c },
+                },
+                () =>
+                  `Region ${g.idx + 1}'s ${need} remaining star${plural(need)} must all lie in column ${c + 1}, filling that column's quota, so the rest of column ${c + 1} can't hold a star.`,
+              ),
+            )
     }
   }
   return moves
@@ -208,7 +334,20 @@ function techLineConfinement(board: Board, ctx: Context): Move[] {
         for (let c = 0; c < n; c++) {
           if (board[r][c] !== 'unknown' || regions[r][c] !== id) continue
           const inLine = g.type === 'row' ? r === g.idx : c === g.idx
-          if (!inLine) moves.push({ r, c, action: 'cross', tier: 2 })
+          if (!inLine)
+            moves.push(
+              explained(
+                { r, c, action: 'cross', tier: 2 },
+                {
+                  kind: 'confinement',
+                  direction: 'line-in-region',
+                  region: id,
+                  line: { type: g.type as 'row' | 'column', idx: g.idx },
+                },
+                () =>
+                  `${capitalizeFirst(glabel(g))}'s ${need} remaining star${plural(need)} must all lie in region ${id + 1}, filling that region's quota, so region ${id + 1}'s cells outside ${glabel(g)} can't hold a star.`,
+              ),
+            )
         }
     }
   }
@@ -273,7 +412,20 @@ function techSetCounting(board: Board, ctx: Context): Move[] {
           const r = orient === 'row' ? l : t
           const c = orient === 'row' ? t : l
           if (board[r][c] === 'unknown' && !regIds.has(regions[r][c]))
-            moves.push({ r, c, action: 'cross', tier: 3 })
+            moves.push(
+              explained(
+                { r, c, action: 'cross', tier: 3 },
+                {
+                  kind: 'set-counting',
+                  direction: 'regions-in-lines',
+                  regions: regIds.items.slice(),
+                  lineType: orient === 'row' ? 'row' : 'column',
+                  lineIdxs: lines.items.slice(),
+                },
+                () =>
+                  `Regions ${idList(regIds.items)} are confined to ${orient === 'row' ? 'rows' : 'columns'} ${idList(lines.items)} and fill their stars, so other cells there can't hold a star.`,
+              ),
+            )
         }
     })
   }
@@ -309,7 +461,21 @@ function techSetCounting(board: Board, ctx: Context): Move[] {
       for (const id of regsUnion.items)
         for (const [r, c] of (regUnknown.get(id) ?? [])) {
           const inLine = orient === 'row' ? lineIdxs.has(r) : lineIdxs.has(c)
-          if (!inLine) moves.push({ r, c, action: 'cross', tier: 3 })
+          if (!inLine)
+            moves.push(
+              explained(
+                { r, c, action: 'cross', tier: 3 },
+                {
+                  kind: 'set-counting',
+                  direction: 'lines-in-regions',
+                  regions: regsUnion.items.slice(),
+                  lineType: orient === 'row' ? 'row' : 'column',
+                  lineIdxs: lineIdxs.items.slice(),
+                },
+                () =>
+                  `${orient === 'row' ? 'Rows' : 'Columns'} ${idList(lineIdxs.items)} confine their stars to regions ${idList(regsUnion.items)} and fill them, so those regions' cells outside those ${orient === 'row' ? 'rows' : 'columns'} can't hold a star.`,
+              ),
+            )
         }
     })
   }
@@ -377,8 +543,24 @@ function techPairExclusion(board: Board, ctx: Context): Move[] {
     if (overflow || placements === 0) continue
     for (let i = 0; i < m; i++) {
       const [r, c] = cand[i]
-      if (usedCount[i] === 0) moves.push({ r, c, action: 'cross', tier: 3 })
-      else if (usedCount[i] === placements) moves.push({ r, c, action: 'star', tier: 3 })
+      if (usedCount[i] === 0)
+        moves.push({
+          r,
+          c,
+          action: 'cross',
+          tier: 3,
+          explain: { kind: 'placement', group: gref(g), need, role: 'never-used' },
+          reason: `No valid arrangement of ${glabel(g)}'s ${need} stars can place one at R${r + 1}C${c + 1}, so it must be a cross.`,
+        })
+      else if (usedCount[i] === placements)
+        moves.push({
+          r,
+          c,
+          action: 'star',
+          tier: 3,
+          explain: { kind: 'placement', group: gref(g), need, role: 'always-used' },
+          reason: `Every valid arrangement of ${glabel(g)}'s ${need} stars places one at R${r + 1}C${c + 1}, so it must be a star.`,
+        })
     }
   }
   return moves
@@ -392,19 +574,44 @@ function techHypotheticalExclusion(board: Board, ctx: Context): Move[] {
       if (board[r][c] !== 'unknown') continue
       const asStar = board.map(row => row.slice())
       asStar[r][c] = 'star'
-      if (cheapPropagate(asStar, ctx)) { moves.push({ r, c, action: 'cross', tier: 4 }); continue }
+      const badA = cheapPropagate(asStar, ctx)
+      if (badA) {
+        moves.push({
+          r,
+          c,
+          action: 'cross',
+          tier: 4,
+          explain: { kind: 'hypothetical', group: badA },
+          reason: `Placing a star at R${r + 1}C${c + 1} would leave ${grefLabel(badA)} unable to place its stars, so it must be a cross.`,
+        })
+        continue
+      }
       const asCross = board.map(row => row.slice())
       asCross[r][c] = 'cross'
-      if (cheapPropagate(asCross, ctx)) moves.push({ r, c, action: 'star', tier: 4 })
+      const badB = cheapPropagate(asCross, ctx)
+      if (badB)
+        moves.push({
+          r,
+          c,
+          action: 'star',
+          tier: 4,
+          explain: { kind: 'hypothetical', group: badB },
+          reason: `Crossing R${r + 1}C${c + 1} would leave ${grefLabel(badB)} unable to place its stars, so it must be a star.`,
+        })
     }
   return moves
 }
 
 // Returns true if a contradiction is detected, false at a consistent fixpoint.
-function cheapPropagate(b: Board, ctx: Context): boolean {
+/**
+ * Propagates cheap constraints in place. Returns the group that breaks if the
+ * board becomes inconsistent, or null if propagation settles consistently.
+ */
+function cheapPropagate(b: Board, ctx: Context): GroupRef | null {
   const { n, stars, groups } = ctx
   for (;;) {
-    if (!consistent(b, ctx)) return true
+    const broken = firstBrokenGroup(b, ctx)
+    if (broken) return broken
     let changed = false
     for (let r = 0; r < n; r++)
       for (let c = 0; c < n; c++) {
@@ -425,11 +632,16 @@ function cheapPropagate(b: Board, ctx: Context): boolean {
     for (const mv of techRegionConfinement(b, ctx)) if (b[mv.r][mv.c] === 'unknown') { b[mv.r][mv.c] = mv.action; changed = true }
     for (const mv of techLineConfinement(b, ctx)) if (b[mv.r][mv.c] === 'unknown') { b[mv.r][mv.c] = mv.action; changed = true }
     for (const mv of techSetCounting(b, ctx)) if (b[mv.r][mv.c] === 'unknown') { b[mv.r][mv.c] = mv.action; changed = true }
-    if (!changed) return !consistent(b, ctx)
+    if (!changed) return firstBrokenGroup(b, ctx)
   }
 }
 
-function consistent(b: Board, ctx: Context): boolean {
+/**
+ * Returns the first group that can no longer place its stars, or null when the
+ * board is still consistent. Callers that only need a boolean check for null;
+ * the returned group is used to explain tier-4 hypothetical moves.
+ */
+function firstBrokenGroup(b: Board, ctx: Context): GroupRef | null {
   const { stars, groups, n } = ctx
   for (const g of groups) {
     let s = 0
@@ -439,18 +651,23 @@ function consistent(b: Board, ctx: Context): boolean {
       if (v === 'star') s++
       else if (v === 'unknown') open.push([r, c])
     }
-    if (s > stars) return false
+    if (s > stars) return gref(g)
     const need = stars - s
     if (need === 0) continue
-    if (open.length < need) return false
-    if (maxIndependent(open, need) < need) return false
+    if (open.length < need) return gref(g)
+    if (maxIndependent(open, need) < need) return gref(g)
   }
   for (let r = 0; r < n; r++)
     for (let c = 0; c < n; c++) {
       if (b[r][c] !== 'star') continue
-      for (const [rr, cc] of neighbors8(r, c, n)) if (b[rr][cc] === 'star') return false
+      for (const [rr, cc] of neighbors8(r, c, n))
+        if (b[rr][cc] === 'star') return { type: 'row', id: r }
     }
-  return true
+  return null
+}
+
+function consistent(b: Board, ctx: Context): boolean {
+  return firstBrokenGroup(b, ctx) === null
 }
 
 function maxIndependent(cells: [number, number][], cap: number): number {
@@ -490,6 +707,23 @@ const TECHNIQUES: Technique[] = [
   { fn: techPairExclusion, teachable: true },
   { fn: techHypotheticalExclusion, teachable: false },
 ]
+
+/**
+ * The single next forced move given the current board, computed fresh.
+ * Lowest-cost technique first. `teachableOnly` skips the look-ahead technique.
+ */
+export function nextMove(
+  board: Board,
+  puzzle: SolverPuzzle,
+  opts: SolveOptions = {},
+): Move | null {
+  const ctx = makeContext(puzzle)
+  for (const tech of TECHNIQUES) {
+    if (opts.teachableOnly && !tech.teachable) continue
+    for (const m of tech.fn(board, ctx)) if (board[m.r][m.c] === 'unknown') return m
+  }
+  return null
+}
 
 /** Full solve from an optional starting board. */
 export function solve(puzzle: SolverPuzzle, startBoard?: Board, opts: SolveOptions = {}): SolveResult {
