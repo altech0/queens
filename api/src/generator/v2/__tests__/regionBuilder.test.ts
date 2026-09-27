@@ -98,8 +98,12 @@ describe('buildRegionsV2', () => {
   }
 
   it('returns different layouts across runs (randomness)', () => {
+    // buildRegionsV2 returns null most of the time at 8x8 — its size cap rejects
+    // the majority of layouts — so ten tries could legitimately yield one grid
+    // and fail this spuriously (~20% of runs). Keep going until there are two
+    // non-null layouts to compare, with a generous ceiling.
     const layouts = new Set<string>()
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 500 && layouts.size < 2; i++) {
       const grid = buildRegionsV2(cfg(8))
       if (grid) layouts.add(JSON.stringify(grid))
     }
