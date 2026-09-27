@@ -172,6 +172,21 @@
   .region-label.active {
     border-color: #728bc0;
   }
+  /* Local catalogue of experiment puzzles (only shown with ?local) */
+  #catalogue { display: none; width: 100%; max-width: 900px; margin-bottom: 24px; }
+  #catalogue h2 { font-size: 13px; font-weight: 700; color: #4d5980; margin: 0 0 8px; }
+  .cat-size { margin-bottom: 14px; }
+  .cat-group { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .cat-name { font-size: 12px; color: #728bc0; font-weight: 600; width: 190px; flex-shrink: 0; }
+  .cat-codes { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  .cat-codes button {
+    background: white; border: 1.5px solid #c9d2e8; border-radius: 6px;
+    padding: 3px 7px; font-size: 12px; color: #4d5980; cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .cat-codes button:hover { border-color: #728bc0; }
+  .cat-codes button.active { background: #728bc0; border-color: #728bc0; color: white; }
+  #loaded-label { font-size: 13px; color: #4d5980; margin-bottom: 12px; min-height: 18px; }
 </style>
 </head>
 <body>
@@ -180,6 +195,8 @@
   <input type="number" id="puzzle-id" placeholder="Puzzle ID" value="10442">
   <button onclick="load()">Load</button>
 </div>
+<div id="catalogue"></div>
+<div id="loaded-label"></div>
 <div id="error"></div>
 <button id="save-btn" onclick="saveImage()">Save image</button>
 
@@ -197,13 +214,85 @@
 </div>
 
 <script>
-const TOKEN = 'ce1536ac-f688-4977-b58c-05e2e0b427bf';
-const API   = 'https://api.queens.knittedmice.com';
+// Open with ?local to use `wrangler dev` (localhost:8787) and a token from the local D1.
+const IS_LOCAL = new URLSearchParams(location.search).has('local');
+const TOKEN = IS_LOCAL ? 'afb4601f-448b-41bd-b542-27648b6e8ada' : 'ce1536ac-f688-4977-b58c-05e2e0b427bf';
+const API   = IS_LOCAL ? 'http://localhost:8787' : 'https://api.queens.knittedmice.com';
+
+// Experiment puzzles in the local D1, grouped by grid size and the generator that made them.
+const GENERATORS = {
+  prod:     'Existing local puzzles',
+  capped:   'Voronoi · size cap (current rules)',
+  uncapped: 'Voronoi · no size cap',
+  snake:    'Snakes + repair',
+  harden:   'Snakes + repair + harden',
+  linkedin: 'LinkedIn reference',
+};
+const range = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+const CATALOGUE = [
+  { size: 8, groups: [
+    { gen: 'capped',   codes: range(80001, 80012) },
+    { gen: 'uncapped', codes: range(81001, 81012) },
+    { gen: 'snake',    codes: range(82001, 82012) },
+    { gen: 'harden',   codes: range(83001, 83012) },
+  ]},
+  { size: 9, groups: [
+    { gen: 'capped',   codes: [90001] },
+    { gen: 'uncapped', codes: range(91001, 91008) },
+    { gen: 'snake',    codes: range(92001, 92012) },
+    { gen: 'harden',   codes: range(93001, 93012) },
+    { gen: 'linkedin', codes: [89999] },
+  ]},
+  { size: null, groups: [
+    { gen: 'prod', codes: [...range(10001, 10008), 99999] },
+  ]},
+];
+const CODE_INFO = {};
+CATALOGUE.forEach(({ size, groups }) => groups.forEach(g => g.codes.forEach(c => CODE_INFO[c] = { size, gen: g.gen })));
+
+function buildCatalogue() {
+  const el = document.getElementById('catalogue');
+  el.style.display = 'block';
+  el.innerHTML = '';
+  for (const { size, groups } of CATALOGUE) {
+    const sec = document.createElement('div');
+    sec.className = 'cat-size';
+    sec.innerHTML = `<h2>${size ? `${size}×${size}` : 'Other'}</h2>`;
+    for (const g of groups) {
+      const row = document.createElement('div');
+      row.className = 'cat-group';
+      row.innerHTML = `<div class="cat-name">${GENERATORS[g.gen]}</div>`;
+      const codes = document.createElement('div');
+      codes.className = 'cat-codes';
+      for (const code of g.codes) {
+        const b = document.createElement('button');
+        b.textContent = code;
+        b.dataset.code = code;
+        b.addEventListener('click', () => {
+          document.getElementById('puzzle-id').value = code;
+          load();
+        });
+        codes.appendChild(b);
+      }
+      row.appendChild(codes);
+      sec.appendChild(row);
+    }
+    el.appendChild(sec);
+  }
+}
+
+function markActive(id) {
+  document.querySelectorAll('.cat-codes button').forEach(b => b.classList.toggle('active', b.dataset.code === String(id)));
+  const info = CODE_INFO[id];
+  document.getElementById('loaded-label').textContent = info && IS_LOCAL
+    ? `${id} · ${puzzle.gridSize}×${puzzle.gridSize} · ${GENERATORS[info.gen]}`
+    : '';
+}
 
 const PALETTE = [
   '#c8b4e8','#b4d4f0','#b4e8c8','#f0e0b4',
   '#f0b4c8','#b4c8f0','#e8c8b4','#c8e8b4',
-  '#d4b4f0','#b4f0e8',
+  '#e0dca0','#b4f0e8',
 ];
 
 const REGION_BORDER  = 'rgba(100,110,140,0.6)';
@@ -239,6 +328,7 @@ async function load() {
   highlightCols = new Set();
   highlightRegs = new Set();
 
+  markActive(id);
   document.getElementById('save-btn').style.display    = 'inline-block';
   document.getElementById('puzzle-outer').style.display = 'block';
 
@@ -518,6 +608,10 @@ async function saveImage() {
   setTimeout(() => btn.textContent = 'Save image', 1500);
 }
 
+if (IS_LOCAL) {
+  buildCatalogue();
+  document.getElementById('puzzle-id').value = 93001;
+}
 load();
 </script>
 </body>
