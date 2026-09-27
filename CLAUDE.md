@@ -17,6 +17,12 @@ links every workspace; do not run `npm install` inside a sub-project. Everything
 else still runs from inside the sub-project (`cd api && npm run dev`), or from the
 root with `npm run <script> --workspace=<name>`.
 
+There is **one lockfile**, `package-lock.json` at the root. `api/` and `web/` have no
+lockfiles of their own and must not be given any: both declare `@queens/solver`, which
+only the root lockfile resolves, so a subproject `npm ci` would look for that private
+name on the public npm registry and fail (or, worse, install someone else's package).
+CI installs from the root for the same reason.
+
 `app/` is not a workspace — it is built in Xcode and shares no dependencies.
 
 ---
@@ -24,8 +30,8 @@ root with `npm run <script> --workspace=<name>`.
 ## API (`api/`)
 
 ```bash
+npm install          # at the REPO ROOT, once (installs all workspaces)
 cd api
-npm install
 npm run dev          # wrangler dev — listens on http://localhost:8787
 npm test             # vitest run (single pass)
 npm run test:watch   # vitest watch
@@ -51,8 +57,8 @@ npx wrangler d1 execute queens --local --file=migrations/0001_create_puzzles.sql
 ## Web (`web/`)
 
 ```bash
+npm install          # at the REPO ROOT, once (installs all workspaces)
 cd web
-npm install
 npm run dev      # next dev
 npm run build    # next build
 npm run lint     # eslint

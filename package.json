@@ -6,5 +6,8 @@
     "packages/*",
     "api",
     "web"
-  ]
+  ],
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
 }
