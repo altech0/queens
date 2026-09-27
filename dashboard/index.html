@@ -100,6 +100,26 @@
     .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
     .hero .active-card { grid-column: 1 / -1; }
 
+    /* Puzzle styles — one card per engine, fluid so a new style just wraps in */
+    .styles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+    .style-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--c);
+      border-radius: 16px;
+      padding: 18px 20px;
+    }
+    .style-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .style-name { font-size: clamp(15px, 2vw, 17px); font-weight: 700; color: var(--c); }
+    .style-total { font-size: clamp(20px, 3vw, 26px); font-weight: 800; font-variant-numeric: tabular-nums; }
+    .style-id { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
+    .style-sizes { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .style-size { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+    .style-size-label { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .style-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+    .style-bar > span { display: block; height: 100%; border-radius: 3px; background: var(--c); }
+    .style-size-n { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
     /* Mid row — wide chart + right column */
     .mid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
     .right-col { display: flex; flex-direction: column; gap: 12px; }
@@ -293,6 +313,32 @@ const LABELS = {
   '10x2': '10×10 2★',
 }
 
+// Puzzle styles (engines). The API is the source of truth for display names —
+// these are only for colouring and for ordering the section, so an engine that
+// appears here before the dashboard knows about it still renders, under its id.
+const ENGINE_LABELS = {
+  'voronoi-v2':      'Original',
+  'snake-v1':        'Winding',
+  'snake-harden-v1': 'Tangled',
+}
+const ENGINE_COLORS = {
+  'voronoi-v2':      '#89b4fa',
+  'snake-v1':        '#a6e3a1',
+  'snake-harden-v1': '#f9e2af',
+}
+const ENGINE_ORDER = ['voronoi-v2', 'snake-v1', 'snake-harden-v1']
+
+const engineLabel = e => ENGINE_LABELS[e] ?? e
+const engineColor = e => ENGINE_COLORS[e] ?? '#89b4fa'
+
+/** Registry order first, then anything unrecognised, so a new engine still shows. */
+function sortEngines(engines) {
+  return engines.slice().sort((a, b) => {
+    const ia = ENGINE_ORDER.indexOf(a), ib = ENGINE_ORDER.indexOf(b)
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b)
+  })
+}
+
 let env = 'prod'
 
 function ck(gridSize, stars) { return `${gridSize}x${stars}` }
@@ -392,14 +438,15 @@ async function load() {
 
   try {
     const data = await fetchJSON('/dashboard?days=90&limit=200')
-    const { puzzles, seedRuns, users, puzzleServes, userSource, retention } = data
-    render(puzzles, seedRuns, users, puzzleServes, userSource, retention)
+    const { puzzles, puzzlesByEngine, seedRuns, users, puzzleServes, userSource, retention } = data
+    // puzzlesByEngine is absent on an API deployed before the styles work.
+    render(puzzles, puzzlesByEngine ?? [], seedRuns, users, puzzleServes, userSource, retention)
   } catch (err) {
     main.innerHTML = `<div class="state"><span style="color:#f38ba8">Failed to load: ${err.message}</span></div>`
   }
 }
 
-function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
+function render(puzzles, puzzlesByEngine, seedRuns, users, puzzleServes, userSource, retention) {
   const main = document.getElementById('main')
 
   const total = puzzles.reduce((s, r) => s + r.count, 0)
@@ -477,6 +524,39 @@ function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
     ? Math.round(lastRun.inserted / lastRun.generated * 100)
     : null
 
+  // Puzzle styles — per-engine totals, with a bar per size relative to that
+  // style's own largest size, so a style with few puzzles is still readable.
+  const byEngine = {}
+  puzzlesByEngine.forEach(r => {
+    (byEngine[r.engine] ??= []).push(r)
+  })
+  const engines = sortEngines(Object.keys(byEngine))
+  const stylesHTML = engines.map(engine => {
+    const rows = byEngine[engine].slice().sort((a, b) => a.grid_size - b.grid_size || a.stars - b.stars)
+    const engineTotal = rows.reduce((sum, r) => sum + r.count, 0)
+    const biggest = Math.max(...rows.map(r => r.count), 1)
+    return `
+      <div class="style-card" style="--c:${engineColor(engine)}">
+        <div class="style-head">
+          <div>
+            <div class="style-name">${engineLabel(engine)}</div>
+            <div class="style-id">${engine}</div>
+          </div>
+          <div class="style-total">${engineTotal.toLocaleString()}</div>
+        </div>
+        <div class="style-sizes">
+          ${rows.map(r => `
+            <div class="style-size">
+              <span class="style-size-label">${r.grid_size}×${r.grid_size} ${r.stars}★</span>
+              <span class="style-bar"><span style="width:${Math.max(2, Math.round(r.count / biggest * 100))}%"></span></span>
+              <span class="style-size-n">${r.count.toLocaleString()}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `
+  }).join('')
+
   main.innerHTML = `
     <!-- Hero: stat cards -->
     <div class="hero anim" style="animation-delay:0.05s">
@@ -515,6 +595,17 @@ function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
         <div><div class="stat-tag">30d</div><div id="sc-serves-30d" class="active-stat-num" style="color:#cba6f7">0</div></div>
       </div>
     </div>
+
+    <!-- Puzzle Styles — per-engine counts (omitted entirely if the API predates them) -->
+    ${stylesHTML ? `
+    <div class="anim" style="animation-delay:0.14s">
+      <div class="chart-card" style="padding-bottom:20px">
+        <h3>Puzzle Styles</h3>
+        <p>Puzzles by the generator that made them</p>
+        <div class="styles" style="margin-top:14px">${stylesHTML}</div>
+      </div>
+    </div>
+    ` : ''}
 
     <!-- User Source + Retention row -->
     <div class="retention-grid anim" style="animation-delay:0.18s">
@@ -594,7 +685,7 @@ function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
       <div class="table-card">
         <table>
           <thead><tr>
-            <th>Config</th><th>Started</th><th>Duration</th>
+            <th>Config</th><th>Style</th><th>Started</th><th>Duration</th>
             <th>Attempts</th><th>Generated</th><th>Duplicates</th><th>Inserted</th><th>Eff.</th>
           </tr></thead>
           <tbody id="runs-tbody"></tbody>
@@ -693,6 +784,9 @@ function render(puzzles, seedRuns, users, puzzleServes, userSource, retention) {
     const tr = document.createElement('tr')
     tr.innerHTML = `
       <td>${badge(r.grid_size, r.stars)}</td>
+      <td>${r.engine
+        ? `<span class="badge" style="background:${engineColor(r.engine)}22;color:${engineColor(r.engine)}">${engineLabel(r.engine)}</span>`
+        : '<span style="color:var(--muted)">—</span>'}</td>
       <td style="color:var(--muted)">${formatDate(r.started_at)}</td>
       <td>${formatDuration(r.started_at, r.finished_at)}</td>
       <td>${r.attempts.toLocaleString()}</td>
