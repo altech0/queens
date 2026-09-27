@@ -1,0 +1,121 @@
+name: Seed Dev Engines
+
+# Nightly top-up of the new puzzle styles (Winding, Tangled) on the dev database.
+#
+# Deliberately separate from seed-puzzles.yml rather than a schedule added to it:
+# that workflow defaults to `prod` and a scheduled run passes no inputs, so
+# `inputs.env || 'prod'` would resolve to prod. Here the env is hardcoded to dev
+# and never taken from an input, so a scheduled run cannot reach prod. The seed
+# script refuses a non-default engine against prod as well, making this two
+# independent guards.
+#
+# One engine/size combo per night on a four-day rotation, ~50 minutes each. A long
+# single run suits Tangled in particular, which generates roughly one board a
+# second against Winding's fifty.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 03:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      combo:
+        description: 'Which combo to seed'
+        type: choice
+        default: 'auto (rotate daily)'
+        options:
+          - 'auto (rotate daily)'
+          - 'Winding 9x9'
+          - 'Winding 8x8'
+          - 'Tangled 9x9'
+          - 'Tangled 8x8'
+      seconds:
+        description: 'Seconds to generate for'
+        type: choice
+        default: '3000'
+        options:
+          - '60'
+          - '300'
+          - '900'
+          - '3000'
+
+# One seeding run at a time: concurrent runs would generate overlapping boards
+# and waste most of their output on duplicate solutions.
+concurrency:
+  group: seed-dev-engines
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70  # 50 minutes of generating, plus install and upload headroom
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve combo
+        id: cfg
+        run: |
+          INPUT="${{ inputs.combo }}"
+
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
+            # Four-day rotation. 9x9 leads because 8x8 is close to saturated:
+            # ~93% of generated 8x8 boards duplicate a solution already stored.
+            DAY=$(date +%j)       # day of year, 001-366
+            IDX=$((10#$DAY % 4))
+            case $IDX in
+              0) ENGINE="snake-v1";        SIZE=9 ;;
+              1) ENGINE="snake-harden-v1"; SIZE=9 ;;
+              2) ENGINE="snake-v1";        SIZE=8 ;;
+              3) ENGINE="snake-harden-v1"; SIZE=8 ;;
+            esac
+            RUN_SECONDS=3000      # 50 minutes
+          else
+            case "$INPUT" in
+              'Winding 9x9') ENGINE="snake-v1";        SIZE=9 ;;
+              'Winding 8x8') ENGINE="snake-v1";        SIZE=8 ;;
+              'Tangled 9x9') ENGINE="snake-harden-v1"; SIZE=9 ;;
+              'Tangled 8x8') ENGINE="snake-harden-v1"; SIZE=8 ;;
+            esac
+            RUN_SECONDS="${{ inputs.seconds }}"
+          fi
+
+          echo "engine=$ENGINE"        >> $GITHUB_OUTPUT
+          echo "size=$SIZE"            >> $GITHUB_OUTPUT
+          echo "seconds=$RUN_SECONDS"  >> $GITHUB_OUTPUT
+          echo "Seeding $ENGINE ${SIZE}x${SIZE} for ${RUN_SECONDS}s on dev"
+
+      - name: Generate and seed puzzles
+        run: |
+          cd api && ../node_modules/.bin/tsx scripts/seedPuzzlesV2.ts \
+            --env dev \
+            --engine ${{ steps.cfg.outputs.engine }} \
+            --size ${{ steps.cfg.outputs.size }} \
+            --stars 1 \
+            --seconds ${{ steps.cfg.outputs.seconds }} \
+            --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_TO: ${{ secrets.RESEND_TO }}
+          WRANGLER_SEND_METRICS: false
+
+      - name: Report counts
+        if: always()
+        run: |
+          cd api && ../node_modules/.bin/wrangler d1 execute queens-dev --remote --env dev \
+            --command "SELECT engine, grid_size, stars, n FROM puzzle_counts WHERE n > 0 ORDER BY engine, grid_size;" \
+            || echo "Count query failed; seeding result above is what matters."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: false

@@ -503,6 +503,23 @@ async function run() {
   for (const config of selectedConfigs) {
     console.log(`Fetching existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles from DB...`)
     const { existingSolutions, maxCode } = await fetchExistingState(config, args.engine)
+    // A null maxCode means the DB state could not be read — missing credentials, or
+    // a failed fetch. Falling back to CODE_START_DEFAULT then is actively harmful
+    // against a populated database: `code` is UNIQUE, so every generated row
+    // collides with an existing one and INSERT OR IGNORE discards it silently. A
+    // 50-minute unattended run would produce nothing and still report success.
+    // Only start from the default when the table really is empty.
+    if (maxCode === null && !args.yes) {
+      console.warn('  ⚠️  Could not read the highest existing code — starting from the default.')
+      console.warn('      Fine against an empty database; against a populated one every insert will be dropped.')
+    }
+    if (maxCode === null && args.yes) {
+      console.error('Error: could not read the highest existing code from the database.')
+      console.error('  Refusing to guess in a non-interactive run: starting from the default would')
+      console.error('  collide with every existing code and silently discard all generated puzzles.')
+      console.error('  Check CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.')
+      process.exit(1)
+    }
     const startCode = maxCode !== null ? maxCode + 1 : CODE_START_DEFAULT
     console.log(`  New codes will start from: ${startCode}`)
     const nextCode = { value: startCode }
