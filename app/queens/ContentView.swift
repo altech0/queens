@@ -40,7 +40,17 @@ struct ContentView: View {
                     Text("Queens")
                         .font(.system(size: 48, weight: .light, design: .rounded))
                         .foregroundColor(AppColors.textPrimary(colorScheme))
-                    
+
+                    // Visible marker that this build talks to the dev API, so a
+                    // TestFlight tester (or a mis-archived build) is obvious.
+                    if Configuration.isDevAPI {
+                        Text("DEV")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.orange))
+                    }
                 }
                 
                 Spacer()
