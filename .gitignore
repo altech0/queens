@@ -1,6 +1,9 @@
 # Claude Code
 .claude/
 
+# npm workspaces — deps hoist to the root
+node_modules/
+
 # API
 api/node_modules/
 api/.wrangler/

@@ -1,0 +1,13 @@
+{
+  "name": "queens",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "api",
+    "web"
+  ],
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

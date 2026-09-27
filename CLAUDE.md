@@ -4,21 +4,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Structure
 
-Three independent sub-projects, each with its own dependencies and dev workflow:
+Sub-projects, each with its own dev workflow:
 
 - `api/` — Cloudflare Worker (TypeScript, Hono, Cloudflare D1)
 - `app/` — iOS app (Swift, SwiftUI) — built in Xcode only
 - `web/` — Next.js web client (TypeScript, React 19, Tailwind v4)
+- `packages/solver/` — shared Star Battle solver (TypeScript), used by `api/` and `web/`
 
-There is no root-level package.json. Always `cd` into the sub-project before running commands.
+The JS/TS sub-projects (`api/`, `web/`, `packages/*`) are npm workspaces under a
+root `package.json`. Run `npm install` **once at the repo root** — it installs and
+links every workspace; do not run `npm install` inside a sub-project. Everything
+else still runs from inside the sub-project (`cd api && npm run dev`), or from the
+root with `npm run <script> --workspace=<name>`.
+
+There is **one lockfile**, `package-lock.json` at the root. `api/` and `web/` have no
+lockfiles of their own and must not be given any: both declare `@queens/solver`, which
+only the root lockfile resolves, so a subproject `npm ci` would look for that private
+name on the public npm registry and fail (or, worse, install someone else's package).
+CI installs from the root for the same reason.
+
+`app/` is not a workspace — it is built in Xcode and shares no dependencies.
 
 ---
 
 ## API (`api/`)
 
 ```bash
+npm install          # at the REPO ROOT, once (installs all workspaces)
 cd api
-npm install
 npm run dev          # wrangler dev — listens on http://localhost:8787
 npm test             # vitest run (single pass)
 npm run test:watch   # vitest watch
@@ -44,8 +57,8 @@ npx wrangler d1 execute queens --local --file=migrations/0001_create_puzzles.sql
 ## Web (`web/`)
 
 ```bash
+npm install          # at the REPO ROOT, once (installs all workspaces)
 cd web
-npm install
 npm run dev      # next dev
 npm run build    # next build
 npm run lint     # eslint
@@ -54,6 +67,32 @@ npm run lint     # eslint
 API URL is configured via `NEXT_PUBLIC_API_URL` env var; defaults to `https://api.queens.knittedmice.com`.
 
 **Note**: `web/AGENTS.md` contains a reminder that this Next.js version (16.2.6) may differ from training data. Read `node_modules/next/dist/docs/` before writing Next.js-specific code.
+
+---
+
+## Solver (`packages/solver/`)
+
+Shared Star Battle constraint-propagation solver, published to the workspace as
+`@queens/solver`. Imported by `api/scripts/seedPuzzlesV2.ts` (difficulty
+classification at generation time) and by `web/` (interactive hints).
+
+```bash
+npm test --workspace=packages/solver
+```
+
+Exports `solve()`, `nextMove()`, `isComplete()` and `classifyDifficulty()`.
+
+`nextMove()` returns the single next forced move with a structured `explain`
+object and a human-readable `reason`. **`reason` is a lazy getter**, not a plain
+string: the tier-4 look-ahead technique generates and discards enormous numbers
+of candidate moves inside `cheapPropagate`, and building those strings eagerly
+made the full solve ~500× slower. Add new explanations via the `explained()`
+helper so the cost stays deferred.
+
+This solver and `app/queens/StarBattleSolver.swift` are both ports of the same
+`starbattle-solver.js` and **must stay behaviourally identical**. The parity test
+replays all 600 cases in `app/queensTests/solver-reference.json` against both
+teachable-only and full modes; run it after any change to the technique logic.
 
 ---
 
