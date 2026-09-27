@@ -149,7 +149,14 @@ export function harden(grid: Grid, n: number, solution: number[], iterations: nu
  * 1-3 boards/s versus ~40/s for Winding, because every accepted move re-solves
  * the board twice.
  */
-export function generateSnakeHardenV1(gridSize: number, maxAttempts = 200): GenerateResultV3 {
+/**
+ * 600 attempts rather than a couple of hundred: an individual layout only lands
+ * in the band some of the time, and at 200 roughly 1 call in 40 gave up and
+ * returned null. A caller asking for one puzzle should get one. Attempts are
+ * cheap relative to the climb, so this costs throughput only on the rare board
+ * that needs the extra tries.
+ */
+export function generateSnakeHardenV1(gridSize: number, maxAttempts = 600): GenerateResultV3 {
   const n = gridSize
   const counters = emptyCounters()
 

@@ -49,15 +49,23 @@ export const puzzleV2Handler = async (c: Context<{ Bindings: Bindings }>) => {
   }
 
   // Parse & validate the engine filter first: it decides which size/stars combos
-  // are allowed below. No engine means Original only, exactly as before engines.
+  // are allowed below.
+  //
+  // The guarantee the rollout rests on: a request that names no engine is served
+  // Original only, exactly as before engines existed. A client built before
+  // styles sends no engine param, and must never be handed a board it cannot
+  // render. So this defaults to Original and stays non-empty even for `?engine=`
+  // or `?engine=,`, which would otherwise build `engine IN ()`.
   let engines: string[] = [DEFAULT_ENGINE]
   if (engineParam) {
-    engines = engineParam.split(',').map(e => e.trim()).filter(Boolean)
-    const unknown = engines.filter(e => !isKnownEngine(e))
+    const requested = engineParam.split(',').map(e => e.trim()).filter(Boolean)
+    const unknown = requested.filter(e => !isKnownEngine(e))
     if (unknown.length) {
       console.log(`[puzzle] → 400 invalid engine: ${unknown.join(', ')}`)
       return c.json({ error: `Invalid engine. Allowed: ${ENGINE_IDS.join(', ')}` }, 400)
     }
+    // An param that parses to nothing is treated as absent, not as "no filter".
+    if (requested.length) engines = requested
   }
 
   const ALLOWED_COMBOS = allowedCombos(engines)

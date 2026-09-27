@@ -107,8 +107,11 @@ describe('repair', () => {
   })
 
   it('leaves exactly one solution when it succeeds', () => {
+    // Generous attempt budget: a layout can fail regionsAreValid (a queen whose
+    // region never grew) or fail to repair, and with only a few dozen tries the
+    // run could legitimately check nothing and fail spuriously.
     let checked = 0
-    for (let i = 0; i < 40 && checked < 8; i++) {
+    for (let i = 0; i < 400 && checked < 8; i++) {
       const n = 9
       const { grid, solution } = snakeLayout(n)
       if (!regionsAreValid(grid, n)) continue
