@@ -5,6 +5,7 @@ import { healthHandler }     from './functions/health'
 import { puzzleV2Handler }   from './functions/puzzle'
 import { registerHandler, deleteUserHandler } from './functions/auth'
 import { dashboardHandler } from './functions/dashboard'
+import { catalogueHandler } from './functions/catalogue'
 import { cleanupStaleUsers } from './functions/cleanup'
 import { tokenAuth }         from './middleware/auth'
 
@@ -38,6 +39,7 @@ app.post('/auth/register', registerHandler)
 // Protected
 app.delete('/user', tokenAuth, deleteUserHandler)
 app.get('/puzzle/:puzzleId?', tokenAuth, puzzleV2Handler)
+app.get('/catalogue', tokenAuth, catalogueHandler)
 
 // Dashboard
 app.get('/dashboard', dashboardHandler)

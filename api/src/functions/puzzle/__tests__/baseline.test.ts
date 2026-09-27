@@ -100,11 +100,19 @@ describe('/puzzle baseline — rejected requests', () => {
 })
 
 describe('/puzzle baseline — response contract', () => {
-  it('returns exactly the eight documented keys', async () => {
+  it('still returns all eight original keys', async () => {
+    // New fields may be added (the app's decoder ignores unknown keys), but none
+    // of these may be removed or renamed.
     const { res } = await run({ size: '8', stars: '1' })
-    expect(Object.keys(res.body).sort()).toEqual([
+    expect(Object.keys(res.body)).toEqual(expect.arrayContaining([
       'code', 'createdAt', 'difficulty', 'gridSize', 'id', 'regions', 'solution', 'stars',
-    ])
+    ]))
+  })
+
+  it('does not leak internal columns', async () => {
+    const { res } = await run({ size: '8', stars: '1' })
+    expect(res.body).not.toHaveProperty('rand')
+    expect(res.body).not.toHaveProperty('difficulty_score')
   })
 
   it('code lookup ignores a difficulty filter', async () => {
