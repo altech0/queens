@@ -14,6 +14,7 @@ api/prompts/
 # App config (contain API URLs, not committed)
 app/**/Config.plist
 app/**/Config.debug.plist
+app/**/Config.beta.plist
 
 # Xcode
 app/**/*.xcuserstate

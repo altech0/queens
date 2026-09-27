@@ -53,6 +53,17 @@ describe('GET /dashboard', () => {
     expect(statements.some(s => /FROM puzzles\b/.test(s))).toBe(false)
   })
 
+  it('sums puzzle_counts across engines so each size/stars combo is one row', async () => {
+    // puzzle_counts is keyed by (engine, grid_size, stars) since migration 0023,
+    // so an 8x8 made by two engines is two rows. The dashboard reports totals.
+    const { ctx, statements } = makeCtx()
+    await dashboardHandler(ctx as any)
+    expect(statements[0]).toMatch(/SUM\(n\)/)
+    expect(statements[0]).toMatch(/GROUP BY grid_size, stars/)
+    // Zero rows linger after a combo is drained, so they must stay filtered out.
+    expect(statements[0]).toMatch(/WHERE n > 0/)
+  })
+
   it('bounds the puzzle_serves aggregate to the last 30 days', async () => {
     const { ctx, statements } = makeCtx()
     await dashboardHandler(ctx as any)

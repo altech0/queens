@@ -18,6 +18,7 @@ struct GameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppSettings.self) private var settings
     @Environment(PuzzleCache.self) private var cache
+    @Environment(PuzzleCatalogueStore.self) private var catalogueStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     
@@ -112,6 +113,8 @@ struct GameView: View {
     private let puzzleSize: Int
     private let starsPerUnit: Int
     private let difficulties: Set<String>
+    /// Chosen style, or nil for Original (sends no engine param).
+    private let engine: String?
 
     private let onDismiss: (() -> Void)?
 
@@ -123,17 +126,19 @@ struct GameView: View {
         self.puzzleSize = 6
         self.starsPerUnit = 1
         self.difficulties = []
+        self.engine = nil
         self.onDismiss = nil
     }
 
     /// Initialize GameView with custom puzzle parameters
-    init(puzzleSize: Int, starsPerUnit: Int, difficulties: Set<String> = []) {
+    init(puzzleSize: Int, starsPerUnit: Int, difficulties: Set<String> = [], engine: String? = nil) {
         self.providedPuzzle = nil
         self.puzzleID = nil
         self.deepLinkCode = nil
         self.puzzleSize = puzzleSize
         self.starsPerUnit = starsPerUnit
         self.difficulties = difficulties
+        self.engine = engine
         self.onDismiss = nil
     }
 
@@ -145,6 +150,7 @@ struct GameView: View {
         self.puzzleSize = puzzle.size
         self.starsPerUnit = puzzle.starsPerRegion
         self.difficulties = []
+        self.engine = puzzle.engine
         self.onDismiss = onDismiss
     }
 
@@ -156,6 +162,7 @@ struct GameView: View {
         self.puzzleSize = 6
         self.starsPerUnit = 1
         self.difficulties = []
+        self.engine = nil
         self.onDismiss = nil
     }
     
@@ -761,6 +768,18 @@ struct GameView: View {
                                     Capsule().fill(difficultyColor(puzzle.difficulty))
                                 )
                         }
+                        // Style name, for anything but Original — the default needs
+                        // no label, and older puzzles have no engine at all.
+                        if let style = styleLabel(puzzle.engine) {
+                            Text(style)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.primary(colorScheme))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule().stroke(AppColors.primary(colorScheme).opacity(0.5), lineWidth: 1)
+                                )
+                        }
                     }
                     .padding(.top, 2)
                 }
@@ -1065,7 +1084,7 @@ struct GameView: View {
         // Otherwise, fetch from API (online mode)
         do {
             logger.debug("🎮 GameView: Calling PuzzleFetcher...")
-            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties)
+            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties, engine: engine)
             
             logger.info("🎮 GameView: Puzzle loaded successfully")
             self.puzzle = loadedPuzzle
@@ -1665,6 +1684,16 @@ struct GameView: View {
 
     private func regionColorName(_ id: Int) -> String {
         Self.regionColorNames[id % Self.regionColorNames.count]
+    }
+
+    /// Display name for a style, or nil for Original / an unlabelled puzzle.
+    ///
+    /// Resolved through the catalogue rather than hardcoded, so renaming a style
+    /// server-side does not need an app release. An engine the catalogue has not
+    /// heard of shows nothing rather than a raw internal id.
+    private func styleLabel(_ engine: String?) -> String? {
+        guard let engine, engine != PuzzleConfig.defaultEngine else { return nil }
+        return catalogueStore.catalogue.style(withEngine: engine)?.name
     }
 
     private func difficultyLabel(_ d: String?) -> String? {

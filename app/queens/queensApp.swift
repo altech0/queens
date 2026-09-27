@@ -13,6 +13,7 @@ struct queensApp: App {
     @State private var settings    = AppSettings()
     @State private var puzzleCache = PuzzleCache()
     @State private var authManager = AuthManager()
+    @State private var catalogueStore = PuzzleCatalogueStore()
 
     init() {
         let currentSettings = AppSettings()
@@ -25,6 +26,7 @@ struct queensApp: App {
                 .environment(settings)
                 .environment(puzzleCache)
                 .environment(authManager)
+                .environment(catalogueStore)
                 .preferredColorScheme(settings.darkMode ? .dark : .light)
                 .onOpenURL { url in handleDeepLink(url) }
                 .onReceive(NotificationCenter.default.publisher(for: .authenticationExpired)) { _ in

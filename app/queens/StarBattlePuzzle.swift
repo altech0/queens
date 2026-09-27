@@ -9,10 +9,20 @@
 import Foundation
 
 /// Canonical puzzle size/stars combinations, mirroring the API's ALLOWED_COMBOS.
+///
+/// These are the pre-engines defaults, and remain the fallback whenever
+/// `/catalogue` is unavailable. When a catalogue *is* loaded it is the source of
+/// truth for sizes, stars and difficulties — see `PuzzleCatalogue`.
 enum PuzzleConfig {
     static let sizeOptions: [Int] = [5, 6, 8, 10]
     static let starOptions: [Int] = [1, 2]
 
+    /// The engine every puzzle came from before styles existed. Sending no engine
+    /// to the API means exactly this one.
+    static let defaultEngine = "voronoi-v2"
+
+    /// Stars for a size, for the fallback catalogue only. Prefer the stars value
+    /// from the catalogue entry, which covers sizes this does not know about.
     static func starsForSize(_ size: Int) -> Int {
         switch size {
         case 10: return 2
@@ -66,6 +76,7 @@ struct StarBattlePuzzle: Codable, Hashable {
     let solution: Set<GridPosition> // The correct star positions
     let code: String? // Puzzle code/ID for display
     var difficulty: String? = nil // easy | medium | hard | very_hard (nil for older API)
+    var engine: String? = nil // which generator made it (nil for older API / caches)
     
     /// Check if a position is valid within the grid
     func isValid(row: Int, column: Int) -> Bool {

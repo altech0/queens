@@ -1,6 +1,6 @@
 /**
- * Generates puzzles for each valid v2 size/star combination and uploads
- * them to the deployed D1 database via the Cloudflare REST API.
+ * Generates puzzles for each valid size/star combination of the chosen engine
+ * and uploads them to the deployed D1 database via the Cloudflare REST API.
  *
  * Fetches existing solutions from the DB at startup and checks locally
  * before inserting, so only genuinely new puzzles hit the DB.
@@ -9,6 +9,12 @@
  *   npx tsx scripts/seedPuzzlesV2.ts                        (interactive)
  *   npx tsx scripts/seedPuzzlesV2.ts --seconds 600 --yes    (CI / non-interactive)
  *   npx tsx scripts/seedPuzzlesV2.ts --size 6 --stars 1     (filter config)
+ *   npx tsx scripts/seedPuzzlesV2.ts --engine snake-v1      (pick a generator)
+ *
+ * --engine defaults to voronoi-v2, so a run without it behaves exactly as it did
+ * before engines existed. Any other engine refuses to touch prod (see §2 of
+ * docs/puzzle-engine/PUZZLE_ENGINES_PLAN.md — the new styles are dev-only until
+ * an App Store release understands them).
  *
  * Email report (optional):
  *   Set RESEND_API_KEY and RESEND_TO env vars to receive a summary email.
@@ -16,6 +22,8 @@
 
 import { createInterface } from 'readline'
 import { generatePuzzleV2 } from '../src/generator/v2'
+import { V3_ENGINES } from '../src/generator/v3'
+import { DEFAULT_ENGINE, ENGINE_IDS, getEngine } from '../src/types/engines'
 import { classifyDifficulty } from '@queens/solver'
 import type { PuzzleConfig } from '../src/types/puzzleConfig'
 
@@ -23,12 +31,24 @@ import type { PuzzleConfig } from '../src/types/puzzleConfig'
 // Config
 // ---------------------------------------------------------------------------
 
-const ALL_CONFIGS: PuzzleConfig[] = [
-  { size: 5,  starsPerUnit: 1 },
-  { size: 6,  starsPerUnit: 1 },
-  { size: 8,  starsPerUnit: 1 },
-  { size: 10, starsPerUnit: 2 },
-]
+/** The size/stars combos an engine generates, from the shared registry. */
+function configsForEngine(engineId: string): PuzzleConfig[] {
+  const meta = getEngine(engineId)
+  if (!meta) return []
+  return meta.combos.map(c => ({ size: c.size, starsPerUnit: c.stars }))
+}
+
+/**
+ * Generates one puzzle for the given engine, or null if the attempt failed.
+ * v2 keeps its own pipeline; v3 engines come from the generator registry.
+ */
+function generateFor(engineId: string, config: PuzzleConfig) {
+  if (engineId === DEFAULT_ENGINE) return generatePuzzleV2(config).puzzle
+  const engine = V3_ENGINES[engineId]
+  if (!engine) throw new Error(`no generator for engine ${engineId}`)
+  // v3 engines are 1-star only, and the registry combos enforce that.
+  return engine.generate(config.size).puzzle
+}
 
 const CODE_START_DEFAULT = 10001
 
@@ -46,6 +66,7 @@ interface Args {
   seconds: number | null
   yes: boolean
   env: 'prod' | 'dev'
+  engine: string
 }
 
 function parseArgs(): Args {
@@ -70,20 +91,37 @@ function parseArgs(): Args {
   }
   const env = envArg as 'prod' | 'dev'
 
-  let configs = ALL_CONFIGS
+  const engine = get('--engine') ?? DEFAULT_ENGINE
+  if (!getEngine(engine)) {
+    console.error(`Error: unknown engine "${engine}"`)
+    console.error(`  Known engines: ${ENGINE_IDS.join(', ')}`)
+    process.exit(1)
+  }
+
+  // The new styles are not servable by the released app, and prod must keep
+  // behaving exactly as it does today until an App Store build understands them.
+  if (engine !== DEFAULT_ENGINE && env === 'prod') {
+    console.error(`Error: engine "${engine}" cannot seed prod.`)
+    console.error(`  Only ${DEFAULT_ENGINE} may be seeded to prod until the new styles ship.`)
+    console.error('  Use --env dev.')
+    process.exit(1)
+  }
+
+  const engineConfigs = configsForEngine(engine)
+  let configs = engineConfigs
   if (size !== null || stars !== null) {
-    configs = ALL_CONFIGS.filter(c =>
+    configs = engineConfigs.filter(c =>
       (size  === null || c.size         === size) &&
       (stars === null || c.starsPerUnit === stars)
     )
     if (configs.length === 0) {
-      console.error(`No valid config for size=${size ?? 'any'} stars=${stars ?? 'any'}`)
-      console.error(`Valid combos: ${ALL_CONFIGS.map(c => `size=${c.size} stars=${c.starsPerUnit}`).join(', ')}`)
+      console.error(`No valid config for engine=${engine} size=${size ?? 'any'} stars=${stars ?? 'any'}`)
+      console.error(`Valid combos: ${engineConfigs.map(c => `size=${c.size} stars=${c.starsPerUnit}`).join(', ')}`)
       process.exit(1)
     }
   }
 
-  return { configs, seconds, yes, env }
+  return { configs, seconds, yes, env, engine }
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +186,7 @@ function d1Headers(): Record<string, string> {
 // DB helpers — direct REST API, no wrangler CLI
 // ---------------------------------------------------------------------------
 
-async function fetchExistingState(config: PuzzleConfig): Promise<{ existingSolutions: Set<string>, maxCode: number | null }> {
+async function fetchExistingState(config: PuzzleConfig, engine: string): Promise<{ existingSolutions: Set<string>, maxCode: number | null }> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
   const apiToken  = process.env.CLOUDFLARE_API_TOKEN
 
@@ -184,7 +222,7 @@ async function fetchExistingState(config: PuzzleConfig): Promise<{ existingSolut
   const codeData = await codeRes.json() as any
   const maxCode: number | null = codeData.result?.[0]?.results?.[0]?.max_code ?? null
 
-  console.log(`  Found ${existingSolutions.size} existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles. Global highest code: ${maxCode ?? 'none'}.`)
+  console.log(`  Found ${existingSolutions.size} existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles (all engines). Global highest code: ${maxCode ?? 'none'}.`)
   return { existingSolutions, maxCode }
 }
 
@@ -198,13 +236,14 @@ interface PuzzleRow {
   createdAt: string
   difficulty: string
   difficultyScore: number
+  engine: string
 }
 
 async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches: number, retries = 3): Promise<void> {
   const values = batch.map(r =>
-    `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}', '${r.difficulty}', ${r.difficultyScore})`
+    `('${r.id}', ${r.gridSize}, ${r.stars}, '${r.regions}', '${r.solution}', ${r.code}, '${r.createdAt}', '${r.difficulty}', ${r.difficultyScore}, '${r.engine}')`
   ).join(',\n')
-  const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at, difficulty, difficulty_score) VALUES\n${values}`
+  const sql = `INSERT OR IGNORE INTO puzzles (id, grid_size, stars, regions, solution, code, created_at, difficulty, difficulty_score, engine) VALUES\n${values}`
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -229,7 +268,7 @@ async function uploadBatch(batch: PuzzleRow[], batchIndex: number, totalBatches:
 }
 
 async function writeSeedRun(stats: BatchStats): Promise<void> {
-  const sql = `INSERT INTO seed_runs (id, grid_size, stars, attempts, generated, duplicates, inserted, started_at, finished_at) VALUES ('${crypto.randomUUID()}', ${stats.gridSize}, ${stats.stars}, ${stats.attempts}, ${stats.generated}, ${stats.duplicates}, ${stats.inserted}, '${stats.startedAt}', '${stats.finishedAt}')`
+  const sql = `INSERT INTO seed_runs (id, grid_size, stars, attempts, generated, duplicates, inserted, started_at, finished_at, engine) VALUES ('${crypto.randomUUID()}', ${stats.gridSize}, ${stats.stars}, ${stats.attempts}, ${stats.generated}, ${stats.duplicates}, ${stats.inserted}, '${stats.startedAt}', '${stats.finishedAt}', '${stats.engine}')`
   try {
     const res = await fetch(d1Url('/query'), {
       method: 'POST',
@@ -259,6 +298,7 @@ interface BatchStats {
   label: string
   gridSize: number
   stars: number
+  engine: string
   attempts: number
   generated: number
   duplicates: number
@@ -272,10 +312,11 @@ async function generateBatch(
   config: PuzzleConfig,
   seconds: number,
   nextCode: { value: number },
-  existingSolutions: Set<string>
+  existingSolutions: Set<string>,
+  engine: string
 ): Promise<{ rows: PuzzleRow[], stats: BatchStats }> {
   const { size, starsPerUnit: stars } = config
-  const label = `${size}×${size} ${stars}★`
+  const label = `${size}×${size} ${stars}★ ${engine}`
   const rows: PuzzleRow[] = []
   const startedAt = new Date().toISOString()
   const start = Date.now()
@@ -291,7 +332,7 @@ async function generateBatch(
   while (Date.now() < deadline) {
     const puzzleStart = Date.now()
     attempts++
-    const { puzzle } = generatePuzzleV2(config)
+    const puzzle = generateFor(engine, config)
     if (!puzzle) continue
 
     generated++
@@ -318,6 +359,7 @@ async function generateBatch(
       createdAt: new Date().toISOString(),
       difficulty,
       difficultyScore: difficulty_score,
+      engine,
     })
 
     const remaining = Math.max(0, deadline - Date.now())
@@ -339,7 +381,7 @@ async function generateBatch(
 
   return {
     rows,
-    stats: { label, gridSize: size, stars, attempts, generated, duplicates, inserted: rows.length, elapsedMs, startedAt, finishedAt: new Date().toISOString() },
+    stats: { label, gridSize: size, stars, engine, attempts, generated, duplicates, inserted: rows.length, elapsedMs, startedAt, finishedAt: new Date().toISOString() },
   }
 }
 
@@ -460,11 +502,11 @@ async function run() {
 
   for (const config of selectedConfigs) {
     console.log(`Fetching existing ${config.size}×${config.size} ${config.starsPerUnit}★ puzzles from DB...`)
-    const { existingSolutions, maxCode } = await fetchExistingState(config)
+    const { existingSolutions, maxCode } = await fetchExistingState(config, args.engine)
     const startCode = maxCode !== null ? maxCode + 1 : CODE_START_DEFAULT
     console.log(`  New codes will start from: ${startCode}`)
     const nextCode = { value: startCode }
-    const { rows, stats } = await generateBatch(config, seconds, nextCode, existingSolutions)
+    const { rows, stats } = await generateBatch(config, seconds, nextCode, existingSolutions, args.engine)
     allRows.push(...rows)
     configStats.push(stats)
   }

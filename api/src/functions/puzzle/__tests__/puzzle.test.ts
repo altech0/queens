@@ -43,11 +43,11 @@ describe('GET /puzzle (random)', () => {
 
     expect(selects()).toHaveLength(1)
     const { sql, binds } = selects()[0]
-    expect(sql).toMatch(/WHERE grid_size = \? AND stars = \? AND rand >= \? ORDER BY rand LIMIT 1$/)
+    expect(sql).toMatch(/WHERE engine IN \(\?\) AND grid_size = \? AND stars = \? AND rand >= \? ORDER BY rand LIMIT 1$/)
     expect(sql).not.toMatch(/RANDOM\(\)|COUNT\(|OFFSET/i)
-    expect(binds.slice(0, 2)).toEqual([8, 1])
-    expect(binds[2] as number).toBeGreaterThanOrEqual(0)
-    expect(binds[2] as number).toBeLessThan(1)
+    expect(binds.slice(0, 3)).toEqual(['voronoi-v2', 8, 1])
+    expect(binds[3] as number).toBeGreaterThanOrEqual(0)
+    expect(binds[3] as number).toBeLessThan(1)
 
     expect(json).toHaveBeenCalledTimes(1)
     const body = json.mock.calls[0][0] as any
@@ -62,9 +62,9 @@ describe('GET /puzzle (random)', () => {
 
     expect(selects()).toHaveLength(2)
     const { sql, binds } = selects()[1]
-    expect(sql).toMatch(/WHERE grid_size = \? AND stars = \? ORDER BY rand LIMIT 1$/)
+    expect(sql).toMatch(/WHERE engine IN \(\?\) AND grid_size = \? AND stars = \? ORDER BY rand LIMIT 1$/)
     expect(sql).not.toMatch(/rand >=/)
-    expect(binds).toEqual([8, 1])
+    expect(binds).toEqual(['voronoi-v2', 8, 1])
     expect(json.mock.calls[0][0]).toMatchObject({ id: 'p1' })
   })
 
@@ -75,12 +75,12 @@ describe('GET /puzzle (random)', () => {
     expect(json).toHaveBeenCalledWith({ error: 'Puzzle not found' }, 404)
   })
 
-  it('seeks on rand alone when no filters are given', async () => {
+  it('seeks on rand alone when only the default engine applies', async () => {
     const { ctx, selects } = makeCtx({}, [ROW])
     await puzzleV2Handler(ctx as any)
     const { sql, binds } = selects()[0]
-    expect(sql).toMatch(/FROM puzzles WHERE rand >= \? ORDER BY rand LIMIT 1$/)
-    expect(binds).toHaveLength(1)
+    expect(sql).toMatch(/FROM puzzles WHERE engine IN \(\?\) AND rand >= \? ORDER BY rand LIMIT 1$/)
+    expect(binds).toHaveLength(2)
   })
 
   it('keeps the difficulty filter ahead of the rand seek', async () => {
@@ -88,6 +88,6 @@ describe('GET /puzzle (random)', () => {
     await puzzleV2Handler(ctx as any)
     const { sql, binds } = selects()[0]
     expect(sql).toMatch(/difficulty IN \(\?,\?\) AND rand >= \? ORDER BY rand LIMIT 1$/)
-    expect(binds.slice(0, 4)).toEqual([10, 2, 'hard', 'very_hard'])
+    expect(binds.slice(0, 5)).toEqual(['voronoi-v2', 10, 2, 'hard', 'very_hard'])
   })
 })

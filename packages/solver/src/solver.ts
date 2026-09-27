@@ -766,9 +766,23 @@ export interface DifficultyResult {
 }
 
 /**
- * Classify a puzzle's difficulty from its region layout, using the exact logic
- * of the backfill applied to dev. Runs the solver twice (teachable-only and
- * full) and buckets by how much pure-teachable deduction cracks the board.
+ * Classify a puzzle's difficulty from its region layout. Runs the solver twice
+ * (teachable-only and full) and buckets by how much pure-teachable deduction
+ * cracks the board.
+ *
+ * Two scales, because the small boards were classified before the large ones:
+ *
+ * - **n >= 9** buckets on `teachFrac`, and `difficulty_score` is that fraction
+ *   as a percentage. A board the full solver cannot finish is `very_hard`.
+ *   This is the logic the 10×10 backfill applied to dev, extended to 9×9 —
+ *   without it a 9×9 fell through to the small-board branch below, where
+ *   `fullSolved` is never consulted, so every 9×9 that stalled the teachable
+ *   solver came out `hard` and could never be `very_hard`.
+ * - **n <= 8** buckets on the highest technique tier the teachable solver
+ *   needed, and `difficulty_score` is that tier (0–4), not a percentage.
+ *
+ * So `difficulty_score` means different things either side of that line. It is
+ * only ever compared within a size, so the two scales never mix in practice.
  */
 export function classifyDifficulty(regions: number[][], gridSize: number, stars: number): DifficultyResult {
   const n = gridSize
@@ -782,14 +796,15 @@ export function classifyDifficulty(regions: number[][], gridSize: number, stars:
   const teachTier = teachable.maxTier
   const fullSolved = isComplete(full.board, n)
 
-  if (n === 10) {
+  // 9 / 10 — fraction-based
+  if (n >= 9) {
     if (!fullSolved) return { difficulty: 'very_hard', difficulty_score: -1 }
     if (teachSolved || teachFrac >= 0.40) return { difficulty: 'easy', difficulty_score: Math.round(teachFrac * 100) }
     if (teachFrac >= 0.20) return { difficulty: 'medium', difficulty_score: Math.round(teachFrac * 100) }
     return { difficulty: 'hard', difficulty_score: Math.round(teachFrac * 100) }
   }
 
-  // 5 / 6 / 8
+  // 5 / 6 / 8 — tier-based
   if (teachSolved && teachTier <= 2) return { difficulty: 'easy', difficulty_score: teachTier }
   if (teachSolved && teachTier >= 3) return { difficulty: 'medium', difficulty_score: teachTier }
   return { difficulty: 'hard', difficulty_score: Math.round(teachFrac * 100) }

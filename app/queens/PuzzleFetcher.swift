@@ -18,6 +18,7 @@ struct PuzzleAPIResponse: Codable {
     let solution: SolutionFormat
     let difficulty: String?
     let createdAt: String
+    let engine: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,6 +30,7 @@ struct PuzzleAPIResponse: Codable {
         case solution
         case difficulty
         case createdAt
+        case engine
     }
     
     // Support both v1 and v2 solution formats
@@ -106,6 +108,8 @@ struct PuzzleAPIResponse: Codable {
         solution = try container.decode(SolutionFormat.self, forKey: .solution)
         difficulty = try? container.decode(String.self, forKey: .difficulty)
         createdAt = try container.decode(String.self, forKey: .createdAt)
+        // Absent before the engines release; nil then means Original.
+        engine = try? container.decode(String.self, forKey: .engine)
     }
     
     // Custom encode to match the decoding
@@ -120,6 +124,7 @@ struct PuzzleAPIResponse: Codable {
         try container.encode(solution, forKey: .solution)
         try container.encodeIfPresent(difficulty, forKey: .difficulty)
         try container.encode(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(engine, forKey: .engine)
     }
     
     /// Convert API response to internal StarBattlePuzzle format
@@ -151,7 +156,8 @@ struct PuzzleAPIResponse: Codable {
             regions: regions,
             solution: solutionSet,
             code: code.map { String($0) },  // Convert Int to String
-            difficulty: difficulty
+            difficulty: difficulty,
+            engine: engine
         )
     }
 }
@@ -160,8 +166,17 @@ struct PuzzleAPIResponse: Codable {
 class PuzzleFetcher {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "PuzzleFetcher")
     
-    /// Fetch a puzzle from the API using configuration
-    static func fetchPuzzle(size: Int = 6, starsPerUnit: Int = 1, difficulties: Set<String> = []) async throws -> StarBattlePuzzle {
+    /// Fetch a puzzle from the API using configuration.
+    ///
+    /// `engine` picks the style. Passing nil sends no engine param, which the API
+    /// treats as Original only — the behaviour every release before styles relied
+    /// on, and the right thing whenever the catalogue is unavailable.
+    static func fetchPuzzle(
+        size: Int = 6,
+        starsPerUnit: Int = 1,
+        difficulties: Set<String> = [],
+        engine: String? = nil
+    ) async throws -> StarBattlePuzzle {
         logger.info("🎯 Starting puzzle fetch process")
 
         // Get API configuration from Config.plist
@@ -193,6 +208,11 @@ class PuzzleFetcher {
         if !difficulties.isEmpty && difficulties.count < PuzzleConfig.allDifficulties.count {
             let ordered = PuzzleConfig.allDifficulties.filter { difficulties.contains($0) }
             queryItems.append(URLQueryItem(name: "difficulty", value: ordered.joined(separator: ",")))
+        }
+        // Omit the param entirely for Original: an older API would reject an
+        // unknown query param's value, and no param already means Original.
+        if let engine, engine != PuzzleConfig.defaultEngine {
+            queryItems.append(URLQueryItem(name: "engine", value: engine))
         }
         urlComponents.queryItems = queryItems
 
