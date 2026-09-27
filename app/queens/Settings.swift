@@ -52,6 +52,19 @@ class AppSettings {
             UserDefaults.standard.set(newValue, forKey: "singleTapMode")
         }
     }
+
+    /// Cross out the cells a placed star rules out, automatically.
+    ///
+    /// Off by default: it changes how the board behaves for existing players, so
+    /// it should be something they opt into.
+    var autoPlaceCrosses: Bool {
+        get {
+            UserDefaults.standard.bool(forKey: "autoPlaceCrosses")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "autoPlaceCrosses")
+        }
+    }
     
     var showCompletionHints: Bool {
         get {
