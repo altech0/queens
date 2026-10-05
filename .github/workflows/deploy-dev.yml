@@ -37,10 +37,10 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: api/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: cd api && npm ci
+        run: npm ci
 
       - name: Run migrations (dev)
         if: needs.changes.outputs.migrations == 'true' || github.event_name == 'workflow_dispatch'

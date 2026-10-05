@@ -42,8 +42,18 @@ enum Configuration {
             }
         }
         
-        // Try to load from Config.plist (Config.debug.plist in Debug builds)
-        #if DEBUG
+        // Which Config plist to read.
+        //
+        // Debug builds use Config.debug.plist (dev API). A Beta build — the
+        // TestFlight build that points at dev — is a Release build, so #if DEBUG
+        // cannot distinguish it; it sets BETA_BUILD instead and reads
+        // Config.beta.plist. Release falls through to Config.plist (prod).
+        //
+        // Ordering matters: BETA_BUILD is checked first so a Beta build can never
+        // silently pick up the prod config.
+        #if BETA_BUILD
+        let configName = "Config.beta"
+        #elseif DEBUG
         let configName = "Config.debug"
         #else
         let configName = "Config"
@@ -86,5 +96,21 @@ extension Configuration {
             logger.info("🌐 API URL: \(url)")
             return url
         }
+    }
+
+    /// `/catalogue`, derived from the puzzle URL so there is one host to configure.
+    static var catalogueAPIURL: String {
+        get throws {
+            let puzzleURL = try puzzleAPIURL
+            guard let url = URL(string: puzzleURL) else { throw Error.invalidValue }
+            return url.deletingLastPathComponent()
+                .appendingPathComponent("catalogue")
+                .absoluteString
+        }
+    }
+
+    /// True when the configured API is a dev host, for the "DEV" badge on Beta builds.
+    static var isDevAPI: Bool {
+        (try? puzzleAPIURL)?.contains(".dev.") ?? false
     }
 }

@@ -17,11 +17,19 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
   if (cached) return new Response(cached.body, cached)
 
   // One round trip for every statement, and a consistent snapshot.
-  const [puzzles, seedRuns, registrations, active, puzzleServes, userSource, retentionBuckets, retentionWeekly, reaped] =
+  const [puzzles, puzzlesByEngine, seedRuns, registrations, active, puzzleServes, userSource, retentionBuckets, retentionWeekly, reaped] =
     await c.env.DB.batch([
       // Kept exact by triggers on puzzles (migrations/0021_create_puzzle_counts.sql).
+      // Keyed by (engine, grid_size, stars) since 0023, so sum across engines to
+      // keep this one row per size/stars combo.
       c.env.DB.prepare(
-        'SELECT grid_size, stars, n AS count FROM puzzle_counts WHERE n > 0 ORDER BY grid_size, stars'
+        'SELECT grid_size, stars, SUM(n) AS count FROM puzzle_counts WHERE n > 0 GROUP BY grid_size, stars ORDER BY grid_size, stars'
+      ),
+
+      // The same totals split by engine. Kept as a separate field rather than
+      // changing the one above, so anything already reading `puzzles` is unaffected.
+      c.env.DB.prepare(
+        'SELECT engine, grid_size, stars, n AS count FROM puzzle_counts WHERE n > 0 ORDER BY engine, grid_size, stars'
       ),
 
       c.env.DB.prepare(
@@ -102,6 +110,7 @@ export const dashboardHandler = async (c: Context<{ Bindings: Bindings }>) => {
 
   const res = c.json({
     puzzles:       puzzles.results,
+    puzzlesByEngine: puzzlesByEngine.results,
     seedRuns:      seedRuns.results,
     users: {
       registrations: registrations.results,

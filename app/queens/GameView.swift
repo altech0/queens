@@ -8,16 +8,39 @@
 import SwiftUI
 import os.log
 
-enum CellState {
+enum CellState: Equatable {
     case empty
-    case marked  // X mark - "I don't think a star goes here"
+    /// X mark — "I don't think a star goes here".
+    ///
+    /// `auto` distinguishes crosses the app derived from a placed star (the
+    /// autoPlaceCrosses setting) from ones the player made themselves. Only auto
+    /// crosses are cleared when the star that implied them goes away; the
+    /// player's own marks are never touched.
+    ///
+    /// The flag lives in the state rather than in a parallel set so it travels
+    /// with `cellStates` through undo, redo, save/restore and show-solution
+    /// without each of those needing to keep a second collection in step.
+    case marked(auto: Bool)
     case star    // Star placed
+
+    /// Any cross, whoever placed it. Most logic cares only about this.
+    var isMarked: Bool {
+        if case .marked = self { return true }
+        return false
+    }
+
+    /// A cross the app placed, and may therefore remove again.
+    var isAutoMarked: Bool { self == .marked(auto: true) }
+
+    /// A cross the player placed by hand.
+    static let userMarked = CellState.marked(auto: false)
 }
 
 struct GameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppSettings.self) private var settings
     @Environment(PuzzleCache.self) private var cache
+    @Environment(PuzzleCatalogueStore.self) private var catalogueStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     
@@ -112,6 +135,8 @@ struct GameView: View {
     private let puzzleSize: Int
     private let starsPerUnit: Int
     private let difficulties: Set<String>
+    /// Chosen style, or nil for Original (sends no engine param).
+    private let engine: String?
 
     private let onDismiss: (() -> Void)?
 
@@ -123,17 +148,19 @@ struct GameView: View {
         self.puzzleSize = 6
         self.starsPerUnit = 1
         self.difficulties = []
+        self.engine = nil
         self.onDismiss = nil
     }
 
     /// Initialize GameView with custom puzzle parameters
-    init(puzzleSize: Int, starsPerUnit: Int, difficulties: Set<String> = []) {
+    init(puzzleSize: Int, starsPerUnit: Int, difficulties: Set<String> = [], engine: String? = nil) {
         self.providedPuzzle = nil
         self.puzzleID = nil
         self.deepLinkCode = nil
         self.puzzleSize = puzzleSize
         self.starsPerUnit = starsPerUnit
         self.difficulties = difficulties
+        self.engine = engine
         self.onDismiss = nil
     }
 
@@ -145,6 +172,7 @@ struct GameView: View {
         self.puzzleSize = puzzle.size
         self.starsPerUnit = puzzle.starsPerRegion
         self.difficulties = []
+        self.engine = puzzle.engine
         self.onDismiss = onDismiss
     }
 
@@ -156,6 +184,7 @@ struct GameView: View {
         self.puzzleSize = 6
         self.starsPerUnit = 1
         self.difficulties = []
+        self.engine = nil
         self.onDismiss = nil
     }
     
@@ -373,6 +402,9 @@ struct GameView: View {
                 },
                 onSaveUndo: {
                     saveStateForUndo()
+                },
+                onRefreshAutoCrosses: {
+                    refreshAutoCrosses()
                 }
             )
             .padding(40)
@@ -761,6 +793,18 @@ struct GameView: View {
                                     Capsule().fill(difficultyColor(puzzle.difficulty))
                                 )
                         }
+                        // Style name, for anything but Original — the default needs
+                        // no label, and older puzzles have no engine at all.
+                        if let style = styleLabel(puzzle.engine) {
+                            Text(style)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.primary(colorScheme))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule().stroke(AppColors.primary(colorScheme).opacity(0.5), lineWidth: 1)
+                                )
+                        }
                     }
                     .padding(.top, 2)
                 }
@@ -824,6 +868,9 @@ struct GameView: View {
                     },
                     onSaveUndo: {
                         saveStateForUndo()
+                    },
+                    onRefreshAutoCrosses: {
+                        refreshAutoCrosses()
                     }
                 )
                 .frame(width: UIScreen.main.bounds.width - 32, height: UIScreen.main.bounds.width - 32)
@@ -1065,7 +1112,7 @@ struct GameView: View {
         // Otherwise, fetch from API (online mode)
         do {
             logger.debug("🎮 GameView: Calling PuzzleFetcher...")
-            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties)
+            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties, engine: engine)
             
             logger.info("🎮 GameView: Puzzle loaded successfully")
             self.puzzle = loadedPuzzle
@@ -1160,6 +1207,79 @@ struct GameView: View {
         startTimer()
     }
     
+    // MARK: - Automatic crosses
+
+    /// Rebuilds every automatic cross from the stars currently on the board.
+    ///
+    /// Recomputed wholesale rather than patched incrementally, because whether a
+    /// unit's row/column/region should be crossed depends on how many stars it
+    /// holds *now*. Placing the second star of a 2-star region and then removing
+    /// the first has to leave the board as if only one star had ever been placed,
+    /// and deriving the whole set each time is what makes that fall out for free
+    /// instead of needing its own case.
+    ///
+    /// Rules, per the setting:
+    ///  - every star rules out the eight cells touching it;
+    ///  - a row, column or region rules out its remaining cells once it holds all
+    ///    the stars it is allowed (so on a 1-star puzzle, immediately).
+    ///
+    /// Never touches a star or a cross the player placed by hand.
+    private func refreshAutoCrosses() {
+        guard let puzzle = puzzle else { return }
+
+        // Clear the previous derivation. User marks and stars are left alone.
+        for (pos, state) in cellStates where state.isAutoMarked {
+            cellStates[pos] = .empty
+        }
+
+        guard settings.autoPlaceCrosses else { return }
+
+        let stars = cellStates.compactMap { $0.value == .star ? $0.key : nil }
+        guard !stars.isEmpty else { return }
+
+        let perUnit = puzzle.starsPerRegion
+        var implied = Set<GridPosition>()
+
+        // Adjacency: no two stars may touch, including diagonally.
+        for star in stars {
+            for dr in -1...1 {
+                for dc in -1...1 where !(dr == 0 && dc == 0) {
+                    let pos = GridPosition(row: star.row + dr, column: star.column + dc)
+                    if puzzle.isValid(row: pos.row, column: pos.column) { implied.insert(pos) }
+                }
+            }
+        }
+
+        // A full row/column/region rules out everything else in it.
+        var starsInRow: [Int: Int] = [:]
+        var starsInColumn: [Int: Int] = [:]
+        var starsInRegion: [Int: Int] = [:]
+        for star in stars {
+            starsInRow[star.row, default: 0] += 1
+            starsInColumn[star.column, default: 0] += 1
+            starsInRegion[puzzle.regionAt(row: star.row, column: star.column), default: 0] += 1
+        }
+
+        for row in 0..<puzzle.size {
+            for column in 0..<puzzle.size {
+                let pos = GridPosition(row: row, column: column)
+                let region = puzzle.regionAt(row: row, column: column)
+                if starsInRow[row] ?? 0 >= perUnit
+                    || starsInColumn[column] ?? 0 >= perUnit
+                    || starsInRegion[region] ?? 0 >= perUnit {
+                    implied.insert(pos)
+                }
+            }
+        }
+
+        // Apply, yielding to anything the player put there.
+        for pos in implied {
+            let existing = cellStates[pos] ?? .empty
+            guard existing == .empty else { continue }
+            cellStates[pos] = .marked(auto: true)
+        }
+    }
+
     private func performUndo() {
         guard !undoStack.isEmpty else { return }
         
@@ -1439,7 +1559,10 @@ struct GameView: View {
         
         // Extract cells with stars and marks
         let starPositions = cellStates.filter { $0.value == .star }.map { $0.key }
-        let markedPositions = cellStates.filter { $0.value == .marked }.map { $0.key }
+        // Only the player's own crosses count as mistakes here: an automatic cross
+        // covering a solution cell is a consequence of a badly placed star, and
+        // flagging it too would light up a dozen cells for one wrong star.
+        let markedPositions = cellStates.filter { $0.value == .userMarked }.map { $0.key }
         let selectedCells = Set(starPositions)
         
         let result = PuzzleValidator.validate(stars: selectedCells, puzzle: puzzle)
@@ -1601,11 +1724,13 @@ struct GameView: View {
         // Phase 1: remove any user-placed cells that contradict the true solution.
         let wrong = cellStates.filter { pos, state in
             (state == .star && !puzzle.solution.contains(pos)) ||
-            (state == .marked && puzzle.solution.contains(pos))
+            (state.isMarked && puzzle.solution.contains(pos))
         }.map { $0.key }
         if !wrong.isEmpty {
             saveStateForUndo()
             for pos in wrong { cellStates[pos] = .empty }
+            // Removing a wrong star leaves its implied crosses behind.
+            refreshAutoCrosses()
             hintCell = nil
             setHint("Removed \(wrong.count) cell\(wrong.count > 1 ? "s" : "") that didn't match the solution. Tap Hint again for the next move.")
             return
@@ -1636,7 +1761,12 @@ struct GameView: View {
                 }
                 saveStateForUndo()
                 let pos = GridPosition(row: move.r, column: move.c)
-                cellStates[pos] = move.action == .star ? .star : .marked
+                // Recorded as a user mark, not an auto one: the hint is a
+                // deliberate move the player asked for and should keep, not part
+                // of the derived set that gets rebuilt whenever stars change.
+                cellStates[pos] = move.action == .star ? .star : .userMarked
+                // A hinted star implies crosses just like a tapped one.
+                if move.action == .star { refreshAutoCrosses() }
                 flashHintCell(pos)
                 setHint(explainSentence(move))
                 autoCheckSolution()
@@ -1665,6 +1795,16 @@ struct GameView: View {
 
     private func regionColorName(_ id: Int) -> String {
         Self.regionColorNames[id % Self.regionColorNames.count]
+    }
+
+    /// Display name for a style, or nil for Original / an unlabelled puzzle.
+    ///
+    /// Resolved through the catalogue rather than hardcoded, so renaming a style
+    /// server-side does not need an app release. An engine the catalogue has not
+    /// heard of shows nothing rather than a raw internal id.
+    private func styleLabel(_ engine: String?) -> String? {
+        guard let engine, engine != PuzzleConfig.defaultEngine else { return nil }
+        return catalogueStore.catalogue.style(withEngine: engine)?.name
     }
 
     private func difficultyLabel(_ d: String?) -> String? {
@@ -1827,6 +1967,8 @@ struct GameGridView: View {
     let hintCell: GridPosition?
     let onCellToggle: () -> Void
     let onSaveUndo: () -> Void
+    /// Rebuilds the automatic crosses after the stars change.
+    let onRefreshAutoCrosses: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
@@ -1893,14 +2035,15 @@ struct GameGridView: View {
                 case .star:
                     cellStates[position] = .empty
                 case .marked:
-                    // Shouldn't happen in single tap mode, but handle it
+                    // An automatic cross is not a deliberate mark, so tapping it
+                    // should place a star as if the cell were empty.
                     cellStates[position] = .star
                 }
             } else {
                 // Normal mode: empty -> marked -> star -> empty
                 switch currentState {
                 case .empty:
-                    cellStates[position] = .marked
+                    cellStates[position] = .userMarked
                 case .marked:
                     cellStates[position] = .star
                 case .star:
@@ -1908,6 +2051,9 @@ struct GameGridView: View {
                 }
             }
         }
+
+        // Stars changed, so the implied crosses have too.
+        withAnimation(.none) { onRefreshAutoCrosses() }
         
         // Notify parent to check solution
         onCellToggle()

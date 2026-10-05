@@ -169,7 +169,30 @@ struct SettingsView: View {
                             
                             Divider()
                                 .padding(.leading, 20)
-                            
+
+                            Toggle(isOn: Binding(
+                                get: { settings.autoPlaceCrosses },
+                                set: { settings.autoPlaceCrosses = $0 }
+                            )) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Auto Cross")
+                                        .font(.system(size: 17, weight: .regular, design: .rounded))
+                                        .foregroundColor(AppColors.textPrimary(colorScheme))
+
+                                    Text("Cross out the cells a star rules out, and undo them if you move the star")
+                                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                                        .foregroundColor(AppColors.textSecondary(colorScheme))
+                                        .opacity(0.8)
+                                }
+                            }
+                            .tint(AppColors.primary(colorScheme))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .background(AppColors.surface(colorScheme))
+
+                            Divider()
+                                .padding(.leading, 20)
+
                             Toggle(isOn: Binding(
                                 get: { settings.showCompletionHints },
                                 set: { settings.showCompletionHints = $0 }

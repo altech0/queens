@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- TestFlight beta builds point at the dev API so the new puzzle styles are
+	     reachable before they exist in prod. Selected by the BETA_BUILD compiler
+	     flag on the Beta build configuration (see docs/puzzle-engine/IOS_BETA_SETUP.md). -->
+	<key>PUZZLE_API_URL</key>
+	<string>https://api.dev.queens.knittedmice.com/puzzle</string>
+</dict>
+</plist>

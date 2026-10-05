@@ -11,10 +11,12 @@ import os.log
 struct OfflinePuzzlesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(PuzzleCache.self) private var cache
+    @Environment(PuzzleCatalogueStore.self) private var catalogueStore
     @Environment(\.colorScheme) private var colorScheme
     
     @State private var selectedSize = 6
     @State private var selectedStars = 1
+    @State private var selectedEngine: String = PuzzleConfig.defaultEngine
     @State private var isLoading = false
     @State private var loadError: String?
     @State private var selectedPuzzle: CachedPuzzle?
@@ -23,11 +25,19 @@ struct OfflinePuzzlesView: View {
     
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "OfflinePuzzlesView")
     
-    private let sizeOptions = PuzzleConfig.sizeOptions
+    // Style and size options come from the catalogue, like the setup view.
+    private var styles: [CatalogueStyle] { catalogueStore.catalogue.styles }
+
+    private var currentStyle: CatalogueStyle? {
+        catalogueStore.catalogue.style(withEngine: selectedEngine) ?? styles.first
+    }
+
+    private var sizeOptions: [Int] { currentStyle?.sizeOptions ?? PuzzleConfig.sizeOptions }
     private let starOptions = PuzzleConfig.starOptions
 
     private var availableStarOptions: [Int] {
-        PuzzleConfig.availableStars(for: selectedSize)
+        if let stars = currentStyle?.entry(forSize: selectedSize)?.stars { return [stars] }
+        return PuzzleConfig.availableStars(for: selectedSize)
     }
     
     var body: some View {
@@ -99,6 +109,38 @@ struct OfflinePuzzlesView: View {
                         .padding(.horizontal, 50)
                     }
                     
+                    // Style Selector — hidden when only Original exists.
+                    if styles.count > 1 {
+                        VStack(spacing: 8) {
+                            HStack(spacing: 10) {
+                                ForEach(styles) { style in
+                                    Button(action: {
+                                        selectedEngine = style.engine
+                                        reconcileSelection()
+                                    }) {
+                                        Text(style.name)
+                                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                                            .foregroundColor(selectedEngine == style.engine ? .white : AppColors.primary(colorScheme))
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 11)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(selectedEngine == style.engine
+                                                        ? AppColors.primaryGradient(colorScheme)
+                                                        : LinearGradient(colors: [AppColors.surface(colorScheme), AppColors.surface(colorScheme)], startPoint: .leading, endPoint: .trailing)
+                                                    )
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(selectedEngine == style.engine ? AppColors.primary(colorScheme) : Color.clear, lineWidth: 2)
+                                            )
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 50)
+                        }
+                    }
+
                     // Size Selector
                     VStack(spacing: 8) {
                         HStack(spacing: 16) {
@@ -291,8 +333,26 @@ struct OfflinePuzzlesView: View {
                 GameView(puzzle: puzzle.puzzle, puzzleID: puzzle.id)
             }
         }
+        .task {
+            await catalogueStore.refresh()
+            reconcileSelection()
+        }
     }
-    
+
+    /// Keeps style/size/stars consistent after the catalogue loads or changes.
+    private func reconcileSelection() {
+        if catalogueStore.catalogue.style(withEngine: selectedEngine) == nil,
+           let first = styles.first {
+            selectedEngine = first.engine
+        }
+        if !sizeOptions.contains(selectedSize) {
+            selectedSize = sizeOptions.first ?? selectedSize
+        }
+        if !availableStarOptions.contains(selectedStars) {
+            selectedStars = availableStarOptions.first ?? 1
+        }
+    }
+
     private var isAddDisabled: Bool {
         cache.isFull
     }
@@ -313,7 +373,7 @@ struct OfflinePuzzlesView: View {
 
             var added = false
             for attempt in 1...5 {
-                let puzzle = try await PuzzleFetcher.fetchPuzzle(size: selectedSize, starsPerUnit: selectedStars)
+                let puzzle = try await PuzzleFetcher.fetchPuzzle(size: selectedSize, starsPerUnit: selectedStars, engine: selectedEngine)
                 if cache.add(puzzle) {
                     logger.info("✅ Puzzle added to cache successfully (attempt \(attempt))")
                     added = true

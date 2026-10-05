@@ -42,8 +42,8 @@ describe('GET /dashboard', () => {
     const { ctx, batch, statements } = makeCtx()
     await dashboardHandler(ctx as any)
     expect(batch).toHaveBeenCalledTimes(1)
-    expect(batch.mock.calls[0][0]).toHaveLength(9)
-    expect(statements).toHaveLength(9)
+    expect(batch.mock.calls[0][0]).toHaveLength(10)
+    expect(statements).toHaveLength(10)
   })
 
   it('reads puzzle totals from puzzle_counts instead of counting puzzles', async () => {
@@ -51,6 +51,26 @@ describe('GET /dashboard', () => {
     await dashboardHandler(ctx as any)
     expect(statements[0]).toMatch(/FROM puzzle_counts/)
     expect(statements.some(s => /FROM puzzles\b/.test(s))).toBe(false)
+  })
+
+  it('also reports counts split by engine, without collapsing them', async () => {
+    const { ctx, statements } = makeCtx()
+    await dashboardHandler(ctx as any)
+    // A second puzzle_counts query, this one keeping the engine column.
+    const perEngine = statements.filter(s => /FROM puzzle_counts/.test(s) && /engine/.test(s) && !/SUM\(n\)/.test(s))
+    expect(perEngine).toHaveLength(1)
+    expect(perEngine[0]).toMatch(/WHERE n > 0/)
+  })
+
+  it('sums puzzle_counts across engines so each size/stars combo is one row', async () => {
+    // puzzle_counts is keyed by (engine, grid_size, stars) since migration 0023,
+    // so an 8x8 made by two engines is two rows. The dashboard reports totals.
+    const { ctx, statements } = makeCtx()
+    await dashboardHandler(ctx as any)
+    expect(statements[0]).toMatch(/SUM\(n\)/)
+    expect(statements[0]).toMatch(/GROUP BY grid_size, stars/)
+    // Zero rows linger after a combo is drained, so they must stay filtered out.
+    expect(statements[0]).toMatch(/WHERE n > 0/)
   })
 
   it('bounds the puzzle_serves aggregate to the last 30 days', async () => {
@@ -64,7 +84,7 @@ describe('GET /dashboard', () => {
     const { ctx } = makeCtx()
     const res = (await dashboardHandler(ctx as any)) as Response
     const body = await res.json() as any
-    expect(Object.keys(body).sort()).toEqual(['puzzleServes', 'puzzles', 'reaped', 'retention', 'seedRuns', 'userSource', 'users'])
+    expect(Object.keys(body).sort()).toEqual(['puzzleServes', 'puzzles', 'puzzlesByEngine', 'reaped', 'retention', 'seedRuns', 'userSource', 'users'])
     expect(Array.isArray(body.puzzles)).toBe(true)
     expect(Array.isArray(body.users.registrations)).toBe(true)
     expect(body.users.active).toEqual({ row: 1 })

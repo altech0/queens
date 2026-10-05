@@ -1,8 +1,7 @@
 name: Seed Puzzles
 
 on:
-  schedule:
-    - cron: '0 3 * * 1-5'  # 3am UTC weekdays only
+  # Scheduled runs removed 2026-09-06 — seed manually via workflow_dispatch when needed.
   workflow_dispatch:
     inputs:
       env:
@@ -44,10 +43,10 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: api/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: cd api && npm ci
+        run: npm ci
 
       - name: Resolve config
         id: cfg
@@ -79,7 +78,7 @@ jobs:
           echo "Running: $ARGS for ${SECONDS}s"
 
       - name: Generate and seed puzzles
-        run: cd api && npx tsx scripts/seedPuzzlesV2.ts ${{ steps.cfg.outputs.args }} --seconds ${{ steps.cfg.outputs.seconds }} --yes --env ${{ inputs.env || 'prod' }}
+        run: cd api && ../node_modules/.bin/tsx scripts/seedPuzzlesV2.ts ${{ steps.cfg.outputs.args }} --seconds ${{ steps.cfg.outputs.seconds }} --yes --env ${{ inputs.env || 'prod' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
