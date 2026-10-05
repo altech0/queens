@@ -5,14 +5,15 @@ import Sidebar from '@/components/Sidebar'
 import PuzzleGrid from '@/components/PuzzleGrid'
 import MobileSettings from '@/components/MobileSettings'
 import type { Puzzle, CellState } from '@/lib/types'
-import { fetchPuzzle, fetchPuzzleByCode } from '@/lib/api'
+import { fetchPuzzle, fetchPuzzleByCode, fetchCatalogue } from '@/lib/api'
+import { DEFAULT_ENGINE, FALLBACK_STYLES, starsFor } from '@/lib/catalogue'
+import type { CatalogueStyle } from '@/lib/types'
 import {
   getCachedPuzzles, addToCache, removeFromCache, clearCache, isCacheFull,
   updateCacheCompletion, type CachedPuzzle,
 } from '@/lib/puzzleCache'
 import { validate } from '@/lib/validator'
 
-const CONFIGS: Record<number, number> = { 5: 1, 6: 1, 8: 1, 10: 2 }
 const HOW_TO_PLAY = [
   { title: 'Objective', text: 'Place stars so each row, column and region contains exactly the required number of stars.' },
   { title: 'Stars Per Region', text: 'Each coloured region must contain exactly the required number of stars.' },
@@ -47,6 +48,8 @@ type MobileView = 'landing' | 'setup' | 'game' | 'settings' | 'howtoplay' | 'abo
 
 export default function Home() {
   const [size, setSize]                    = useState(8)
+  const [styles, setStyles]                = useState<CatalogueStyle[]>(FALLBACK_STYLES)
+  const [engine, setEngine]                = useState(DEFAULT_ENGINE)
   const [puzzle, setPuzzle]                = useState<Puzzle | null>(null)
   const [cells, setCells]                  = useState<CellState[][]>([])
   const [conflicts, setConflicts]          = useState<Set<string>>(new Set())
@@ -151,7 +154,7 @@ export default function Home() {
 
   useEffect(() => () => stopTimer(), [stopTimer])
 
-  const loadPuzzle = useCallback(async (gridSize: number) => {
+  const loadPuzzle = useCallback(async (gridSize: number, forEngine: string = engine) => {
     setLoading(true)
     setError(null)
     stopTimer()
@@ -169,7 +172,7 @@ export default function Home() {
     historyRef.current = null
     pausedElapsedRef.current = 0
     try {
-      const p = await fetchPuzzle(gridSize, CONFIGS[gridSize])
+      const p = await fetchPuzzle(gridSize, starsFor(styles, forEngine, gridSize), forEngine)
       setPuzzle(p)
       setCells(Array.from({ length: p.gridSize }, () => Array(p.gridSize).fill('empty')))
       startRef.current = Date.now()
@@ -179,7 +182,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [stopTimer])
+  }, [stopTimer, engine, styles])
 
   const handleCellClick = useCallback((row: number, col: number) => {
     if (!puzzle || completed) return
@@ -308,6 +311,27 @@ export default function Home() {
     await loadPuzzle(gridSize)
   }, [loadPuzzle])
 
+  // Load the catalogue once. On failure fetchCatalogue returns Original-only, so
+  // there is nothing to handle here.
+  useEffect(() => { fetchCatalogue().then(setStyles) }, [])
+
+  /**
+   * Switching style keeps the current size when the new style has it, and
+   * otherwise moves to the nearest size it does — picking Winding while on 10x10
+   * must not leave a size selected that it cannot serve. Nearest rather than
+   * first, so Winding 9x9 -> Original lands on 8x8 instead of jumping to 5x5.
+   */
+  const handleEngineChange = useCallback((next: string) => {
+    setEngine(next)
+    const sizes = styles.find(s => s.engine === next)?.sizes ?? []
+    if (sizes.length && !sizes.some(s => s.size === size)) {
+      const nearest = sizes.reduce((a, b) =>
+        Math.abs(b.size - size) < Math.abs(a.size - size) ? b : a).size
+      setSize(nearest)
+      setPendingSize(nearest)
+    }
+  }, [styles, size])
+
   const refreshCache = useCallback(() => setCachedPuzzles(getCachedPuzzles()), [])
 
   useEffect(() => { refreshCache() }, [refreshCache])
@@ -342,7 +366,7 @@ export default function Home() {
     try {
       let added = false
       for (let i = 0; i < 5; i++) {
-        const p = await fetchPuzzle(pendingSize, CONFIGS[pendingSize])
+        const p = await fetchPuzzle(pendingSize, starsFor(styles, engine, pendingSize), engine)
         if (addToCache(p)) { added = true; break }
       }
       if (!added) setCacheAddError("Couldn't find a new puzzle — try again")
@@ -351,7 +375,7 @@ export default function Home() {
       setCacheAddError('Failed to download puzzle')
     }
     setCacheAdding(false)
-  }, [pendingSize, refreshCache])
+  }, [pendingSize, refreshCache, styles, engine])
 
   const handleLoadSpecificPuzzle = useCallback(async () => {
     if (!puzzleCode.trim()) return
@@ -415,6 +439,7 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-72 shrink-0 h-full overflow-y-auto" style={{ background: 'var(--surface-mid)', backdropFilter: 'blur(12px)', borderRight: '1px solid var(--sidebar-border)' }}>
           <Sidebar
+            styles={styles} engine={engine} onEngineChange={handleEngineChange}
             size={size} onSizeChange={setSize} onNewGame={() => loadPuzzle(size)}
             hideTimer={hideTimer} onToggleHideTimer={() => setHideTimer(v => !v)}
             highlightConflicts={highlightConflicts} onToggleHighlightConflicts={() => setHighlight(v => !v)}
@@ -459,7 +484,7 @@ export default function Home() {
                   {puzzle.gridSize}×{puzzle.gridSize}
                 </p>
                 <p style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-mid)', marginTop: 2 }}>
-                  {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region, row and column
+                  {puzzle.stars === 1 ? '1 star' : `${puzzle.stars} stars`} per region, row and column
                 </p>
               </div>
               <div style={{ position: 'relative' }}>
@@ -573,10 +598,23 @@ export default function Home() {
       </div>
       <div className="mobile-setup-body">
         <div className="mobile-setup-title">New Game</div>
+        {styles.length > 1 && (
+          <div>
+            <div className="mobile-setup-section-label">Style</div>
+            <div className="mobile-setup-btn-row">
+              {styles.map(st => (
+                <button key={st.engine} onClick={() => handleEngineChange(st.engine)}
+                  className={`mobile-setup-btn ${engine === st.engine ? 'mobile-setup-btn-active' : 'mobile-setup-btn-inactive'}`}>
+                  {st.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div>
           <div className="mobile-setup-section-label">Size</div>
           <div className="mobile-setup-btn-row">
-            {[5, 6, 8, 10].map(s => (
+            {(styles.find(st => st.engine === engine)?.sizes ?? []).map(({ size: s }) => (
               <button key={s} onClick={() => setPendingSize(s)}
                 className={`mobile-setup-btn ${pendingSize === s ? 'mobile-setup-btn-active' : 'mobile-setup-btn-inactive'}`}>
                 {s}×{s}
@@ -588,7 +626,7 @@ export default function Home() {
           <div className="mobile-setup-section-label">Stars Per Region</div>
           <div className="mobile-setup-btn-row">
             {[1, 2].map(n => {
-              const valid = CONFIGS[pendingSize] === n
+              const valid = starsFor(styles, engine, pendingSize) === n
               return (
                 <button key={n} disabled={!valid}
                   className={`mobile-setup-btn ${valid ? 'mobile-setup-btn-active' : 'mobile-setup-btn-disabled'}`}>
@@ -632,7 +670,7 @@ export default function Home() {
             #{puzzle.code}
           </div>
           <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-light)', marginTop: 3 }}>
-            {puzzle.gridSize}×{puzzle.gridSize} &nbsp;·&nbsp; {CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region
+            {puzzle.gridSize}×{puzzle.gridSize} &nbsp;·&nbsp; {puzzle.stars === 1 ? '1 star' : `${puzzle.stars} stars`} per region
           </div>
           {!hideTimer && (
             <div style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600, marginTop: 4, fontVariantNumeric: 'tabular-nums', visibility: completed ? 'hidden' : 'visible' }}>
@@ -679,7 +717,7 @@ export default function Home() {
                     {typeof navigator !== 'undefined' && 'share' in navigator && (
                       <button
                         onClick={() => navigator.share({
-                          text: `I solved Queens puzzle #${puzzle.code} in ${formatTime(completionTimeRef.current)}! ★\n${puzzle.gridSize}×${puzzle.gridSize} grid · ${CONFIGS[puzzle.gridSize] === 1 ? '1 star' : '2 stars'} per region`,
+                          text: `I solved Queens puzzle #${puzzle.code} in ${formatTime(completionTimeRef.current)}! ★\n${puzzle.gridSize}×${puzzle.gridSize} grid · ${puzzle.stars === 1 ? '1 star' : `${puzzle.stars} stars`} per region`,
                         })}
                         className="mobile-completion-share"
                       >Share ↗</button>
@@ -808,7 +846,7 @@ export default function Home() {
         {/* Add controls */}
         <div className="mobile-offline-controls">
           <div className="mobile-setup-btn-row">
-            {[5, 6, 8, 10].map(s => (
+            {(styles.find(st => st.engine === engine)?.sizes ?? []).map(({ size: s }) => (
               <button key={s} onClick={() => setPendingSize(s)}
                 className={`mobile-setup-btn ${pendingSize === s ? 'mobile-setup-btn-active' : 'mobile-setup-btn-inactive'}`}>
                 {s}×{s}

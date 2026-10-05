@@ -3,8 +3,13 @@
 import { useState } from 'react'
 import Toggle from './Toggle'
 import type { CachedPuzzle } from '@/lib/puzzleCache'
+import type { CatalogueStyle } from '@/lib/types'
+import { styleFor } from '@/lib/catalogue'
 
 interface SidebarProps {
+  styles: CatalogueStyle[]
+  engine: string
+  onEngineChange: (e: string) => void
   size: number
   onSizeChange: (s: number) => void
   onNewGame: () => void
@@ -33,8 +38,6 @@ interface SidebarProps {
   onRemoveCached: (id: string) => void
 }
 
-const VALID_STARS: Record<number, number[]> = { 5: [1], 6: [1], 8: [1], 10: [2] }
-const DEFAULT_STARS: Record<number, number> = { 5: 1, 6: 1, 8: 1, 10: 2 }
 
 
 function Section({ title, open, onToggle, children }: {
@@ -104,6 +107,7 @@ const HOW_TO_PLAY = [
 ]
 
 export default function Sidebar({
+  styles, engine, onEngineChange,
   size, onSizeChange, onNewGame,
   hideTimer, onToggleHideTimer,
   highlightConflicts, onToggleHighlightConflicts,
@@ -120,8 +124,12 @@ export default function Sidebar({
   const [selectedCachedId, setSelectedCachedId] = useState<string | null>(null)
 
   const bd = <div style={{ height: 1, background: 'var(--sidebar-border)', margin: '2px 0' }} />
-  const validStars = VALID_STARS[size]
-  const currentStars = DEFAULT_STARS[size]
+  // Driven by the catalogue: 9x9 exists only for the new styles, and a size's
+  // star count is a property of the style rather than of the size alone.
+  const current = styleFor(styles, engine)
+  const sizeOptions = current?.sizes.map(s => s.size) ?? []
+  const currentStars = current?.sizes.find(s => s.size === size)?.stars
+  const validStars = currentStars ? [currentStars] : []
 
   return (
     <div className="flex flex-col h-full">
@@ -129,16 +137,47 @@ export default function Sidebar({
       {/* Game Info — collapsible */}
       <Section title="Game Info" open={openSection === 'gameInfo'} onToggle={() => toggle('gameInfo')}>
 
+        {/* Puzzle style. Hidden entirely while only one style exists, so the
+            pre-styles layout is unchanged until the API serves more. */}
+        {styles.length > 1 && (
+          <>
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-mid)' }}>Style</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {styles.map(s => (
+                <button
+                  key={s.engine}
+                  onClick={() => onEngineChange(s.engine)}
+                  className="flex-1 py-3 rounded-xl font-semibold transition-all"
+                  style={{
+                    fontSize: 15,
+                    minWidth: '5.5rem',
+                    background: engine === s.engine ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'var(--surface-btn)',
+                    color: engine === s.engine ? 'white' : 'var(--btn-text)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] mb-5" style={{ color: 'var(--text-mid)', minHeight: '2.4em' }}>
+              {current?.description ?? ''}
+            </p>
+          </>
+        )}
+
         {/* Grid size */}
         <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-mid)' }}>Size</p>
-        <div className="flex gap-2 mb-5">
-          {[5, 6, 8, 10].map(s => (
+        <div className="flex flex-wrap gap-2 mb-5">
+          {sizeOptions.map(s => (
             <button
               key={s}
               onClick={() => onSizeChange(s)}
               className="flex-1 py-3 rounded-xl font-semibold transition-all"
               style={{
                 fontSize: 16,
+                minWidth: '3.5rem',
                 background: size === s ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'var(--surface-btn)',
                 color: size === s ? 'white' : 'var(--btn-text)',
                 border: 'none',
@@ -192,8 +231,8 @@ export default function Sidebar({
       <Section title={`Offline Cache${cachedPuzzles.length > 0 ? ` · ${cachedPuzzles.length}/30` : ''}`} open={openSection === 'offline'} onToggle={() => toggle('offline')}>
 
         {/* Size picker + download */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-          {[5, 6, 8, 10].map(s => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+          {sizeOptions.map(s => (
             <button key={s} onClick={() => onPendingSizeChange(s)}
               className="flex-1 py-2 rounded-xl text-xs font-semibold"
               style={{
