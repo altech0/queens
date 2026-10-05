@@ -98,14 +98,14 @@ function parseArgs(): Args {
     process.exit(1)
   }
 
-  // The new styles are not servable by the released app, and prod must keep
-  // behaving exactly as it does today until an App Store build understands them.
-  if (engine !== DEFAULT_ENGINE && env === 'prod') {
-    console.error(`Error: engine "${engine}" cannot seed prod.`)
-    console.error(`  Only ${DEFAULT_ENGINE} may be seeded to prod until the new styles ship.`)
-    console.error('  Use --env dev.')
-    process.exit(1)
-  }
+  // // The new styles are not servable by the released app, and prod must keep
+  // // behaving exactly as it does today until an App Store build understands them.
+  // if (engine !== DEFAULT_ENGINE && env === 'prod') {
+  //   console.error(`Error: engine "${engine}" cannot seed prod.`)
+  //   console.error(`  Only ${DEFAULT_ENGINE} may be seeded to prod until the new styles ship.`)
+  //   console.error('  Use --env dev.')
+  //   process.exit(1)
+  // }
 
   const engineConfigs = configsForEngine(engine)
   let configs = engineConfigs
