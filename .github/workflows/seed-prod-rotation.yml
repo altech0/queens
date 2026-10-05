@@ -1,0 +1,132 @@
+name: Seed Prod Rotation
+
+# Daily top-up of production, rotating through each puzzle type.
+#
+# The target database is hardcoded to prod and never taken from an input.
+# seed-puzzles.yml resolves `inputs.env || 'prod'`, which is fine for a manual
+# run but means a scheduled run with no inputs silently lands on prod; here
+# there is nothing to default, so the target cannot drift.
+#
+# One combo per night on a six-day cycle. The thin, slow combos lead: Tangled
+# generates roughly one board a second against Winding's fifty. 5x5 and 6x6 are
+# left out of the rotation entirely — 5x5 yields the same 14 distinct solutions
+# however long it runs, and 6x6 duplicates ~95% of what it generates, so a
+# nightly slot for either would burn 50 minutes to insert nothing. Both remain
+# available via workflow_dispatch.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 02:00 UTC daily, an hour before the dev rotation
+  workflow_dispatch:
+    inputs:
+      combo:
+        description: 'Which combo to seed'
+        type: choice
+        default: 'auto (rotate daily)'
+        options:
+          - 'auto (rotate daily)'
+          - 'Tangled 9x9'
+          - 'Tangled 8x8'
+          - 'Winding 9x9'
+          - 'Winding 8x8'
+          - 'Original 8x8'
+          - 'Original 10x10'
+          - 'Original 6x6'
+          - 'Original 5x5'
+      seconds:
+        description: 'Seconds to generate for'
+        type: choice
+        default: '3000'
+        options:
+          - '60'
+          - '300'
+          - '900'
+          - '3000'
+
+# One seeding run at a time: concurrent runs generate overlapping boards and
+# waste most of their output on duplicate solutions.
+concurrency:
+  group: seed-prod-rotation
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70  # 50 minutes of generating, plus install and upload headroom
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve combo
+        id: cfg
+        run: |
+          INPUT="${{ inputs.combo }}"
+
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
+            # Six-day rotation. Skips 5x5 and 6x6, which are saturated.
+            DAY=$(date +%j)       # day of year, 001-366
+            IDX=$((10#$DAY % 6))
+            case $IDX in
+              0) ENGINE="snake-harden-v1"; SIZE=9;  STARS=1 ;;
+              1) ENGINE="snake-v1";        SIZE=9;  STARS=1 ;;
+              2) ENGINE="snake-harden-v1"; SIZE=8;  STARS=1 ;;
+              3) ENGINE="snake-v1";        SIZE=8;  STARS=1 ;;
+              4) ENGINE="voronoi-v2";      SIZE=8;  STARS=1 ;;
+              5) ENGINE="voronoi-v2";      SIZE=10; STARS=2 ;;
+            esac
+            RUN_SECONDS=3000      # 50 minutes
+          else
+            case "$INPUT" in
+              'Tangled 9x9')    ENGINE="snake-harden-v1"; SIZE=9;  STARS=1 ;;
+              'Tangled 8x8')    ENGINE="snake-harden-v1"; SIZE=8;  STARS=1 ;;
+              'Winding 9x9')    ENGINE="snake-v1";        SIZE=9;  STARS=1 ;;
+              'Winding 8x8')    ENGINE="snake-v1";        SIZE=8;  STARS=1 ;;
+              'Original 8x8')   ENGINE="voronoi-v2";      SIZE=8;  STARS=1 ;;
+              'Original 10x10') ENGINE="voronoi-v2";      SIZE=10; STARS=2 ;;
+              'Original 6x6')   ENGINE="voronoi-v2";      SIZE=6;  STARS=1 ;;
+              'Original 5x5')   ENGINE="voronoi-v2";      SIZE=5;  STARS=1 ;;
+            esac
+            RUN_SECONDS="${{ inputs.seconds }}"
+          fi
+
+          echo "engine=$ENGINE"       >> $GITHUB_OUTPUT
+          echo "size=$SIZE"           >> $GITHUB_OUTPUT
+          echo "stars=$STARS"         >> $GITHUB_OUTPUT
+          echo "seconds=$RUN_SECONDS" >> $GITHUB_OUTPUT
+          echo "Seeding $ENGINE ${SIZE}x${SIZE} ${STARS}-star for ${RUN_SECONDS}s on PROD"
+
+      - name: Generate and seed puzzles
+        run: |
+          cd api && ../node_modules/.bin/tsx scripts/seedPuzzlesV2.ts \
+            --env prod \
+            --engine ${{ steps.cfg.outputs.engine }} \
+            --size ${{ steps.cfg.outputs.size }} \
+            --stars ${{ steps.cfg.outputs.stars }} \
+            --seconds ${{ steps.cfg.outputs.seconds }} \
+            --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_TO: ${{ secrets.RESEND_TO }}
+          WRANGLER_SEND_METRICS: false
+
+      - name: Report counts
+        if: always()
+        run: |
+          cd api && ../node_modules/.bin/wrangler d1 execute queens --remote \
+            --command "SELECT engine, grid_size, stars, n FROM puzzle_counts WHERE n > 0 ORDER BY engine, grid_size;" \
+            || echo "Count query failed; the seeding result above is what matters."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: false
