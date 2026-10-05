@@ -41,3 +41,26 @@ export function styleFor(styles: CatalogueStyle[], engine: string): CatalogueSty
 export function starsFor(styles: CatalogueStyle[], engine: string, size: number): number | undefined {
   return styleFor(styles, engine)?.sizes.find(s => s.size === size)?.stars
 }
+
+/** Difficulty buckets in display order, matching the API's ALLOWED_DIFFICULTIES. */
+export const ALL_DIFFICULTIES = ['easy', 'medium', 'hard', 'very_hard'] as const
+
+export function difficultyLabel(d: string): string {
+  switch (d) {
+    case 'easy':      return 'Easy'
+    case 'medium':    return 'Medium'
+    case 'hard':      return 'Hard'
+    case 'very_hard': return 'Very Hard'
+    default:          return d
+  }
+}
+
+/**
+ * Which difficulties actually have puzzles for this style and size, in display
+ * order. Tangled boards are nearly all `hard`, so offering the full set would
+ * mean a 404 on the others.
+ */
+export function availableDifficulties(styles: CatalogueStyle[], engine: string, size: number): string[] {
+  const counts = styleFor(styles, engine)?.sizes.find(s => s.size === size)?.difficulties ?? {}
+  return ALL_DIFFICULTIES.filter(d => (counts[d] ?? 0) > 0)
+}

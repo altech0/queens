@@ -7,6 +7,8 @@ export interface Puzzle {
   code: number
   /** Which generator made it. Absent from an API predating styles. */
   engine?: string
+  /** easy | medium | hard | very_hard. Null on rows predating the 0019 backfill. */
+  difficulty?: string | null
 }
 
 export type CellState = 'empty' | 'x' | 'star'

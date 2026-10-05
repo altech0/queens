@@ -1,5 +1,5 @@
 import type { Puzzle, CatalogueStyle } from './types'
-import { DEFAULT_ENGINE, FALLBACK_STYLES } from './catalogue'
+import { DEFAULT_ENGINE, FALLBACK_STYLES, ALL_DIFFICULTIES } from './catalogue'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.queens.knittedmice.com'
 
@@ -56,13 +56,24 @@ export async function fetchCatalogue(): Promise<CatalogueStyle[]> {
   }
 }
 
-export async function fetchPuzzle(size?: number, stars?: number, engine?: string): Promise<Puzzle> {
+export async function fetchPuzzle(
+  size?: number,
+  stars?: number,
+  engine?: string,
+  difficulties?: string[],
+): Promise<Puzzle> {
   const params = new URLSearchParams()
   if (size)  params.set('size',  String(size))
   if (stars) params.set('stars', String(stars))
   // Omitted for Original: no param already means Original, and an API deployed
   // before styles would reject an unknown value.
   if (engine && engine !== DEFAULT_ENGINE) params.set('engine', engine)
+  // Only sent when it is a real subset — all-selected means no filter, which
+  // keeps the URL (and the API's query plan) identical to not asking at all.
+  if (difficulties?.length && difficulties.length < ALL_DIFFICULTIES.length) {
+    const ordered = ALL_DIFFICULTIES.filter(d => difficulties.includes(d))
+    params.set('difficulty', ordered.join(','))
+  }
 
   const res = await authedFetch(`${API}/puzzle?${params}`)
   if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
