@@ -1,4 +1,5 @@
-import type { Puzzle } from './types'
+import type { Puzzle, CatalogueStyle } from './types'
+import { DEFAULT_ENGINE, FALLBACK_STYLES } from './catalogue'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.queens.knittedmice.com'
 
@@ -38,10 +39,30 @@ async function authedFetch(url: string, retried = false): Promise<Response> {
   return res
 }
 
-export async function fetchPuzzle(size?: number, stars?: number): Promise<Puzzle> {
+/**
+ * What styles the API has. Falls back to Original-only rather than throwing: a
+ * failure here must not stop someone playing, and an API predating styles has
+ * no `/catalogue` at all (404).
+ */
+export async function fetchCatalogue(): Promise<CatalogueStyle[]> {
+  try {
+    const res = await authedFetch(`${API}/catalogue`)
+    if (!res.ok) return FALLBACK_STYLES
+    const data = await res.json() as { styles?: CatalogueStyle[] }
+    // An empty list would leave the picker with nothing to select.
+    return data.styles?.length ? data.styles : FALLBACK_STYLES
+  } catch {
+    return FALLBACK_STYLES
+  }
+}
+
+export async function fetchPuzzle(size?: number, stars?: number, engine?: string): Promise<Puzzle> {
   const params = new URLSearchParams()
   if (size)  params.set('size',  String(size))
   if (stars) params.set('stars', String(stars))
+  // Omitted for Original: no param already means Original, and an API deployed
+  // before styles would reject an unknown value.
+  if (engine && engine !== DEFAULT_ENGINE) params.set('engine', engine)
 
   const res = await authedFetch(`${API}/puzzle?${params}`)
   if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
