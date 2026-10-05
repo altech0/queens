@@ -6,7 +6,7 @@ import PuzzleGrid from '@/components/PuzzleGrid'
 import MobileSettings from '@/components/MobileSettings'
 import type { Puzzle, CellState } from '@/lib/types'
 import { fetchPuzzle, fetchPuzzleByCode, fetchCatalogue } from '@/lib/api'
-import { DEFAULT_ENGINE, FALLBACK_STYLES, starsFor } from '@/lib/catalogue'
+import { DEFAULT_ENGINE, FALLBACK_STYLES, starsFor, styleFor, ALL_DIFFICULTIES, availableDifficulties, difficultyLabel } from '@/lib/catalogue'
 import type { CatalogueStyle } from '@/lib/types'
 import {
   getCachedPuzzles, addToCache, removeFromCache, clearCache, isCacheFull,
@@ -50,6 +50,9 @@ export default function Home() {
   const [size, setSize]                    = useState(8)
   const [styles, setStyles]                = useState<CatalogueStyle[]>(FALLBACK_STYLES)
   const [engine, setEngine]                = useState(DEFAULT_ENGINE)
+  // All selected = no filter, matching the iOS default and the API's behaviour
+  // when the param is absent.
+  const [difficulties, setDifficulties]    = useState<string[]>([...ALL_DIFFICULTIES])
   const [puzzle, setPuzzle]                = useState<Puzzle | null>(null)
   const [cells, setCells]                  = useState<CellState[][]>([])
   const [conflicts, setConflicts]          = useState<Set<string>>(new Set())
@@ -154,7 +157,11 @@ export default function Home() {
 
   useEffect(() => () => stopTimer(), [stopTimer])
 
-  const loadPuzzle = useCallback(async (gridSize: number, forEngine: string = engine) => {
+  const loadPuzzle = useCallback(async (
+    gridSize: number,
+    forEngine: string = engine,
+    forDifficulties: string[] = difficulties,
+  ) => {
     setLoading(true)
     setError(null)
     stopTimer()
@@ -172,7 +179,12 @@ export default function Home() {
     historyRef.current = null
     pausedElapsedRef.current = 0
     try {
-      const p = await fetchPuzzle(gridSize, starsFor(styles, forEngine, gridSize), forEngine)
+      const p = await fetchPuzzle(
+        gridSize,
+        starsFor(styles, forEngine, gridSize),
+        forEngine,
+        forDifficulties,
+      )
       setPuzzle(p)
       setCells(Array.from({ length: p.gridSize }, () => Array(p.gridSize).fill('empty')))
       startRef.current = Date.now()
@@ -182,7 +194,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [stopTimer, engine, styles])
+  }, [stopTimer, engine, styles, difficulties])
 
   const handleCellClick = useCallback((row: number, col: number) => {
     if (!puzzle || completed) return
@@ -316,6 +328,20 @@ export default function Home() {
   useEffect(() => { fetchCatalogue().then(setStyles) }, [])
 
   /**
+   * Keeps only difficulties the given style and size actually have, falling back
+   * to all of them if that would leave nothing selected — a filter matching no
+   * puzzle 404s, and "all" is the same as no filter at all.
+   */
+  const coerceDifficulties = useCallback((forEngine: string, forSize: number) => {
+    const avail = availableDifficulties(styles, forEngine, forSize)
+    if (!avail.length) return
+    setDifficulties(prev => {
+      const kept = prev.filter(d => avail.includes(d))
+      return kept.length ? kept : [...ALL_DIFFICULTIES]
+    })
+  }, [styles])
+
+  /**
    * Switching style keeps the current size when the new style has it, and
    * otherwise moves to the nearest size it does — picking Winding while on 10x10
    * must not leave a size selected that it cannot serve. Nearest rather than
@@ -324,13 +350,36 @@ export default function Home() {
   const handleEngineChange = useCallback((next: string) => {
     setEngine(next)
     const sizes = styles.find(s => s.engine === next)?.sizes ?? []
-    if (sizes.length && !sizes.some(s => s.size === size)) {
-      const nearest = sizes.reduce((a, b) =>
-        Math.abs(b.size - size) < Math.abs(a.size - size) ? b : a).size
-      setSize(nearest)
-      setPendingSize(nearest)
+    const nextSize = sizes.length && !sizes.some(s => s.size === size)
+      ? sizes.reduce((a, b) => Math.abs(b.size - size) < Math.abs(a.size - size) ? b : a).size
+      : size
+    if (nextSize !== size) {
+      setSize(nextSize)
+      setPendingSize(nextSize)
     }
-  }, [styles, size])
+    coerceDifficulties(next, nextSize)
+  }, [styles, size, coerceDifficulties])
+
+  /**
+   * Changing size can also strip a difficulty: Original has no `medium` at 5x5,
+   * so moving 8x8 -> 5x5 with Medium selected would filter to nothing.
+   */
+  const handleSizeChange = useCallback((next: number) => {
+    setSize(next)
+    coerceDifficulties(engine, next)
+  }, [engine, coerceDifficulties])
+
+  /**
+   * Toggles one difficulty. Clearing the last one would mean a filter nothing
+   * matches, so the final selection cannot be removed — the same rule the iOS
+   * picker follows.
+   */
+  const handleToggleDifficulty = useCallback((d: string) => {
+    setDifficulties(prev => {
+      if (!prev.includes(d)) return [...prev, d]
+      return prev.length > 1 ? prev.filter(x => x !== d) : prev
+    })
+  }, [])
 
   const refreshCache = useCallback(() => setCachedPuzzles(getCachedPuzzles()), [])
 
@@ -366,7 +415,7 @@ export default function Home() {
     try {
       let added = false
       for (let i = 0; i < 5; i++) {
-        const p = await fetchPuzzle(pendingSize, starsFor(styles, engine, pendingSize), engine)
+        const p = await fetchPuzzle(pendingSize, starsFor(styles, engine, pendingSize), engine, difficulties)
         if (addToCache(p)) { added = true; break }
       }
       if (!added) setCacheAddError("Couldn't find a new puzzle — try again")
@@ -375,7 +424,7 @@ export default function Home() {
       setCacheAddError('Failed to download puzzle')
     }
     setCacheAdding(false)
-  }, [pendingSize, refreshCache, styles, engine])
+  }, [pendingSize, refreshCache, styles, engine, difficulties])
 
   const handleLoadSpecificPuzzle = useCallback(async () => {
     if (!puzzleCode.trim()) return
@@ -440,7 +489,8 @@ export default function Home() {
         <aside className="w-72 shrink-0 h-full overflow-y-auto" style={{ background: 'var(--surface-mid)', backdropFilter: 'blur(12px)', borderRight: '1px solid var(--sidebar-border)' }}>
           <Sidebar
             styles={styles} engine={engine} onEngineChange={handleEngineChange}
-            size={size} onSizeChange={setSize} onNewGame={() => loadPuzzle(size)}
+            size={size} onSizeChange={handleSizeChange} onNewGame={() => loadPuzzle(size)}
+            difficulties={difficulties} onToggleDifficulty={handleToggleDifficulty}
             hideTimer={hideTimer} onToggleHideTimer={() => setHideTimer(v => !v)}
             highlightConflicts={highlightConflicts} onToggleHighlightConflicts={() => setHighlight(v => !v)}
             singleTapMode={singleTapMode} onToggleSingleTap={() => setSingleTap(v => !v)}
@@ -483,6 +533,14 @@ export default function Home() {
                 <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-mid)', marginTop: 3 }}>
                   {puzzle.gridSize}×{puzzle.gridSize}
                 </p>
+                {puzzle.difficulty && (
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-mid)', marginTop: 2 }}>
+                    {difficultyLabel(puzzle.difficulty)}
+                    {styles.length > 1 && styleFor(styles, puzzle.engine ?? DEFAULT_ENGINE)
+                      ? ` · ${styleFor(styles, puzzle.engine ?? DEFAULT_ENGINE)!.name}`
+                      : ''}
+                  </p>
+                )}
                 <p style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-mid)', marginTop: 2 }}>
                   {puzzle.stars === 1 ? '1 star' : `${puzzle.stars} stars`} per region, row and column
                 </p>
@@ -615,7 +673,7 @@ export default function Home() {
           <div className="mobile-setup-section-label">Size</div>
           <div className="mobile-setup-btn-row">
             {(styles.find(st => st.engine === engine)?.sizes ?? []).map(({ size: s }) => (
-              <button key={s} onClick={() => setPendingSize(s)}
+              <button key={s} onClick={() => { setPendingSize(s); coerceDifficulties(engine, s) }}
                 className={`mobile-setup-btn ${pendingSize === s ? 'mobile-setup-btn-active' : 'mobile-setup-btn-inactive'}`}>
                 {s}×{s}
               </button>
@@ -631,6 +689,23 @@ export default function Home() {
                 <button key={n} disabled={!valid}
                   className={`mobile-setup-btn ${valid ? 'mobile-setup-btn-active' : 'mobile-setup-btn-disabled'}`}>
                   {n} {n === 1 ? 'Star' : 'Stars'}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <div className="mobile-setup-section-label">Difficulty</div>
+          <div className="mobile-setup-btn-row">
+            {ALL_DIFFICULTIES.map(d => {
+              // Keyed off pendingSize, which is what this screen is choosing.
+              const available = availableDifficulties(styles, engine, pendingSize).includes(d)
+              const selected  = available && difficulties.includes(d)
+              return (
+                <button key={d} disabled={!available}
+                  onClick={() => handleToggleDifficulty(d)}
+                  className={`mobile-setup-btn ${!available ? 'mobile-setup-btn-disabled' : selected ? 'mobile-setup-btn-active' : 'mobile-setup-btn-inactive'}`}>
+                  {difficultyLabel(d)}
                 </button>
               )
             })}
@@ -670,7 +745,7 @@ export default function Home() {
             #{puzzle.code}
           </div>
           <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-light)', marginTop: 3 }}>
-            {puzzle.gridSize}×{puzzle.gridSize} &nbsp;·&nbsp; {puzzle.stars === 1 ? '1 star' : `${puzzle.stars} stars`} per region
+            {puzzle.gridSize}×{puzzle.gridSize} &nbsp;·&nbsp; {puzzle.stars === 1 ? '1 star' : `${puzzle.stars} stars`} per region{puzzle.difficulty ? ` · ${difficultyLabel(puzzle.difficulty)}` : ''}
           </div>
           {!hideTimer && (
             <div style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600, marginTop: 4, fontVariantNumeric: 'tabular-nums', visibility: completed ? 'hidden' : 'visible' }}>
@@ -882,7 +957,7 @@ export default function Home() {
                 onClick={() => setSelectedCached(prev => prev?.id === c.id ? null : c)}
               >
                 <div>
-                  <div className="mobile-offline-row-name">{c.puzzle.gridSize}×{c.puzzle.gridSize} · {c.puzzle.stars === 1 ? '1 star' : '2 stars'}</div>
+                  <div className="mobile-offline-row-name">{c.puzzle.gridSize}×{c.puzzle.gridSize} · {c.puzzle.stars === 1 ? '1 star' : `${c.puzzle.stars} stars`}{c.puzzle.difficulty ? ` · ${difficultyLabel(c.puzzle.difficulty)}` : ''}</div>
                   <div className="mobile-offline-row-meta">#{c.puzzle.code}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

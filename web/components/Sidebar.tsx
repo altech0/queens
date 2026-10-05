@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Toggle from './Toggle'
 import type { CachedPuzzle } from '@/lib/puzzleCache'
 import type { CatalogueStyle } from '@/lib/types'
-import { styleFor } from '@/lib/catalogue'
+import { styleFor, ALL_DIFFICULTIES, difficultyLabel, availableDifficulties } from '@/lib/catalogue'
 
 interface SidebarProps {
   styles: CatalogueStyle[]
@@ -12,6 +12,8 @@ interface SidebarProps {
   onEngineChange: (e: string) => void
   size: number
   onSizeChange: (s: number) => void
+  difficulties: string[]
+  onToggleDifficulty: (d: string) => void
   onNewGame: () => void
   hideTimer: boolean
   onToggleHideTimer: () => void
@@ -109,6 +111,7 @@ const HOW_TO_PLAY = [
 export default function Sidebar({
   styles, engine, onEngineChange,
   size, onSizeChange, onNewGame,
+  difficulties, onToggleDifficulty,
   hideTimer, onToggleHideTimer,
   highlightConflicts, onToggleHighlightConflicts,
   singleTapMode, onToggleSingleTap,
@@ -127,6 +130,7 @@ export default function Sidebar({
   // Driven by the catalogue: 9x9 exists only for the new styles, and a size's
   // star count is a property of the style rather than of the size alone.
   const current = styleFor(styles, engine)
+  const availDiff = availableDifficulties(styles, engine, size)
   const sizeOptions = current?.sizes.map(s => s.size) ?? []
   const currentStars = current?.sizes.find(s => s.size === size)?.stars
   const validStars = currentStars ? [currentStars] : []
@@ -210,6 +214,36 @@ export default function Sidebar({
                 }}
               >
                 {n} {n === 1 ? 'Star' : 'Stars'}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Difficulty multi-select. Buckets with no puzzles at this style and
+            size are shown disabled rather than hidden, so the row does not
+            reflow as you move between styles. */}
+        <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-mid)' }}>Difficulty</p>
+        <div className="flex flex-wrap gap-2 mb-5">
+          {ALL_DIFFICULTIES.map(d => {
+            const available = availDiff.includes(d)
+            const selected  = available && difficulties.includes(d)
+            return (
+              <button
+                key={d}
+                disabled={!available}
+                onClick={() => onToggleDifficulty(d)}
+                className="flex-1 py-2 rounded-xl font-medium transition-all"
+                style={{
+                  fontSize: 13,
+                  minWidth: '4.5rem',
+                  background: selected ? 'linear-gradient(135deg, #728bc0, #5a73a8)' : 'var(--surface-btn)',
+                  color: selected ? 'white' : available ? 'var(--btn-text)' : 'var(--text-light)',
+                  border: 'none',
+                  cursor: available ? 'pointer' : 'default',
+                  opacity: available ? 1 : 0.4,
+                }}
+              >
+                {difficultyLabel(d)}
               </button>
             )
           })}
