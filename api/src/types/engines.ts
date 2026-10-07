@@ -45,18 +45,27 @@ export const ENGINES: EngineMeta[] = [
     id: 'snake-v1',
     displayName: 'Winding',
     description: 'Long, twisting regions with narrow corridors.',
+    // 10x10 is 1-star here, where Original's 10x10 is 2-star. The snake
+    // generators place one queen per row by construction (randomQueens in
+    // generator/v3/common.ts), so 1 star is the only count they can produce.
+    // That also means this is an empty namespace: the solution-uniqueness index
+    // is keyed by (grid_size, stars, solution), so these never collide with
+    // Original's 2-star boards.
     combos: [
       { size: 8, stars: 1 },
       { size: 9, stars: 1 },
+      { size: 10, stars: 1 },
     ],
   },
   {
     id: 'snake-harden-v1',
     displayName: 'Tangled',
     description: 'Winding regions, tuned to need the trickiest deductions.',
+    // 1-star at 10x10, for the same reason as snake-v1 above.
     combos: [
       { size: 8, stars: 1 },
       { size: 9, stars: 1 },
+      { size: 10, stars: 1 },
     ],
   },
 ]
