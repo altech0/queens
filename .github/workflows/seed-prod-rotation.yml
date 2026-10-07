@@ -26,8 +26,10 @@ on:
         options:
           - 'auto (rotate daily)'
           - 'all combos (sequential)'
+          - 'Tangled 10x10'
           - 'Tangled 9x9'
           - 'Tangled 8x8'
+          - 'Winding 10x10'
           - 'Winding 9x9'
           - 'Winding 8x8'
           - 'Original 8x8'
@@ -87,8 +89,10 @@ jobs:
           # is just a one-line list, so the seed step below has one code path.
           combo_line() {
             case "$1" in
+              'Tangled 10x10')  echo "snake-harden-v1 10 1" ;;
               'Tangled 9x9')    echo "snake-harden-v1 9 1"  ;;
               'Tangled 8x8')    echo "snake-harden-v1 8 1"  ;;
+              'Winding 10x10')  echo "snake-v1 10 1"        ;;
               'Winding 9x9')    echo "snake-v1 9 1"         ;;
               'Winding 8x8')    echo "snake-v1 8 1"         ;;
               'Original 8x8')   echo "voronoi-v2 8 1"       ;;
@@ -100,16 +104,21 @@ jobs:
           }
 
           if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
-            # Six-day rotation. Skips 5x5 and 6x6, which are saturated.
+            # Eight-day rotation. Skips 5x5 and 6x6, which are saturated, and
+            # Tangled 8x8, which is capped by cross-engine solution dedup:
+            # Original and Winding already hold ~5,200 of the 8x8 1-star
+            # solutions, so it has been stuck at 4 rows and a run inserts nothing.
             DAY=$(date +%j)       # day of year, 001-366
-            IDX=$((10#$DAY % 6))
+            IDX=$((10#$DAY % 8))
             case $IDX in
-              0) COMBOS="Tangled 9x9"    ;;
-              1) COMBOS="Winding 9x9"    ;;
-              2) COMBOS="Tangled 8x8"    ;;
-              3) COMBOS="Winding 8x8"    ;;
-              4) COMBOS="Original 8x8"   ;;
-              5) COMBOS="Original 10x10" ;;
+              0) COMBOS="Tangled 10x10"  ;;
+              1) COMBOS="Tangled 9x9"    ;;
+              2) COMBOS="Winding 10x10"  ;;
+              3) COMBOS="Winding 9x9"    ;;
+              4) COMBOS="Winding 8x8"    ;;
+              5) COMBOS="Original 8x8"   ;;
+              6) COMBOS="Original 10x10" ;;
+              7) COMBOS="Tangled 10x10"  ;;
             esac
             RUN_SECONDS=3000      # 50 minutes
             combo_line "$COMBOS" > combos.txt
@@ -122,7 +131,8 @@ jobs:
             # a deliberate top-up may as well confirm they are still saturated,
             # where a nightly slot would just burn 50 minutes doing so.
             : > combos.txt
-            for c in 'Tangled 9x9' 'Tangled 8x8' 'Winding 9x9' 'Winding 8x8' \
+            for c in 'Tangled 10x10' 'Tangled 9x9' 'Tangled 8x8' \
+                     'Winding 10x10' 'Winding 9x9' 'Winding 8x8' \
                      'Original 8x8' 'Original 10x10' 'Original 6x6' 'Original 5x5'; do
               combo_line "$c" >> combos.txt
             done
