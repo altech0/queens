@@ -86,10 +86,16 @@ export default function PuzzleGrid({
                   ...borderStyle(row, col),
                 }}
               >
-                {state === 'x' && (
+                {(state === 'x' || state === 'auto-x') && (
                   <span
                     className="text-lg font-bold leading-none select-none"
-                    style={{ color: isFlash ? 'rgba(210,25,20,0.9)' : darkMode && enhancedContrast ? 'rgba(255,255,255,0.6)' : darkMode ? 'rgba(200,180,130,0.7)' : 'rgba(80,90,120,0.55)', fontSize: `calc(var(--grid-available) / ${size} * 0.32)` }}
+                    style={{
+                      color: isFlash ? 'rgba(210,25,20,0.9)' : darkMode && enhancedContrast ? 'rgba(255,255,255,0.6)' : darkMode ? 'rgba(200,180,130,0.7)' : 'rgba(80,90,120,0.55)',
+                      fontSize: `calc(var(--grid-available) / ${size} * 0.32)`,
+                      // Derived crosses read as a suggestion rather than a
+                      // decision the player made.
+                      opacity: state === 'auto-x' ? 0.45 : 1,
+                    }}
                   >
                     ✕
                   </span>
