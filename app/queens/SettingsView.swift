@@ -78,6 +78,8 @@ struct SettingsView: View {
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
                             }
                             .tint(AppColors.primary(colorScheme))
@@ -101,6 +103,8 @@ struct SettingsView: View {
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
                             }
                             .tint(AppColors.primary(colorScheme))
@@ -137,6 +141,8 @@ struct SettingsView: View {
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
                             }
                             .tint(AppColors.primary(colorScheme))
@@ -160,6 +166,8 @@ struct SettingsView: View {
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
                             }
                             .tint(AppColors.primary(colorScheme))
@@ -179,10 +187,12 @@ struct SettingsView: View {
                                         .font(.system(size: 17, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textPrimary(colorScheme))
 
-                                    Text("Cross out the cells a star rules out, and undo them if you move the star")
+                                    Text("Cross out the cells each star rules out")
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
                             }
                             .tint(AppColors.primary(colorScheme))
@@ -206,6 +216,8 @@ struct SettingsView: View {
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
                             }
                             .tint(AppColors.primary(colorScheme))
@@ -229,6 +241,8 @@ struct SettingsView: View {
                                         .font(.system(size: 14, weight: .regular, design: .rounded))
                                         .foregroundColor(AppColors.textSecondary(colorScheme))
                                         .opacity(0.8)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
                                 }
                             }
                             .tint(AppColors.primary(colorScheme))
