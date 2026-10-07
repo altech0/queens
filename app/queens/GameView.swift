@@ -1112,7 +1112,9 @@ struct GameView: View {
         // Otherwise, fetch from API (online mode)
         do {
             logger.debug("🎮 GameView: Calling PuzzleFetcher...")
-            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties, engine: engine)
+            // Pass the current puzzle's code so "New Game" does not hand back the
+            // board just played, which a small pool otherwise does often.
+            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties, engine: engine, avoidCode: puzzle?.code)
             
             logger.info("🎮 GameView: Puzzle loaded successfully")
             self.puzzle = loadedPuzzle

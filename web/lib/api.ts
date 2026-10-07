@@ -56,11 +56,27 @@ export async function fetchCatalogue(): Promise<CatalogueStyle[]> {
   }
 }
 
+/**
+ * How many times to re-ask when the API hands back the puzzle just played.
+ *
+ * Selection is stateless server side (a random seek on `rand`), so a small pool
+ * repeats often: at four puzzles a combo returns the same board roughly every
+ * fourth request. Retrying client side fixes that without the server having to
+ * track what each player has seen.
+ *
+ * Bounded, and deliberately low: a combo with a single puzzle would otherwise
+ * spin forever, and each attempt is a real request. After this many tries the
+ * repeat is accepted — showing the same board beats showing an error.
+ */
+const AVOID_REPEAT_ATTEMPTS = 4
+
 export async function fetchPuzzle(
   size?: number,
   stars?: number,
   engine?: string,
   difficulties?: string[],
+  /** Code of the puzzle just played, to avoid serving it again. */
+  avoidCode?: number,
 ): Promise<Puzzle> {
   const params = new URLSearchParams()
   if (size)  params.set('size',  String(size))
@@ -75,9 +91,16 @@ export async function fetchPuzzle(
     params.set('difficulty', ordered.join(','))
   }
 
-  const res = await authedFetch(`${API}/puzzle?${params}`)
-  if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
-  return res.json()
+  let puzzle: Puzzle | undefined
+  for (let attempt = 0; attempt < AVOID_REPEAT_ATTEMPTS; attempt++) {
+    const res = await authedFetch(`${API}/puzzle?${params}`)
+    if (!res.ok) throw new Error(`Failed to fetch puzzle: ${res.status}`)
+    puzzle = await res.json() as Puzzle
+    if (avoidCode === undefined || puzzle.code !== avoidCode) return puzzle
+  }
+  // Every attempt came back with the same puzzle, so the pool is effectively
+  // one board for these filters. Return it rather than failing.
+  return puzzle as Puzzle
 }
 
 export async function fetchPuzzleByCode(code: string): Promise<Puzzle> {
