@@ -11,7 +11,19 @@ export interface Puzzle {
   difficulty?: string | null
 }
 
-export type CellState = 'empty' | 'x' | 'star'
+/**
+ * A cell's mark.
+ *
+ * `x` is a cross the player made; `auto-x` is one the app derived from a placed
+ * star (the autoCross setting). Only `auto-x` cells are cleared when the stars
+ * that implied them change, so a player's own marks are never touched. The
+ * distinction lives in the state rather than a parallel set so it travels with
+ * `cells` through undo, redo and the offline cache for free.
+ */
+export type CellState = 'empty' | 'x' | 'auto-x' | 'star'
+
+/** Any cross, however it got there. Most logic cares only about this. */
+export const isCross = (s: CellState): boolean => s === 'x' || s === 'auto-x'
 
 export interface GridPosition {
   row: number

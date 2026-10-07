@@ -21,6 +21,8 @@ interface SidebarProps {
   onToggleHighlightConflicts: () => void
   singleTapMode: boolean
   onToggleSingleTap: () => void
+  autoCross: boolean
+  onToggleAutoCross: () => void
   enhancedContrast: boolean
   onToggleEnhancedContrast: () => void
   darkMode: boolean
@@ -115,6 +117,7 @@ export default function Sidebar({
   hideTimer, onToggleHideTimer,
   highlightConflicts, onToggleHighlightConflicts,
   singleTapMode, onToggleSingleTap,
+  autoCross, onToggleAutoCross,
   enhancedContrast, onToggleEnhancedContrast,
   darkMode, onToggleDarkMode,
   loading, completed, puzzleActive,
@@ -361,6 +364,9 @@ export default function Sidebar({
           {bd}
           <Toggle on={singleTapMode} onToggle={onToggleSingleTap}
             label="Single Tap" description="Place a star directly — no X marks" />
+          {bd}
+          <Toggle on={autoCross} onToggle={onToggleAutoCross}
+            label="Auto Cross" description="Cross out the cells a star rules out, and undo them if you move the star" />
           {bd}
           <Toggle on={highlightConflicts} onToggle={onToggleHighlightConflicts}
             label="Highlight Conflicts" description="Mark stars sharing a row, column, or touching" />

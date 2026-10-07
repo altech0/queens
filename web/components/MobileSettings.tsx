@@ -9,6 +9,8 @@ interface MobileSettingsProps {
   highlightConflicts: boolean
   onToggleHighlightConflicts: () => void
   singleTapMode: boolean
+  autoCross: boolean
+  onToggleAutoCross: () => void
   onToggleSingleTap: () => void
   enhancedContrast: boolean
   onToggleEnhancedContrast: () => void
@@ -23,6 +25,7 @@ export default function MobileSettings({
   hideTimer, onToggleHideTimer,
   highlightConflicts, onToggleHighlightConflicts,
   singleTapMode, onToggleSingleTap,
+  autoCross, onToggleAutoCross,
   enhancedContrast, onToggleEnhancedContrast,
   darkMode, onToggleDarkMode,
 }: MobileSettingsProps) {
@@ -47,6 +50,7 @@ export default function MobileSettings({
           <Toggle on={highlightConflicts} onToggle={onToggleHighlightConflicts} label="Highlight Conflicts" description="Mark stars sharing a row, column, or touching" />
           {bd}
           <Toggle on={singleTapMode} onToggle={onToggleSingleTap} label="Single Tap" description="Place a star directly — no X marks" />
+          <Toggle on={autoCross} onToggle={onToggleAutoCross} label="Auto Cross" description="Cross out the cells a star rules out, and undo them if you move the star" />
           {bd}
           <Toggle on={enhancedContrast} onToggle={onToggleEnhancedContrast} label="Enhanced Contrast" description="More vivid region colours" />
         </div>

@@ -13,6 +13,7 @@ import {
   updateCacheCompletion, type CachedPuzzle,
 } from '@/lib/puzzleCache'
 import { validate } from '@/lib/validator'
+import { refreshAutoCrosses } from '@/lib/autoCross'
 
 const HOW_TO_PLAY = [
   { title: 'Objective', text: 'Place stars so each row, column and region contains exactly the required number of stars.' },
@@ -31,9 +32,12 @@ function loadSettings() {
       singleTapMode:      s.singleTapMode      ?? false,
       enhancedContrast:   s.enhancedContrast   ?? false,
       darkMode:           s.darkMode           ?? false,
+      // Off by default: it changes how the board behaves for existing players,
+      // so it should be something they opt into. Matches the iOS default.
+      autoCross:          s.autoCross          ?? false,
     }
   } catch {
-    return { hideTimer: false, highlightConflicts: true, singleTapMode: false, enhancedContrast: false, darkMode: false }
+    return { hideTimer: false, highlightConflicts: true, singleTapMode: false, enhancedContrast: false, darkMode: false, autoCross: false }
   }
 }
 
@@ -66,6 +70,7 @@ export default function Home() {
   const [hideTimer, setHideTimer]          = useState(false)
   const [highlightConflicts, setHighlight] = useState(true)
   const [singleTapMode, setSingleTap]      = useState(false)
+  const [autoCross, setAutoCross]          = useState(false)
   const [enhancedContrast, setEnhanced]    = useState(false)
   const [darkMode, setDarkMode]            = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -118,6 +123,7 @@ export default function Home() {
     setHideTimer(s.hideTimer)
     setHighlight(s.highlightConflicts)
     setSingleTap(s.singleTapMode)
+    setAutoCross(s.autoCross)
     setEnhanced(s.enhancedContrast)
     setDarkMode(s.darkMode)
   }, [])
@@ -130,10 +136,27 @@ export default function Home() {
   useEffect(() => {
     try {
       localStorage.setItem('queens_settings', JSON.stringify(
-        { hideTimer, highlightConflicts, singleTapMode, enhancedContrast, darkMode }
+        { hideTimer, highlightConflicts, singleTapMode, enhancedContrast, darkMode, autoCross }
       ))
     } catch {}
-  }, [hideTimer, highlightConflicts, singleTapMode, enhancedContrast, darkMode])
+  }, [hideTimer, highlightConflicts, singleTapMode, enhancedContrast, darkMode, autoCross])
+
+  // Toggling the setting mid-game applies straight away: on, the crosses appear
+  // for the stars already placed; off, the derived ones disappear. Not pushed
+  // onto the undo stack — this is a settings change, not a move.
+  const handleToggleAutoCross = useCallback(() => {
+    setAutoCross(on => {
+      const next = !on
+      if (puzzle) {
+        setCells(prev => {
+          const derived = refreshAutoCrosses(prev, puzzle, next)
+          if (historyRef.current) historyRef.current.cells = derived
+          return derived
+        })
+      }
+      return next
+    })
+  }, [puzzle])
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
@@ -200,11 +223,17 @@ export default function Home() {
     if (!puzzle || completed) return
     const cur = historyRef.current
     const prevCells = cur?.cells ?? cells
-    const next = prevCells.map(r => [...r])
+    let next = prevCells.map(r => [...r])
     const cell = next[row][col]
+    // An auto cross behaves like an empty cell when tapped: the player is
+    // placing their own mark over the app's suggestion, so the cycle starts
+    // from the beginning rather than treating it as their own cross.
     next[row][col] = singleTapMode
       ? (cell === 'star' ? 'empty' : 'star')
-      : (cell === 'empty' ? 'x' : cell === 'x' ? 'star' : 'empty')
+      : (cell === 'empty' || cell === 'auto-x' ? 'x' : cell === 'x' ? 'star' : 'empty')
+    // Re-derive from the stars now on the board. Harmless when the setting is
+    // off: it clears any auto crosses left over from switching it off mid-game.
+    next = refreshAutoCrosses(next, puzzle, autoCross)
     const newUndo = [...(cur?.undo ?? undoStack), prevCells]
     historyRef.current = { cells: next, undo: newUndo, redo: [] }
     setCells(next)
@@ -227,7 +256,7 @@ export default function Home() {
         setShowHint(true)
       }
     }
-  }, [puzzle, completed, singleTapMode, stopTimer, cells, undoStack])
+  }, [puzzle, completed, singleTapMode, stopTimer, cells, undoStack, autoCross])
 
   const handleUndo = useCallback(() => {
     if (!puzzle) return
@@ -307,6 +336,8 @@ export default function Home() {
         const state = currentCells[r][col]
         const key = `${r},${col}`
         if (state === 'star' && !solutionSet.has(key)) wrong.add(key)
+        // Only the player's own crosses count as mistakes; an auto cross is
+        // derived from their stars and is never wrong on its own.
         if (state === 'x' && solutionSet.has(key)) wrong.add(key)
       }
     }
@@ -494,6 +525,7 @@ export default function Home() {
             hideTimer={hideTimer} onToggleHideTimer={() => setHideTimer(v => !v)}
             highlightConflicts={highlightConflicts} onToggleHighlightConflicts={() => setHighlight(v => !v)}
             singleTapMode={singleTapMode} onToggleSingleTap={() => setSingleTap(v => !v)}
+            autoCross={autoCross} onToggleAutoCross={handleToggleAutoCross}
             enhancedContrast={enhancedContrast} onToggleEnhancedContrast={() => setEnhanced(v => !v)}
             darkMode={darkMode} onToggleDarkMode={() => setDarkMode(v => !v)}
             loading={loading} completed={completed} puzzleActive={puzzle !== null || loading}
@@ -826,6 +858,7 @@ export default function Home() {
       hideTimer={hideTimer} onToggleHideTimer={() => setHideTimer(v => !v)}
       highlightConflicts={highlightConflicts} onToggleHighlightConflicts={() => setHighlight(v => !v)}
       singleTapMode={singleTapMode} onToggleSingleTap={() => setSingleTap(v => !v)}
+      autoCross={autoCross} onToggleAutoCross={handleToggleAutoCross}
       enhancedContrast={enhancedContrast} onToggleEnhancedContrast={() => setEnhanced(v => !v)}
       darkMode={darkMode} onToggleDarkMode={() => setDarkMode(v => !v)}
     />
