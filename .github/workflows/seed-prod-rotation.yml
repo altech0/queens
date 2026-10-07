@@ -25,6 +25,7 @@ on:
         default: 'auto (rotate daily)'
         options:
           - 'auto (rotate daily)'
+          - 'all combos (sequential)'
           - 'Tangled 9x9'
           - 'Tangled 8x8'
           - 'Winding 9x9'
@@ -45,6 +46,12 @@ on:
 
 # One seeding run at a time: concurrent runs generate overlapping boards and
 # waste most of their output on duplicate solutions.
+#
+# Note what this does NOT do: GitHub keeps only one *pending* run per group, so
+# dispatching several combos back to back leaves the last one queued and cancels
+# the rest — `cancel-in-progress: false` protects the running job, not the
+# queue. To seed more than one combo in a single go, use the
+# "all combos (sequential)" option, which loops inside one run.
 concurrency:
   group: seed-prod-rotation
   cancel-in-progress: false
@@ -52,7 +59,12 @@ concurrency:
 jobs:
   seed:
     runs-on: ubuntu-latest
-    timeout-minutes: 70  # 50 minutes of generating, plus install and upload headroom
+    # Headroom for the worst case: "all combos (sequential)" at 3000s each is
+    # eight 50-minute combos, so ~400 minutes of generating plus install and
+    # uploads. A single-combo run finishes in about an hour regardless. GitHub
+    # caps a job at 360 minutes, so an 8x3000s dispatch will be cut short — use
+    # a smaller `seconds` for a full sweep, which is what it is for.
+    timeout-minutes: 355
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -66,53 +78,88 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Resolve combo
+      - name: Resolve combos
         id: cfg
         run: |
           INPUT="${{ inputs.combo }}"
+
+          # Emits one "engine size stars" line per combo to seed. A single combo
+          # is just a one-line list, so the seed step below has one code path.
+          combo_line() {
+            case "$1" in
+              'Tangled 9x9')    echo "snake-harden-v1 9 1"  ;;
+              'Tangled 8x8')    echo "snake-harden-v1 8 1"  ;;
+              'Winding 9x9')    echo "snake-v1 9 1"         ;;
+              'Winding 8x8')    echo "snake-v1 8 1"         ;;
+              'Original 8x8')   echo "voronoi-v2 8 1"       ;;
+              'Original 10x10') echo "voronoi-v2 10 2"      ;;
+              'Original 6x6')   echo "voronoi-v2 6 1"       ;;
+              'Original 5x5')   echo "voronoi-v2 5 1"       ;;
+              *) echo "ERROR: unknown combo '$1'" >&2; exit 1 ;;
+            esac
+          }
 
           if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
             # Six-day rotation. Skips 5x5 and 6x6, which are saturated.
             DAY=$(date +%j)       # day of year, 001-366
             IDX=$((10#$DAY % 6))
             case $IDX in
-              0) ENGINE="snake-harden-v1"; SIZE=9;  STARS=1 ;;
-              1) ENGINE="snake-v1";        SIZE=9;  STARS=1 ;;
-              2) ENGINE="snake-harden-v1"; SIZE=8;  STARS=1 ;;
-              3) ENGINE="snake-v1";        SIZE=8;  STARS=1 ;;
-              4) ENGINE="voronoi-v2";      SIZE=8;  STARS=1 ;;
-              5) ENGINE="voronoi-v2";      SIZE=10; STARS=2 ;;
+              0) COMBOS="Tangled 9x9"    ;;
+              1) COMBOS="Winding 9x9"    ;;
+              2) COMBOS="Tangled 8x8"    ;;
+              3) COMBOS="Winding 8x8"    ;;
+              4) COMBOS="Original 8x8"   ;;
+              5) COMBOS="Original 10x10" ;;
             esac
             RUN_SECONDS=3000      # 50 minutes
+            combo_line "$COMBOS" > combos.txt
+          elif [ "$INPUT" = "all combos (sequential)" ]; then
+            # Every combo in one run. Dispatching them as separate runs does not
+            # work: GitHub holds a single pending run per concurrency group, so
+            # each dispatch cancels the one waiting behind it.
+            #
+            # 5x5 and 6x6 are included here but not in the nightly rotation —
+            # a deliberate top-up may as well confirm they are still saturated,
+            # where a nightly slot would just burn 50 minutes doing so.
+            : > combos.txt
+            for c in 'Tangled 9x9' 'Tangled 8x8' 'Winding 9x9' 'Winding 8x8' \
+                     'Original 8x8' 'Original 10x10' 'Original 6x6' 'Original 5x5'; do
+              combo_line "$c" >> combos.txt
+            done
+            RUN_SECONDS="${{ inputs.seconds }}"
           else
-            case "$INPUT" in
-              'Tangled 9x9')    ENGINE="snake-harden-v1"; SIZE=9;  STARS=1 ;;
-              'Tangled 8x8')    ENGINE="snake-harden-v1"; SIZE=8;  STARS=1 ;;
-              'Winding 9x9')    ENGINE="snake-v1";        SIZE=9;  STARS=1 ;;
-              'Winding 8x8')    ENGINE="snake-v1";        SIZE=8;  STARS=1 ;;
-              'Original 8x8')   ENGINE="voronoi-v2";      SIZE=8;  STARS=1 ;;
-              'Original 10x10') ENGINE="voronoi-v2";      SIZE=10; STARS=2 ;;
-              'Original 6x6')   ENGINE="voronoi-v2";      SIZE=6;  STARS=1 ;;
-              'Original 5x5')   ENGINE="voronoi-v2";      SIZE=5;  STARS=1 ;;
-            esac
+            combo_line "$INPUT" > combos.txt
             RUN_SECONDS="${{ inputs.seconds }}"
           fi
 
-          echo "engine=$ENGINE"       >> $GITHUB_OUTPUT
-          echo "size=$SIZE"           >> $GITHUB_OUTPUT
-          echo "stars=$STARS"         >> $GITHUB_OUTPUT
           echo "seconds=$RUN_SECONDS" >> $GITHUB_OUTPUT
-          echo "Seeding $ENGINE ${SIZE}x${SIZE} ${STARS}-star for ${RUN_SECONDS}s on PROD"
+          echo "count=$(wc -l < combos.txt)" >> $GITHUB_OUTPUT
+          echo "Will seed $(wc -l < combos.txt) combo(s) at ${RUN_SECONDS}s each on PROD:"
+          cat combos.txt
 
       - name: Generate and seed puzzles
         run: |
-          cd api && ../node_modules/.bin/tsx scripts/seedPuzzlesV2.ts \
-            --env prod \
-            --engine ${{ steps.cfg.outputs.engine }} \
-            --size ${{ steps.cfg.outputs.size }} \
-            --stars ${{ steps.cfg.outputs.stars }} \
-            --seconds ${{ steps.cfg.outputs.seconds }} \
-            --yes
+          FAILED=0
+          while read -r ENGINE SIZE STARS; do
+            [ -z "$ENGINE" ] && continue
+            echo "::group::$ENGINE ${SIZE}x${SIZE} ${STARS}-star"
+            # One combo failing must not abandon the rest: a later combo may
+            # still have plenty of room even if this one is saturated or its
+            # upload failed. The step still fails at the end so the run is not
+            # reported green.
+            if ! (cd api && ../node_modules/.bin/tsx scripts/seedPuzzlesV2.ts \
+                --env prod \
+                --engine "$ENGINE" \
+                --size "$SIZE" \
+                --stars "$STARS" \
+                --seconds ${{ steps.cfg.outputs.seconds }} \
+                --yes); then
+              echo "FAILED: $ENGINE ${SIZE}x${SIZE}"
+              FAILED=$((FAILED + 1))
+            fi
+            echo "::endgroup::"
+          done < combos.txt
+          [ "$FAILED" -eq 0 ] || { echo "$FAILED combo(s) failed"; exit 1; }
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

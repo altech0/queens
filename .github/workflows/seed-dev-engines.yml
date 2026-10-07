@@ -40,6 +40,12 @@ on:
 
 # One seeding run at a time: concurrent runs would generate overlapping boards
 # and waste most of their output on duplicate solutions.
+# GitHub keeps only one *pending* run per group, so dispatching several combos
+# back to back leaves the last queued and cancels the rest —
+# `cancel-in-progress: false` protects the running job, not the queue. Dispatch
+# one at a time, waiting for each to finish. (Seed Prod Rotation has an
+# "all combos (sequential)" option that loops inside a single run; it is
+# hardcoded to prod, so it is no help here.)
 concurrency:
   group: seed-dev-engines
   cancel-in-progress: false
