@@ -24,8 +24,10 @@ on:
         default: 'auto (rotate daily)'
         options:
           - 'auto (rotate daily)'
+          - 'Winding 10x10'
           - 'Winding 9x9'
           - 'Winding 8x8'
+          - 'Tangled 10x10'
           - 'Tangled 9x9'
           - 'Tangled 8x8'
       seconds:
@@ -73,23 +75,32 @@ jobs:
           INPUT="${{ inputs.combo }}"
 
           if [ "${{ github.event_name }}" = "schedule" ] || [ "$INPUT" = "auto (rotate daily)" ] || [ -z "$INPUT" ]; then
-            # Four-day rotation. 9x9 leads because 8x8 is close to saturated:
-            # ~93% of generated 8x8 boards duplicate a solution already stored.
+            # Six-day rotation. 10x10 and 9x9 lead because 8x8 is close to
+            # saturated: ~93% of generated 8x8 boards duplicate a solution
+            # already stored, and the 8x8 1-star namespace is shared with
+            # Original and Winding, which hold thousands of it between them.
+            # 10x10 1-star is its own namespace — Original's 10x10 boards are
+            # all 2-star — so it fills freely.
             DAY=$(date +%j)       # day of year, 001-366
-            IDX=$((10#$DAY % 4))
+            IDX=$((10#$DAY % 6))
             case $IDX in
-              0) ENGINE="snake-v1";        SIZE=9 ;;
-              1) ENGINE="snake-harden-v1"; SIZE=9 ;;
-              2) ENGINE="snake-v1";        SIZE=8 ;;
-              3) ENGINE="snake-harden-v1"; SIZE=8 ;;
+              0) ENGINE="snake-harden-v1"; SIZE=10 ;;
+              1) ENGINE="snake-v1";        SIZE=10 ;;
+              2) ENGINE="snake-harden-v1"; SIZE=9  ;;
+              3) ENGINE="snake-v1";        SIZE=9  ;;
+              4) ENGINE="snake-harden-v1"; SIZE=8  ;;
+              5) ENGINE="snake-v1";        SIZE=8  ;;
             esac
             RUN_SECONDS=3000      # 50 minutes
           else
             case "$INPUT" in
-              'Winding 9x9') ENGINE="snake-v1";        SIZE=9 ;;
-              'Winding 8x8') ENGINE="snake-v1";        SIZE=8 ;;
-              'Tangled 9x9') ENGINE="snake-harden-v1"; SIZE=9 ;;
-              'Tangled 8x8') ENGINE="snake-harden-v1"; SIZE=8 ;;
+              'Winding 10x10') ENGINE="snake-v1";        SIZE=10 ;;
+              'Winding 9x9')   ENGINE="snake-v1";        SIZE=9  ;;
+              'Winding 8x8')   ENGINE="snake-v1";        SIZE=8  ;;
+              'Tangled 10x10') ENGINE="snake-harden-v1"; SIZE=10 ;;
+              'Tangled 9x9')   ENGINE="snake-harden-v1"; SIZE=9  ;;
+              'Tangled 8x8')   ENGINE="snake-harden-v1"; SIZE=8  ;;
+              *) echo "ERROR: unknown combo '$INPUT'" >&2; exit 1 ;;
             esac
             RUN_SECONDS="${{ inputs.seconds }}"
           fi
