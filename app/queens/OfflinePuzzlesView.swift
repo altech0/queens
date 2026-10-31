@@ -17,6 +17,7 @@ struct OfflinePuzzlesView: View {
     @State private var selectedSize = 6
     @State private var selectedStars = 1
     @State private var selectedEngine: String = PuzzleConfig.defaultEngine
+    @State private var selectedDifficulties: Set<String> = []
     @State private var isLoading = false
     @State private var loadError: String?
     @State private var selectedPuzzle: CachedPuzzle?
@@ -35,9 +36,16 @@ struct OfflinePuzzlesView: View {
     private var sizeOptions: [Int] { currentStyle?.sizeOptions ?? PuzzleConfig.sizeOptions }
     private let starOptions = PuzzleConfig.starOptions
 
+    private var currentSizeEntry: CatalogueSize? { currentStyle?.entry(forSize: selectedSize) }
+
     private var availableStarOptions: [Int] {
-        if let stars = currentStyle?.entry(forSize: selectedSize)?.stars { return [stars] }
+        if let stars = currentSizeEntry?.stars { return [stars] }
         return PuzzleConfig.availableStars(for: selectedSize)
+    }
+
+    private var availableDifficulties: [String] {
+        currentSizeEntry?.availableDifficulties
+            ?? PuzzleConfig.allDifficulties.filter { PuzzleConfig.validDifficulties(for: selectedSize).contains($0) }
     }
     
     var body: some View {
@@ -151,6 +159,7 @@ struct OfflinePuzzlesView: View {
                                     if !availableStarOptions.contains(selectedStars) {
                                         selectedStars = availableStarOptions.first ?? 1
                                     }
+                                    pruneDifficulties()
                                 }) {
                                     Text("\(size)×\(size)")
                                         .font(.system(size: 18, weight: .semibold, design: .rounded))
@@ -173,7 +182,40 @@ struct OfflinePuzzlesView: View {
                         }
                         .padding(.horizontal, 50)
                     }
-                    
+
+                    // Difficulty multi-select — same behaviour as the setup view:
+                    // buckets with no puzzles for this style/size are disabled,
+                    // and at least one stays selected.
+                    VStack(spacing: 8) {
+                        HStack(spacing: 10) {
+                            ForEach(PuzzleConfig.allDifficulties, id: \.self) { diff in
+                                let isValid = availableDifficulties.contains(diff)
+                                let isSelected = selectedDifficulties.contains(diff)
+                                Button(action: { toggleDifficulty(diff) }) {
+                                    Text(PuzzleConfig.difficultyDisplayName(diff))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundColor(!isValid ? AppColors.textDisabled(colorScheme)
+                                                         : (isSelected ? .white : AppColors.primary(colorScheme)))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 11)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(isSelected && isValid
+                                                      ? AppColors.primaryGradient(colorScheme)
+                                                      : LinearGradient(colors: [AppColors.surface(colorScheme), AppColors.surface(colorScheme)], startPoint: .leading, endPoint: .trailing))
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(isSelected && isValid ? AppColors.primary(colorScheme) : Color.clear, lineWidth: 2)
+                                        )
+                                        .opacity(isValid ? 1.0 : 0.4)
+                                }
+                                .disabled(!isValid)
+                            }
+                        }
+                        .padding(.horizontal, 50)
+                    }
+
                     // Add to Cache button
                     Button(action: {
                         Task {
@@ -351,6 +393,28 @@ struct OfflinePuzzlesView: View {
         if !availableStarOptions.contains(selectedStars) {
             selectedStars = availableStarOptions.first ?? 1
         }
+        pruneDifficulties()
+    }
+
+    private func toggleDifficulty(_ diff: String) {
+        if selectedDifficulties.contains(diff) {
+            // Enforce at least one selected.
+            if selectedDifficulties.count > 1 {
+                selectedDifficulties.remove(diff)
+            }
+        } else {
+            selectedDifficulties.insert(diff)
+        }
+    }
+
+    /// Drop any selected difficulties the current style/size has no puzzles for;
+    /// if that empties the set, fall back to the first available bucket.
+    private func pruneDifficulties() {
+        let valid = Set(availableDifficulties)
+        selectedDifficulties.formIntersection(valid)
+        if selectedDifficulties.isEmpty, let first = availableDifficulties.first {
+            selectedDifficulties = [first]
+        }
     }
 
     private var isAddDisabled: Bool {
@@ -373,7 +437,12 @@ struct OfflinePuzzlesView: View {
 
             var added = false
             for attempt in 1...5 {
-                let puzzle = try await PuzzleFetcher.fetchPuzzle(size: selectedSize, starsPerUnit: selectedStars, engine: selectedEngine)
+                let puzzle = try await PuzzleFetcher.fetchPuzzle(
+                    size: selectedSize,
+                    starsPerUnit: selectedStars,
+                    difficulties: selectedDifficulties,
+                    engine: selectedEngine
+                )
                 if cache.add(puzzle) {
                     logger.info("✅ Puzzle added to cache successfully (attempt \(attempt))")
                     added = true

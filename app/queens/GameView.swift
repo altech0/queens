@@ -87,6 +87,19 @@ struct GameView: View {
     @State private var hintCell: GridPosition?
     @State private var hintFlashTask: Task<Void, Never>?
     @State private var isComputingHint = false
+    /// Seconds left before Hint can be used again; 0 means ready. Drives the
+    /// countdown ring around the lightbulb.
+    @State private var hintCooldownRemaining: TimeInterval = 0
+    @State private var hintCooldownTask: Task<Void, Never>?
+
+    /// How long Hint stays locked after each use.
+    private static let hintCooldown: TimeInterval = 5
+    /// How long a hint banner stays on screen before dismissing itself.
+    private static let hintAutoDismiss: TimeInterval = 10
+
+    @State private var hintDismissTask: Task<Void, Never>?
+
+    private var isHintOnCooldown: Bool { hintCooldownRemaining > 0 }
 
     private var conflictCells: Set<GridPosition> {
         guard let puzzle = puzzle else { return [] }
@@ -550,7 +563,9 @@ struct GameView: View {
                                         .fill(AppColors.surface(colorScheme))
                                 )
                             }
-                            
+                            .disabled(isCompleted)
+                            .opacity(isCompleted ? 0.4 : 1.0)
+
                             Button(action: {
                                 checkSolution()
                             }) {
@@ -569,6 +584,8 @@ struct GameView: View {
                                         .fill(AppColors.surface(colorScheme))
                                 )
                             }
+                            .disabled(isCompleted)
+                            .opacity(isCompleted ? 0.4 : 1.0)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -654,8 +671,8 @@ struct GameView: View {
                                         .fill(AppColors.surface(colorScheme))
                                 )
                             }
-                            .disabled(undoStack.isEmpty)
-                            .opacity(undoStack.isEmpty ? 0.5 : 1.0)
+                            .disabled(undoStack.isEmpty || isCompleted)
+                            .opacity(undoStack.isEmpty || isCompleted ? 0.5 : 1.0)
                             
                             Button(action: {
                                 performRedo()
@@ -675,8 +692,8 @@ struct GameView: View {
                                         .fill(AppColors.surface(colorScheme))
                                 )
                             }
-                            .disabled(redoStack.isEmpty)
-                            .opacity(redoStack.isEmpty ? 0.5 : 1.0)
+                            .disabled(redoStack.isEmpty || isCompleted)
+                            .opacity(redoStack.isEmpty || isCompleted ? 0.5 : 1.0)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -742,9 +759,24 @@ struct GameView: View {
                         }
                     }
                     .frame(width: 44, height: 44)
+                    // Cooldown ring: drains clockwise from full back to nothing
+                    // over the 5s, then disappears.
+                    .overlay {
+                        if isHintOnCooldown {
+                            Circle()
+                                .trim(from: 0, to: hintCooldownRemaining / Self.hintCooldown)
+                                .stroke(
+                                    AppColors.primary(colorScheme),
+                                    style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                                )
+                                .rotationEffect(.degrees(-90))
+                                .frame(width: 30, height: 30)
+                        }
+                    }
+                    .opacity(isHintOnCooldown ? 0.4 : 1.0)
                     .contentShape(Rectangle())
                 }
-                .disabled(isComputingHint)
+                .disabled(isComputingHint || isHintOnCooldown || isCompleted)
 
                 Spacer()
 
@@ -760,6 +792,8 @@ struct GameView: View {
                         .frame(width: 44, height: 44)
                         .contentTransition(.symbolEffect(.replace))
                 }
+                .disabled(isCompleted)
+                .opacity(isCompleted ? 0.4 : 1.0)
             }
             .padding(.horizontal)
             .padding(.top, 10)
@@ -843,7 +877,7 @@ struct GameView: View {
                         insertion: .move(edge: .top).combined(with: .opacity),
                         removal: .move(edge: .top).combined(with: .opacity)
                     ))
-                    .onTapGesture { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { self.hintMessage = nil } }
+                    .onTapGesture { dismissHint() }
                 }
             }
 
@@ -969,9 +1003,9 @@ struct GameView: View {
                                 )
                         )
                     }
-                    .disabled(undoStack.isEmpty)
-                    .opacity(undoStack.isEmpty ? 0.5 : 1.0)
-                    
+                    .disabled(undoStack.isEmpty || isCompleted)
+                    .opacity(undoStack.isEmpty || isCompleted ? 0.5 : 1.0)
+
                     // Redo button
                     Button(action: {
                         performRedo()
@@ -994,8 +1028,8 @@ struct GameView: View {
                                 )
                         )
                     }
-                    .disabled(redoStack.isEmpty)
-                    .opacity(redoStack.isEmpty ? 0.5 : 1.0)
+                    .disabled(redoStack.isEmpty || isCompleted)
+                    .opacity(redoStack.isEmpty || isCompleted ? 0.5 : 1.0)
                 }
                 .frame(maxWidth: 280)
                 
@@ -1037,11 +1071,15 @@ struct GameView: View {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { menuOpen = false }
                         checkSolution()
                     }
+                    .disabled(isCompleted)
+                    .opacity(isCompleted ? 0.4 : 1.0)
                     Divider().padding(.horizontal, 12)
                     menuRow(icon: "plus", label: "Save Offline") {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { menuOpen = false }
                         savePuzzleToCache()
                     }
+                    .disabled(isCompleted)
+                    .opacity(isCompleted ? 0.4 : 1.0)
                     Divider().padding(.horizontal, 12)
                     menuRow(icon: "square.and.arrow.up", label: "Share") {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) { menuOpen = false }
@@ -1112,7 +1150,9 @@ struct GameView: View {
         // Otherwise, fetch from API (online mode)
         do {
             logger.debug("🎮 GameView: Calling PuzzleFetcher...")
-            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties, engine: engine)
+            // Pass the current puzzle's code so "New Game" does not hand back the
+            // board just played, which a small pool otherwise does often.
+            let loadedPuzzle = try await PuzzleFetcher.fetchPuzzle(size: puzzleSize, starsPerUnit: starsPerUnit, difficulties: difficulties, engine: engine, avoidCode: puzzle?.code)
             
             logger.info("🎮 GameView: Puzzle loaded successfully")
             self.puzzle = loadedPuzzle
@@ -1174,9 +1214,11 @@ struct GameView: View {
         hasShownHintThisSession = false
         completionHintTask?.cancel()
         hintMessage = nil
+        hintDismissTask?.cancel()
         hintCell = nil
         hintFlashTask?.cancel()
         isComputingHint = false
+        cancelHintCooldown()
         stopTimer()
         startTimer()
     }
@@ -1196,9 +1238,11 @@ struct GameView: View {
         hasShownHintThisSession = false
         completionHintTask?.cancel()
         hintMessage = nil
+        hintDismissTask?.cancel()
         hintCell = nil
         hintFlashTask?.cancel()
         isComputingHint = false
+        cancelHintCooldown()
 
         // Reset and restart the timer
         elapsedTime = 0
@@ -1593,7 +1637,11 @@ struct GameView: View {
             completionTime = elapsedTime
             stopTimer()
             isCompleted = true
-            
+            // The burger is disabled once solved, so an open menu could not be
+            // dismissed; close it. Any hint on screen is stale now too.
+            menuOpen = false
+            dismissHint()
+
             // Animate the completion
             Task {
                 // Show "Congratulations!" popping up
@@ -1640,7 +1688,11 @@ struct GameView: View {
             completionTime = elapsedTime
             stopTimer()
             isCompleted = true
-            
+            // The burger is disabled once solved, so an open menu could not be
+            // dismissed; close it. Any hint on screen is stale now too.
+            menuOpen = false
+            dismissHint()
+
             // Update cache statistics if this was an offline puzzle
             savePuzzleCompletion()
             
@@ -1719,7 +1771,7 @@ struct GameView: View {
     /// The solve runs off the main thread so the UI never freezes; the button
     /// is disabled (isComputingHint) until it returns.
     private func requestHint() {
-        guard let puzzle = puzzle, !isCompleted, !isComputingHint else { return }
+        guard let puzzle = puzzle, !isCompleted, !isComputingHint, !isHintOnCooldown else { return }
 
         // Phase 1: remove any user-placed cells that contradict the true solution.
         let wrong = cellStates.filter { pos, state in
@@ -1733,6 +1785,7 @@ struct GameView: View {
             refreshAutoCrosses()
             hintCell = nil
             setHint("Removed \(wrong.count) cell\(wrong.count > 1 ? "s" : "") that didn't match the solution. Tap Hint again for the next move.")
+            startHintCooldown()
             return
         }
 
@@ -1757,8 +1810,10 @@ struct GameView: View {
                 isComputingHint = false
                 guard let move = move else {
                     setHint("No logical next move here — you're on your own with this one!")
+                    startHintCooldown()
                     return
                 }
+                startHintCooldown()
                 saveStateForUndo()
                 let pos = GridPosition(row: move.r, column: move.c)
                 // Recorded as a user mark, not an auto one: the hint is a
@@ -1772,6 +1827,31 @@ struct GameView: View {
                 autoCheckSolution()
             }
         }
+    }
+
+    /// Lock Hint for `hintCooldown` seconds, ticking `hintCooldownRemaining`
+    /// down so the ring around the lightbulb can drain. Ticks at 1/30s because
+    /// the ring is drawn from this value, not just the whole seconds.
+    private func startHintCooldown() {
+        hintCooldownTask?.cancel()
+        hintCooldownRemaining = Self.hintCooldown
+        hintCooldownTask = Task {
+            let tick: TimeInterval = 1.0 / 30.0
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(tick))
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    hintCooldownRemaining = max(0, hintCooldownRemaining - tick)
+                }
+                if await MainActor.run(body: { hintCooldownRemaining }) <= 0 { return }
+            }
+        }
+    }
+
+    private func cancelHintCooldown() {
+        hintCooldownTask?.cancel()
+        hintCooldownTask = nil
+        hintCooldownRemaining = 0
     }
 
     /// Briefly highlight the cell a hint placed, then fade the highlight
@@ -1791,6 +1871,23 @@ struct GameView: View {
     private func setHint(_ msg: String) {
         // If a hint is already showing, briefly clear so the new one re-folds down.
         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { hintMessage = msg }
+
+        // Auto-dismiss after 10s. Each hint restarts the clock, so a newer hint
+        // is never cut short by the previous one's timer.
+        hintDismissTask?.cancel()
+        hintDismissTask = Task {
+            try? await Task.sleep(for: .seconds(Self.hintAutoDismiss))
+            guard !Task.isCancelled else { return }
+            await MainActor.run { dismissHint() }
+        }
+    }
+
+    /// Hide the hint banner and stop any pending auto-dismiss.
+    private func dismissHint() {
+        hintDismissTask?.cancel()
+        hintDismissTask = nil
+        guard hintMessage != nil else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { hintMessage = nil }
     }
 
     private func regionColorName(_ id: Int) -> String {
