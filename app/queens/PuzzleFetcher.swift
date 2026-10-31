@@ -166,16 +166,54 @@ struct PuzzleAPIResponse: Codable {
 class PuzzleFetcher {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.app.queens", category: "PuzzleFetcher")
     
+    /// How many times to re-ask when the API returns the puzzle just played.
+    ///
+    /// Selection is stateless server side (a random seek on `rand`), so a small
+    /// pool repeats often: at four puzzles a combo returns the same board
+    /// roughly every fourth request. Retrying here fixes that without the
+    /// server tracking what each player has seen.
+    ///
+    /// Bounded, and deliberately low: a combo holding a single puzzle would
+    /// otherwise retry forever, and each attempt is a real request against a
+    /// rate-limited API. After this many tries the repeat is accepted — showing
+    /// the same board beats showing an error.
+    private static let avoidRepeatAttempts = 4
+
     /// Fetch a puzzle from the API using configuration.
     ///
     /// `engine` picks the style. Passing nil sends no engine param, which the API
     /// treats as Original only — the behaviour every release before styles relied
     /// on, and the right thing whenever the catalogue is unavailable.
+    ///
+    /// `avoidCode` is the puzzle just played; the fetch retries a few times to
+    /// get something else before giving up and allowing the repeat.
     static func fetchPuzzle(
         size: Int = 6,
         starsPerUnit: Int = 1,
         difficulties: Set<String> = [],
-        engine: String? = nil
+        engine: String? = nil,
+        avoidCode: String? = nil
+    ) async throws -> StarBattlePuzzle {
+        var last: StarBattlePuzzle?
+        for attempt in 1...avoidRepeatAttempts {
+            let puzzle = try await fetchOne(
+                size: size, starsPerUnit: starsPerUnit,
+                difficulties: difficulties, engine: engine
+            )
+            last = puzzle
+            guard let avoidCode, puzzle.code == avoidCode else { return puzzle }
+            logger.info("🔁 Same puzzle as last time (\(avoidCode)); retry \(attempt)/\(avoidRepeatAttempts)")
+        }
+        // Every attempt came back the same, so the pool is effectively one board
+        // for these filters. Use it rather than failing.
+        return last!
+    }
+
+    private static func fetchOne(
+        size: Int,
+        starsPerUnit: Int,
+        difficulties: Set<String>,
+        engine: String?
     ) async throws -> StarBattlePuzzle {
         logger.info("🎯 Starting puzzle fetch process")
 

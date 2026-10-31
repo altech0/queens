@@ -185,6 +185,9 @@ export default function Home() {
     forEngine: string = engine,
     forDifficulties: string[] = difficulties,
   ) => {
+    // Captured before the board is cleared below, so the fetch can ask for
+    // something other than the puzzle just played.
+    const previousCode = puzzle?.code
     setLoading(true)
     setError(null)
     stopTimer()
@@ -207,6 +210,7 @@ export default function Home() {
         starsFor(styles, forEngine, gridSize),
         forEngine,
         forDifficulties,
+        previousCode,
       )
       setPuzzle(p)
       setCells(Array.from({ length: p.gridSize }, () => Array(p.gridSize).fill('empty')))
@@ -217,7 +221,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [stopTimer, engine, styles, difficulties])
+  }, [stopTimer, engine, styles, difficulties, puzzle])
 
   const handleCellClick = useCallback((row: number, col: number) => {
     if (!puzzle || completed) return
